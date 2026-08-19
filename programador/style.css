@@ -6,12 +6,13 @@ header h1 { margin: 0; font-size: 20px; }
 .toolbar input { padding: 8px; border-radius: 6px; border: 1px solid #444; background: #222; color: #fff; }
 .toolbar button { padding: 8px 14px; border: none; border-radius: 6px; background: #4f46e5; color: #fff; cursor: pointer; font-weight: bold; }
 .toolbar button:hover { background: #4338ca; }
+.toolbar-label { font-size: 12px; color: #cbd5e1; font-weight: bold; }
+.toolbar-separator { width: 1px; align-self: stretch; background: #333; margin: 0 2px; }
 .bloco { padding: 16px; }
 .bloco h2 { font-size: 16px; border-bottom: 1px solid #333; padding-bottom: 6px; color: #8b9bff; }
 .grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(280px, 1fr)); gap: 12px; margin-top: 10px; }
 .card { background: #1c1d38; border: 1px solid #333; border-radius: 10px; padding: 12px; transition: all 0.2s; display: flex; flex-direction: column; justify-content: space-between; gap: 8px; }
 .card-header { display: flex; justify-content: space-between; font-weight: bold; margin-bottom: 4px; }
-.horario { color: #8b9bff; }
 .auth-buttons { display: flex; gap: 6px; margin-bottom: 8px; }
 .btn-auth { flex: 1; padding: 5px 4px; font-size: 10px; font-weight: bold; border: none; border-radius: 4px; cursor: pointer; color: #fff; text-align: center; }
 .btn-yt { background-color: #ff0000; }
@@ -38,6 +39,35 @@ header h1 { margin: 0; font-size: 20px; }
 .chk-plataforma input[type="checkbox"] { accent-color: #4f46e5; cursor: pointer; width: 13px; height: 13px; }
 .chk-plataforma input[type="checkbox"]:disabled { cursor: not-allowed; opacity: 0.4; }
 .chk-plataforma:has(input:disabled) { opacity: 0.4; }
+
+/* ---- Agendamento (data e hora) por card ---- */
+.agendamento-select { display: flex; gap: 6px; margin-bottom: 4px; }
+.input-data,
+.input-hora {
+  flex: 1;
+  min-width: 0;
+  padding: 5px 6px;
+  border-radius: 6px;
+  border: 1px solid #3a3b5c;
+  background: #14152a;
+  color: #eee;
+  font-size: 11px;
+  font-family: inherit;
+  color-scheme: dark;
+}
+.input-data:focus,
+.input-hora:focus {
+  outline: none;
+  border-color: #4f46e5;
+}
+/* Deixa os ícones nativos de calendário/relógio visíveis sobre o fundo escuro */
+.input-data::-webkit-calendar-picker-indicator,
+.input-hora::-webkit-calendar-picker-indicator {
+  filter: invert(1);
+  cursor: pointer;
+}
+#dataGlobal { color-scheme: dark; }
+#dataGlobal::-webkit-calendar-picker-indicator { filter: invert(1); cursor: pointer; }
 
 /* ---- Campo de título ---- */
 .campos-texto { display: flex; flex-direction: column; gap: 6px; }
