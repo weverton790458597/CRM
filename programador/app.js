@@ -60,6 +60,16 @@ function getCreds() {
   };
 }
 
+// Data padrão sugerida para agendamento: amanhã (evita sugerir horários de hoje que já passaram)
+function obterDataPadrao() {
+  const d = new Date();
+  d.setDate(d.getDate() + 1);
+  const ano = d.getFullYear();
+  const mes = String(d.getMonth() + 1).padStart(2, "0");
+  const dia = String(d.getDate()).padStart(2, "0");
+  return `${ano}-${mes}-${dia}`;
+}
+
 // ---------------------------------------------------------------------------
 // Montagem da interface
 // ---------------------------------------------------------------------------
@@ -72,17 +82,22 @@ function montarInterface() {
   if (document.getElementById("supaKey")) document.getElementById("supaKey").value = key;
   if (document.getElementById("adminSecret")) document.getElementById("adminSecret").value = admin;
 
+  const dataPadrao = obterDataPadrao();
+  const dataGlobalEl = document.getElementById("dataGlobal");
+  if (dataGlobalEl && !dataGlobalEl.value) dataGlobalEl.value = dataPadrao;
+
   CANAIS.forEach((c) => {
     estadoCanais[c.id] = {
       arquivo: null,
       videoUrl: null,
       titulo: "",
       plataformas: { youtube: true, instagram: true, tiktok: true },
+      agendamento: "",
     };
 
     const cardHTML = `<div class="card" id="card-${c.id}">
       <div>
-        <div class="card-header"><span>${c.nome}</span><span class="horario">${c.horario}</span></div>
+        <div class="card-header"><span>${c.nome}</span></div>
         <div class="auth-buttons">
           <button class="btn-auth btn-yt" onclick="conectarPlataforma('${c.id}', 'youtube')">YT</button>
           <button class="btn-auth btn-ig" onclick="conectarPlataforma('${c.id}', 'instagram')">IG</button>
@@ -95,6 +110,10 @@ function montarInterface() {
           <label class="chk-plataforma"><input type="checkbox" id="chk-youtube-${c.id}" disabled onchange="atualizarPlataforma('${c.id}','youtube',this.checked)"> YT</label>
           <label class="chk-plataforma"><input type="checkbox" id="chk-instagram-${c.id}" disabled onchange="atualizarPlataforma('${c.id}','instagram',this.checked)"> IG</label>
           <label class="chk-plataforma"><input type="checkbox" id="chk-tiktok-${c.id}" disabled onchange="atualizarPlataforma('${c.id}','tiktok',this.checked)"> TK</label>
+        </div>
+        <div class="agendamento-select">
+          <input type="date" class="input-data" id="data-${c.id}" value="${dataPadrao}" onchange="atualizarAgendamento('${c.id}')">
+          <input type="time" class="input-hora" id="hora-${c.id}" value="${c.horario}" onchange="atualizarAgendamento('${c.id}')">
         </div>
       </div>
       <div class="dropzone" id="dz-${c.id}"
@@ -117,6 +136,9 @@ function montarInterface() {
     if (c.faixa === "manha" && containerManha) containerManha.innerHTML += cardHTML;
     else if (containerNoite) containerNoite.innerHTML += cardHTML;
   });
+
+  // Calcula o agendamento inicial (data + hora combinados) de cada canal
+  CANAIS.forEach((c) => atualizarAgendamento(c.id));
 }
 
 // ---------------------------------------------------------------------------
@@ -145,6 +167,38 @@ function atualizarTexto(canalId, campo, valor) {
   estadoCanais[canalId][campo] = valor;
 }
 
+// Combina os inputs de data + hora do card em uma única string de agendamento (ex: 2026-08-20T11:00:00)
+function atualizarAgendamento(canalId) {
+  const dataEl = document.getElementById(`data-${canalId}`);
+  const horaEl = document.getElementById(`hora-${canalId}`);
+  if (!dataEl || !horaEl || !estadoCanais[canalId]) return;
+
+  const data = dataEl.value;
+  const hora = horaEl.value;
+  estadoCanais[canalId].agendamento = data && hora ? `${data}T${hora}:00` : "";
+}
+
+// Aplica a data selecionada no campo global a todos os cards, preservando o horário de cada um
+function aplicarDataATodos() {
+  const dataGlobalEl = document.getElementById("dataGlobal");
+  if (!dataGlobalEl || !dataGlobalEl.value) {
+    setMsg("Selecione uma data global antes de aplicar.", true);
+    return;
+  }
+
+  CANAIS.forEach((c) => {
+    const dataEl = document.getElementById(`data-${c.id}`);
+    if (dataEl) {
+      dataEl.value = dataGlobalEl.value;
+      atualizarAgendamento(c.id);
+    }
+  });
+
+  setMsg("Data aplicada a todos os canais!");
+}
+
+// Aplica o status de conexão de uma plataforma a um canal: habilita/desabilita
+// o checkbox e, ao detectar uma conexão nova (ou a primeira carga), marca por padrão.
 function aplicarStatusConexao(canalId, platform, conectado) {
   const cb = document.getElementById(`chk-${platform}-${canalId}`);
   if (!cb) return;
@@ -154,6 +208,7 @@ function aplicarStatusConexao(canalId, platform, conectado) {
   cb.dataset.conectado = conectado ? "1" : "0";
 
   if (conectado && !eraConectado) {
+    // Recém-conectado (ou primeira checagem) -> marca por padrão
     cb.checked = true;
     estadoCanais[canalId].plataformas[platform] = true;
   } else if (!conectado) {
@@ -162,6 +217,7 @@ function aplicarStatusConexao(canalId, platform, conectado) {
   }
 }
 
+// Marca todos os checkboxes habilitados (plataformas conectadas) de todos os canais
 function selecionarTudoGlobal() {
   let marcados = 0;
   CANAIS.forEach((c) => {
@@ -193,6 +249,7 @@ async function testarConexaoSupabase() {
     if (!resposta.ok) throw new Error(`HTTP ${resposta.status}`);
     const dados = await resposta.json();
 
+    // Monta mapa canal -> { youtube, instagram, tiktok } conectados
     const conectadoPorCanal = {};
     CANAIS.forEach((c) => {
       conectadoPorCanal[c.id] = { youtube: false, instagram: false, tiktok: false };
@@ -314,7 +371,7 @@ async function uploadVideo(canalId, file) {
 // ---------------------------------------------------------------------------
 async function tratarDropCard(e, id) {
   e.preventDefault();
-  e.stopPropagation();
+  e.stopPropagation(); // Impede de propagar para o manipulador global
   e.currentTarget.classList.remove("over");
   const files = e.dataTransfer.files;
   if (!files || files.length === 0) return;
@@ -333,6 +390,7 @@ async function processarArquivo(id, file) {
     return;
   }
 
+  // Renderização instantânea do nome no card antes do upload finalizar
   estadoCanais[id].arquivo = file.name;
   estadoCanais[id].videoUrl = null;
   atualizarVisualContainer(id);
@@ -362,6 +420,7 @@ async function processarArquivosVideo(files) {
     const f = listaArquivos[i];
     let cid = extrairCanalDoNome(f.name);
 
+    // Fallback: Se não encontrar o id no nome, atribui pela ordem dos cards
     if (!cid && CANAIS[i]) {
       cid = CANAIS[i].id;
     }
@@ -431,7 +490,7 @@ function atualizarVisualContainer(id) {
 }
 
 // ---------------------------------------------------------------------------
-// Publicação
+// Publicação (chamada de baixo nível reutilizada pelo disparo individual e em lote)
 // ---------------------------------------------------------------------------
 async function publicarPlataforma(canalId, platform) {
   const { url, key, admin } = getCreds();
@@ -444,6 +503,7 @@ async function publicarPlataforma(canalId, platform) {
     platform,
     channel_id: canalId,
     privacy_status: "private",
+    scheduled_at: st.agendamento || "",
   };
 
   const res = await fetch(`${url.replace(/\/$/, "")}/functions/v1/publish-post`, {
@@ -489,6 +549,12 @@ async function dispararCanalIndividual(canalId) {
     return;
   }
 
+  if (!st.agendamento) {
+    setCardStatus(canalId, "Selecione data e hora antes de disparar.", "erro");
+    setMsg(`Canal ${canalId}: selecione data e hora de agendamento.`, true);
+    return;
+  }
+
   const plataformasAtivas = PLATAFORMAS.filter((p) => st.plataformas[p]);
   if (plataformasAtivas.length === 0) {
     setCardStatus(canalId, "Nenhuma plataforma selecionada.", "erro");
@@ -517,7 +583,7 @@ async function dispararCanalIndividual(canalId) {
 }
 
 // ---------------------------------------------------------------------------
-// Disparar programação (lote)
+// Disparar programação (lote — respeita seleção individual de cada card)
 // ---------------------------------------------------------------------------
 async function dispararProgramacao() {
   const { url, key, admin } = getCreds();
@@ -528,10 +594,10 @@ async function dispararProgramacao() {
 
   const canaisParaDisparar = Object.keys(estadoCanais)
     .map((id) => ({ id, ...estadoCanais[id] }))
-    .filter((c) => c.videoUrl && c.titulo);
+    .filter((c) => c.videoUrl && c.titulo && c.agendamento);
 
   if (canaisParaDisparar.length === 0) {
-    setMsg("Nenhum canal possui vídeo enviado e título preenchido para disparar.");
+    setMsg("Nenhum canal possui vídeo, título e agendamento preenchidos para disparar.");
     return;
   }
 
