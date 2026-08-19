@@ -29,6 +29,8 @@ const CANAIS = [
   { id: "vibex", nome: "Vibex", faixa: "noite", horario: "19:20" },
 ];
 
+const PLATAFORMAS = ["youtube", "instagram", "tiktok"];
+
 const estadoCanais = {};
 
 // ---------------------------------------------------------------------------
@@ -40,6 +42,14 @@ function setMsg(text, isError = false) {
     el.textContent = text;
     el.style.color = isError ? "#ef4444" : "#38bdf8";
   }
+}
+
+function setCardStatus(canalId, text, tipo = "info") {
+  const el = document.getElementById(`card-status-${canalId}`);
+  if (!el) return;
+  el.textContent = text;
+  const cores = { info: "#38bdf8", ok: "#22c55e", erro: "#ef4444", aviso: "#f59e0b" };
+  el.style.color = cores[tipo] || cores.info;
 }
 
 function getCreds() {
@@ -57,13 +67,19 @@ function montarInterface() {
   const containerManha = document.getElementById("grid-manha");
   const containerNoite = document.getElementById("grid-noite");
   const { url, key, admin } = getCreds();
-  
+
   if (document.getElementById("supaUrl")) document.getElementById("supaUrl").value = url;
   if (document.getElementById("supaKey")) document.getElementById("supaKey").value = key;
   if (document.getElementById("adminSecret")) document.getElementById("adminSecret").value = admin;
 
   CANAIS.forEach((c) => {
-    estadoCanais[c.id] = { arquivo: null, titulo: null, videoUrl: null };
+    estadoCanais[c.id] = {
+      arquivo: null,
+      videoUrl: null,
+      titulo: "",
+      plataformas: { youtube: true, instagram: true, tiktok: true },
+    };
+
     const cardHTML = `<div class="card" id="card-${c.id}">
       <div>
         <div class="card-header"><span>${c.nome}</span><span class="horario">${c.horario}</span></div>
@@ -75,6 +91,11 @@ function montarInterface() {
         <div class="status">
           <span id="st-yt-${c.id}" class="err">YT</span><span id="st-ig-${c.id}" class="err">IG</span><span id="st-tk-${c.id}" class="err">TK</span>
         </div>
+        <div class="plataformas-select">
+          <label class="chk-plataforma"><input type="checkbox" id="chk-youtube-${c.id}" disabled onchange="atualizarPlataforma('${c.id}','youtube',this.checked)"> YT</label>
+          <label class="chk-plataforma"><input type="checkbox" id="chk-instagram-${c.id}" disabled onchange="atualizarPlataforma('${c.id}','instagram',this.checked)"> IG</label>
+          <label class="chk-plataforma"><input type="checkbox" id="chk-tiktok-${c.id}" disabled onchange="atualizarPlataforma('${c.id}','tiktok',this.checked)"> TK</label>
+        </div>
       </div>
       <div class="dropzone" id="dz-${c.id}"
            ondragover="event.preventDefault(); event.stopPropagation(); this.classList.add('over')"
@@ -85,7 +106,14 @@ function montarInterface() {
         <div class="detalhes-meta" id="meta-${c.id}"></div>
         <input id="single-${c.id}" type="file" accept="video/*,.json" style="display:none" onchange="tratarSelecaoCard(this, '${c.id}')">
       </div>
+      <div class="campos-texto">
+        <input type="text" class="input-titulo" id="titulo-${c.id}" placeholder="Título (usado em todas as plataformas)"
+               oninput="atualizarTexto('${c.id}','titulo',this.value)">
+      </div>
+      <button class="btn-disparar-card" onclick="dispararCanalIndividual('${c.id}')">🚀 Disparar Este Canal</button>
+      <div class="card-status" id="card-status-${c.id}"></div>
     </div>`;
+
     if (c.faixa === "manha" && containerManha) containerManha.innerHTML += cardHTML;
     else if (containerNoite) containerNoite.innerHTML += cardHTML;
   });
@@ -105,6 +133,55 @@ function salvarSupa() {
 }
 
 // ---------------------------------------------------------------------------
+// Plataformas / textos por card
+// ---------------------------------------------------------------------------
+function atualizarPlataforma(canalId, platform, checked) {
+  if (!estadoCanais[canalId]) return;
+  estadoCanais[canalId].plataformas[platform] = checked;
+}
+
+function atualizarTexto(canalId, campo, valor) {
+  if (!estadoCanais[canalId]) return;
+  estadoCanais[canalId][campo] = valor;
+}
+
+// Aplica o status de conexão de uma plataforma a um canal: habilita/desabilita
+// o checkbox e, ao detectar uma conexão nova (ou a primeira carga), marca por padrão.
+function aplicarStatusConexao(canalId, platform, conectado) {
+  const cb = document.getElementById(`chk-${platform}-${canalId}`);
+  if (!cb) return;
+
+  const eraConectado = cb.dataset.conectado === "1";
+  cb.disabled = !conectado;
+  cb.dataset.conectado = conectado ? "1" : "0";
+
+  if (conectado && !eraConectado) {
+    // Recém-conectado (ou primeira checagem) -> marca por padrão
+    cb.checked = true;
+    estadoCanais[canalId].plataformas[platform] = true;
+  } else if (!conectado) {
+    cb.checked = false;
+    estadoCanais[canalId].plataformas[platform] = false;
+  }
+}
+
+// Marca todos os checkboxes habilitados (plataformas conectadas) de todos os canais
+function selecionarTudoGlobal() {
+  let marcados = 0;
+  CANAIS.forEach((c) => {
+    PLATAFORMAS.forEach((p) => {
+      const cb = document.getElementById(`chk-${p}-${c.id}`);
+      if (cb && !cb.disabled) {
+        cb.checked = true;
+        estadoCanais[c.id].plataformas[p] = true;
+        marcados++;
+      }
+    });
+  });
+  setMsg(marcados > 0 ? "Todas as plataformas conectadas foram selecionadas!" : "Nenhuma plataforma conectada para selecionar.");
+}
+
+// ---------------------------------------------------------------------------
 // Testar conexão
 // ---------------------------------------------------------------------------
 async function testarConexaoSupabase() {
@@ -120,28 +197,33 @@ async function testarConexaoSupabase() {
     if (!resposta.ok) throw new Error(`HTTP ${resposta.status}`);
     const dados = await resposta.json();
 
+    // Monta mapa canal -> { youtube, instagram, tiktok } conectados
+    const conectadoPorCanal = {};
     CANAIS.forEach((c) => {
-      const yt = document.getElementById(`st-yt-${c.id}`);
-      const ig = document.getElementById(`st-ig-${c.id}`);
-      const tk = document.getElementById(`st-tk-${c.id}`);
-      if (yt) yt.className = "err";
-      if (ig) ig.className = "err";
-      if (tk) tk.className = "err";
+      conectadoPorCanal[c.id] = { youtube: false, instagram: false, tiktok: false };
     });
 
     dados.forEach((row) => {
       const cid = (row.canal_id || "").toLowerCase();
-      const canal = CANAIS.find((c) => c.id === cid);
-      if (!canal) return;
-      const temToken = !!row.conectado;
-      
-      const yt = document.getElementById(`st-yt-${canal.id}`);
-      const ig = document.getElementById(`st-ig-${canal.id}`);
-      const tk = document.getElementById(`st-tk-${canal.id}`);
+      if (!conectadoPorCanal[cid]) return;
+      if (row.provider in conectadoPorCanal[cid]) {
+        conectadoPorCanal[cid][row.provider] = !!row.conectado;
+      }
+    });
 
-      if (row.provider === "youtube" && temToken && yt) yt.className = "ok";
-      if (row.provider === "instagram" && temToken && ig) ig.className = "ok";
-      if (row.provider === "tiktok" && temToken && tk) tk.className = "ok";
+    CANAIS.forEach((c) => {
+      const conn = conectadoPorCanal[c.id];
+
+      const yt = document.getElementById(`st-yt-${c.id}`);
+      const ig = document.getElementById(`st-ig-${c.id}`);
+      const tk = document.getElementById(`st-tk-${c.id}`);
+      if (yt) yt.className = conn.youtube ? "ok" : "err";
+      if (ig) ig.className = conn.instagram ? "ok" : "err";
+      if (tk) tk.className = conn.tiktok ? "ok" : "err";
+
+      aplicarStatusConexao(c.id, "youtube", conn.youtube);
+      aplicarStatusConexao(c.id, "instagram", conn.instagram);
+      aplicarStatusConexao(c.id, "tiktok", conn.tiktok);
     });
 
     setMsg("Conectado e status atualizado!");
@@ -165,13 +247,13 @@ async function conectarPlataforma(canalId, plataforma) {
   try {
     const res = await fetch(`${url.replace(/\/$/, "")}/functions/v1/auth-${plataforma}`, {
       method: "POST",
-      headers: { 
+      headers: {
         "apikey": key,
         "Authorization": `Bearer ${key}`,
         "x-admin-secret": admin,
         "Content-Type": "application/json"
       },
-      body: JSON.stringify({ 
+      body: JSON.stringify({
         channel_id: canalId,
         redirect_to: window.location.href.split("?")[0]
       })
@@ -186,7 +268,7 @@ async function conectarPlataforma(canalId, plataforma) {
 
     if (data.url) {
       const popup = window.open(data.url, `auth_${plataforma}`, "width=600,height=700");
-      
+
       const timer = setInterval(() => {
         try {
           if (!popup || popup.closed) {
@@ -216,10 +298,10 @@ async function uploadVideo(canalId, file) {
 
   const res = await fetch(`${url.replace(/\/$/, "")}/functions/v1/upload-video`, {
     method: "POST",
-    headers: { 
+    headers: {
       "apikey": key,
       "Authorization": `Bearer ${key}`,
-      "x-admin-secret": admin 
+      "x-admin-secret": admin
     },
     body: fd,
   });
@@ -262,13 +344,16 @@ async function processarArquivo(id, file) {
   atualizarVisualContainer(id);
 
   setMsg(`Enviando vídeo para ${id}...`);
+  setCardStatus(id, "Enviando vídeo...", "info");
 
   try {
     const url = await uploadVideo(id, file);
     estadoCanais[id].videoUrl = url;
     setMsg(`Vídeo de ${id} enviado com sucesso!`);
+    setCardStatus(id, "Vídeo enviado com sucesso!", "ok");
   } catch (e) {
     setMsg(`Erro ao enviar vídeo de ${id}: ${e.message}`, true);
+    setCardStatus(id, `Erro no upload: ${e.message}`, "erro");
   } finally {
     atualizarVisualContainer(id);
   }
@@ -282,12 +367,12 @@ async function processarArquivosVideo(files) {
   for (let i = 0; i < listaArquivos.length; i++) {
     const f = listaArquivos[i];
     let cid = extrairCanalDoNome(f.name);
-    
+
     // Fallback: Se não encontrar o id no nome, atribui pela ordem dos cards
     if (!cid && CANAIS[i]) {
       cid = CANAIS[i].id;
     }
-    
+
     if (cid) await processarArquivo(cid, f);
   }
 }
@@ -298,9 +383,10 @@ function extrairCanalDoNome(nome) {
 }
 
 // ---------------------------------------------------------------------------
-// Importação de JSON
+// Importação de JSON (títulos)
 // ---------------------------------------------------------------------------
 function processarArquivoJson(file) {
+  if (!file) return;
   const reader = new FileReader();
   reader.onload = (e) => {
     try {
@@ -308,10 +394,16 @@ function processarArquivoJson(file) {
       const lista = Array.isArray(data) ? data : [data];
       lista.forEach((item) => {
         const c = CANAIS.find((c) => c.id === item.canal || c.nome === item.canal);
-        if (c) {
-          estadoCanais[c.id].titulo = item.titulo || item.title || null;
-          atualizarVisualContainer(c.id);
-        }
+        if (!c) return;
+
+        const titulo = item.titulo || item.title || item.legenda || item.caption || "";
+
+        if (titulo) estadoCanais[c.id].titulo = titulo;
+
+        const inputTitulo = document.getElementById(`titulo-${c.id}`);
+        if (inputTitulo && titulo) inputTitulo.value = titulo;
+
+        atualizarVisualContainer(c.id);
       });
       setMsg("JSON de títulos importado!");
     } catch (err) {
@@ -329,7 +421,7 @@ function atualizarVisualContainer(id) {
   const st = estadoCanais[id];
 
   if (dz) {
-    if (st.arquivo || st.titulo) {
+    if (st.arquivo) {
       dz.classList.add("cheio");
     } else {
       dz.classList.remove("cheio");
@@ -339,7 +431,6 @@ function atualizarVisualContainer(id) {
   let html = "";
   if (st.arquivo) html += `<span class="arquivo" style="display:block;font-size:12px;margin-bottom:2px;">🎬 ${st.arquivo}</span>`;
   if (st.videoUrl) html += `<span class="url-meta" style="display:block;font-size:10px;color:#38bdf8;">🔗 Enviado ao Storage</span>`;
-  if (st.titulo) html += `<span class="titulo-meta" style="display:block;font-size:11px;color:#cbd5e1;">📝 ${st.titulo}</span>`;
   if (!html) html = `<span class="dz-text">Vídeo ou JSON</span>`;
 
   const meta = document.getElementById(`meta-${id}`);
@@ -347,7 +438,93 @@ function atualizarVisualContainer(id) {
 }
 
 // ---------------------------------------------------------------------------
-// Disparar programação
+// Publicação (chamada de baixo nível reutilizada pelo disparo individual e em lote)
+// ---------------------------------------------------------------------------
+async function publicarPlataforma(canalId, platform) {
+  const { url, key, admin } = getCreds();
+  const st = estadoCanais[canalId];
+
+  const payload = {
+    video_url: st.videoUrl || "",
+    title: st.titulo || "",
+    caption: st.titulo || "",
+    platform,
+    channel_id: canalId,
+    privacy_status: "private",
+  };
+
+  const res = await fetch(`${url.replace(/\/$/, "")}/functions/v1/publish-post`, {
+    method: "POST",
+    headers: {
+      "Content-Type": "application/json",
+      apikey: key,
+      Authorization: `Bearer ${key}`,
+      "x-admin-secret": admin,
+    },
+    body: JSON.stringify(payload),
+  });
+
+  const out = await res.json().catch(() => ({}));
+  if (!res.ok || !out.ok) {
+    throw new Error(out.error || `HTTP ${res.status}`);
+  }
+  return out;
+}
+
+// ---------------------------------------------------------------------------
+// Disparo individual por card
+// ---------------------------------------------------------------------------
+async function dispararCanalIndividual(canalId) {
+  const { url, key, admin } = getCreds();
+  if (!url || !key || !admin) {
+    setMsg("Configure URL, Key e Admin Secret antes de disparar.", true);
+    return;
+  }
+
+  const st = estadoCanais[canalId];
+  if (!st) return;
+
+  if (!st.videoUrl) {
+    setCardStatus(canalId, "Envie um vídeo (upload concluído) antes de disparar.", "erro");
+    setMsg(`Canal ${canalId}: envie um vídeo antes de disparar.`, true);
+    return;
+  }
+
+  if (!st.titulo) {
+    setCardStatus(canalId, "Preencha o título antes de disparar.", "erro");
+    setMsg(`Canal ${canalId}: preencha o título.`, true);
+    return;
+  }
+
+  const plataformasAtivas = PLATAFORMAS.filter((p) => st.plataformas[p]);
+  if (plataformasAtivas.length === 0) {
+    setCardStatus(canalId, "Nenhuma plataforma selecionada.", "erro");
+    setMsg(`Canal ${canalId}: nenhuma plataforma selecionada.`, true);
+    return;
+  }
+
+  setCardStatus(canalId, "Disparando...", "info");
+  setMsg(`Disparando canal ${canalId}...`);
+
+  let sucessos = 0;
+  let erros = 0;
+  for (const platform of plataformasAtivas) {
+    try {
+      await publicarPlataforma(canalId, platform);
+      sucessos++;
+    } catch (e) {
+      erros++;
+      console.error(`Erro ${canalId}/${platform}:`, e.message);
+    }
+  }
+
+  const resumo = `${sucessos} ok / ${erros} erro(s)`;
+  setCardStatus(canalId, resumo, erros > 0 ? (sucessos > 0 ? "aviso" : "erro") : "ok");
+  setMsg(`Canal ${canalId}: ${resumo}`, erros > 0 && sucessos === 0);
+}
+
+// ---------------------------------------------------------------------------
+// Disparar programação (lote — respeita seleção individual de cada card)
 // ---------------------------------------------------------------------------
 async function dispararProgramacao() {
   const { url, key, admin } = getCreds();
@@ -356,76 +533,47 @@ async function dispararProgramacao() {
     return;
   }
 
-  let conexoes = [];
-  try {
-    const r = await fetch(`${url.replace(/\/$/, "")}/rest/v1/conexoes_canais_status?select=*`, {
-      headers: { apikey: key, Authorization: `Bearer ${key}` },
-    });
-    conexoes = await r.json();
-  } catch (e) {
-    setMsg("Erro ao ler conexões: " + e.message, true);
-    return;
-  }
-
-  const porCanal = {};
-  conexoes.forEach((row) => {
-    const cid = (row.canal_id || "").toLowerCase();
-    if (!porCanal[cid]) porCanal[cid] = new Set();
-    if (row.conectado) porCanal[cid].add(row.provider);
-  });
-
   const canaisParaDisparar = Object.keys(estadoCanais)
     .map((id) => ({ id, ...estadoCanais[id] }))
-    .filter((c) => c.videoUrl || c.titulo);
+    .filter((c) => c.videoUrl && c.titulo);
 
   if (canaisParaDisparar.length === 0) {
-    setMsg("Nenhum canal possui vídeo ou título preenchido para disparar.");
+    setMsg("Nenhum canal possui vídeo enviado e título preenchido para disparar.");
     return;
   }
 
-  const edgeUrl = `${url.replace(/\/$/, "")}/functions/v1/publish-post`;
   let sucessos = 0;
   let erros = 0;
   let totalChamadas = 0;
 
   for (const item of canaisParaDisparar) {
-    const providers = porCanal[item.id] || new Set();
-    if (providers.size === 0) {
-      setMsg(`Canal ${item.id} sem plataformas conectadas — ignorado.`, true);
+    const plataformasAtivas = PLATAFORMAS.filter((p) => item.plataformas[p]);
+
+    if (plataformasAtivas.length === 0) {
+      setCardStatus(item.id, "Nenhuma plataforma selecionada — ignorado.", "aviso");
       continue;
     }
-    for (const platform of providers) {
+
+    setCardStatus(item.id, "Disparando...", "info");
+
+    let sucessosCanal = 0;
+    let errosCanal = 0;
+
+    for (const platform of plataformasAtivas) {
       totalChamadas++;
-      const payload = {
-        video_url: item.videoUrl || "",
-        title: item.titulo || "",
-        caption: item.titulo || "",
-        platform,
-        channel_id: item.id,
-        privacy_status: "private",
-      };
       try {
-        const res = await fetch(edgeUrl, {
-          method: "POST",
-          headers: {
-            "Content-Type": "application/json",
-            apikey: key,
-            Authorization: `Bearer ${key}`,
-            "x-admin-secret": admin,
-          },
-          body: JSON.stringify(payload),
-        });
-        const out = await res.json().catch(() => ({}));
-        if (res.ok && out.ok) sucessos++;
-        else {
-          erros++;
-          console.error(`Erro ${item.id}/${platform}:`, out.error);
-        }
+        await publicarPlataforma(item.id, platform);
+        sucessos++;
+        sucessosCanal++;
       } catch (err) {
         erros++;
-        console.error(`Falha de conexão ${item.id}/${platform}:`, err);
+        errosCanal++;
+        console.error(`Falha de conexão ${item.id}/${platform}:`, err.message);
       }
     }
+
+    const resumoCanal = `${sucessosCanal} ok / ${errosCanal} erro(s)`;
+    setCardStatus(item.id, resumoCanal, errosCanal > 0 ? (sucessosCanal > 0 ? "aviso" : "erro") : "ok");
   }
 
   setMsg(`Disparo concluído! Chamadas: ${totalChamadas} | Sucessos: ${sucessos} | Erros: ${erros}`);
