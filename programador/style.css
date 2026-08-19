@@ -100,3 +100,48 @@ header h1 { margin: 0; font-size: 20px; }
 }
 .btn-disparar-card:hover { background: #1d4ed8; }
 .card-status { font-size: 11px; min-height: 14px; text-align: center; font-weight: bold; }
+
+/* ============================================================================ */
+/* Estilos para o Modal de Mapeamento Visual do Instagram (Drag and Drop)        */
+/* ============================================================================ */
+
+.ig-account-chip {
+  background: #1e293b;
+  border: 1px solid #38bdf8;
+  padding: 12px;
+  border-radius: 8px;
+  margin-bottom: 10px;
+  cursor: grab;
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  transition: transform 0.2s, background 0.2s;
+}
+
+.ig-account-chip:active {
+  cursor: grabbing;
+}
+
+.ig-account-chip:hover {
+  background: #334155;
+  transform: translateY(-2px);
+}
+
+.drop-target-canal {
+  background: #0f172a;
+  border: 2px dashed #475569;
+  padding: 12px;
+  border-radius: 8px;
+  text-align: center;
+  min-height: 75px;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  transition: all 0.3s ease;
+}
+
+.drop-target-canal.drag-over {
+  border-color: #38bdf8;
+  background: #1e293b;
+}
