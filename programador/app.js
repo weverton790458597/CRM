@@ -2,10 +2,16 @@
 // app.js — Programador de Vídeos (front-end)
 // ============================================================================
 
-// ---- Auto-fechamento do Pop-up OAuth ----
+// ---- Auto-fechamento do Pop-up OAuth / Tratamento de Retorno ----
 if (window.opener && new URLSearchParams(window.location.search).has("auth")) {
   try {
-    if (typeof window.opener.testarConexaoSupabase === "function") {
+    const params = new URLSearchParams(window.location.search);
+    const authType = params.get("auth");
+    
+    // Se for o mapeamento do Instagram, passa os dados para a janela principal e fecha
+    if (authType === "instagram_pending_map") {
+      window.opener.postMessage({ type: "instagram_pending_map", search: window.location.search }, "*");
+    } else if (typeof window.opener.testarConexaoSupabase === "function") {
       window.opener.testarConexaoSupabase();
     } else {
       window.opener.location.reload();
@@ -30,7 +36,6 @@ const CANAIS = [
 ];
 
 const PLATAFORMAS = ["youtube", "instagram", "tiktok"];
-
 const estadoCanais = {};
 
 // ---------------------------------------------------------------------------
@@ -60,7 +65,6 @@ function getCreds() {
   };
 }
 
-// Data padrão sugerida para agendamento: amanhã
 function obterDataPadrao() {
   const d = new Date();
   d.setDate(d.getDate() + 1);
@@ -227,7 +231,7 @@ function selecionarTudoGlobal() {
 }
 
 // ---------------------------------------------------------------------------
-// Testar conexão
+// Testar conexão Supabase
 // ---------------------------------------------------------------------------
 async function testarConexaoSupabase() {
   const { url, key } = getCreds();
@@ -257,7 +261,6 @@ async function testarConexaoSupabase() {
 
     CANAIS.forEach((c) => {
       const conn = conectadoPorCanal[c.id];
-
       const yt = document.getElementById(`st-yt-${c.id}`);
       const ig = document.getElementById(`st-ig-${c.id}`);
       const tk = document.getElementById(`st-tk-${c.id}`);
@@ -330,6 +333,115 @@ async function conectarPlataforma(canalId, plataforma) {
 }
 
 // ---------------------------------------------------------------------------
+// TELA DE MAPEAMENTO VISUAL (DRAG AND DROP DO INSTAGRAM)
+// ---------------------------------------------------------------------------
+function criarModalMapeamento(batchId, contas) {
+  // Remove modal existente se houver
+  const antigo = document.getElementById("modal-mapeamento-ig");
+  if (antigo) antigo.remove();
+
+  const overlay = document.createElement("div");
+  overlay.id = "modal-mapeamento-ig";
+  overlay.style.cssText = `
+    position: fixed; top: 0; left: 0; width: 100vw; height: 100vh;
+    background: rgba(0,0,0,0.85); z-index: 99999; display: flex;
+    align-items: center; justify-content: center; font-family: inherit; color: #fff;
+  `;
+
+  let contasHtml = contas.map(acc => `
+    <div class="ig-account-chip" draggable="true" ondragstart="event.dataTransfer.setData('text/plain', '${acc.ig_user_id}')" data-ig-id="${acc.ig_user_id}" style="
+      background: #1e293b; border: 1px solid #38bdf8; padding: 10px; border-radius: 8px;
+      margin-bottom: 8px; cursor: grab; display: flex; align-items: center; gap: 10px;
+    ">
+      <div style="font-weight: bold; font-size: 14px;">📷 @${acc.username || acc.ig_user_id}</div>
+    </div>
+  `).join("");
+
+  let containersHtml = CANAIS.map(c => `
+    <div class="drop-target-canal" ondragover="event.preventDefault()" ondrop="receberDropContaIG(event, '${c.id}')" style="
+      background: #0f172a; border: 2px dashed #475569; padding: 12px; border-radius: 8px;
+      text-align: center; min-height: 70px; display: flex; flex-direction: column; align-items: center; justify-content: center;
+    " id="target-ig-${c.id}">
+      <span style="font-weight: bold; color: #38bdf8; font-size: 14px;">${c.nome}</span>
+      <span style="font-size: 11px; color: #94a3b8;" class="slot-status">Arraste a conta do IG aqui</span>
+    </div>
+  `).join("");
+
+  overlay.innerHTML = `
+    <div style="background: #111827; border: 1px solid #374151; width: 900px; max-height: 90vh; border-radius: 12px; display: flex; flex-direction: column; overflow: hidden; box-shadow: 0 20px 25px -5px rgba(0,0,0,0.5);">
+      <div style="padding: 20px; border-bottom: 1px solid #374151; background: #1f2937;">
+        <h2 style="margin: 0; font-size: 18px; color: #38bdf8;">Vincular Contas do Instagram aos Canais</h2>
+        <p style="margin: 5px 0 0 0; font-size: 13px; color: #9ca3af;">Arraste cada conta do Instagram da esquerda para o seu respectivo container de canal à direita.</p>
+      </div>
+      <div style="display: flex; flex: 1; overflow: hidden; padding: 20px; gap: 20px;">
+        <div style="width: 350px; overflow-y: auto; background: #0b0f19; padding: 15px; border-radius: 8px; border: 1px solid #1f2937;">
+          <h3 style="margin-top: 0; font-size: 14px; color: #cbd5e1; border-bottom: 1px solid #1f2937; padding-bottom: 8px;">Contas do Instagram (Meta)</h3>
+          <div id="lista-chips-ig">${contasHtml}</div>
+        </div>
+        <div style="flex: 1; overflow-y: auto; display: grid; grid-template-columns: repeat(2, 1fr); gap: 12px; align-content: start; padding-right: 5px;">
+          ${containersHtml}
+        </div>
+      </div>
+      <div style="padding: 15px 20px; border-top: 1px solid #374151; background: #1f2937; display: flex; justify-content: flex-end; gap: 10px;">
+        <button onclick="concluirMapeamentoIG('${batchId}')" style="background: #22c55e; color: white; border: none; padding: 10px 20px; border-radius: 6px; font-weight: bold; cursor: pointer;">Salvar Vínculos</button>
+      </div>
+    </div>
+  `;
+
+  document.body.appendChild(overlay);
+  window._mapeamentoTempContas = contas;
+  window._mapeamentoVinculos = {}; // canalId -> ig_user_id
+}
+
+async function receberDropContaIG(event, canalId) {
+  event.preventDefault();
+  const igUserId = event.dataTransfer.getData("text/plain");
+  if (!igUserId) return;
+
+  window._mapeamentoVinculos[canalId] = igUserId;
+
+  const targetEl = document.getElementById(`target-ig-${canalId}`);
+  if (targetEl) {
+    targetEl.style.borderColor = "#22c55e";
+    targetEl.style.background = "#064e3b";
+    targetEl.querySelector(".slot-status").textContent = `Conectado: ID ${igUserId}`;
+  }
+}
+
+async function concluirMapeamentoIG(batchId) {
+  const { url, key, admin } = getCreds();
+  const vinculos = window._mapeamentoVinculos || {};
+
+  if (Object.keys(vinculos).length === 0) {
+    alert("Vincule pelo menos uma conta antes de salvar.");
+    return;
+  }
+
+  setMsg("Salvando vínculos do Instagram...");
+
+  try {
+    const res = await fetch(`${url.replace(/\/$/, "")}/functions/v1/auth-instagram/save-mappings`, {
+      method: "POST",
+      headers: {
+        "apikey": key,
+        "Authorization": `Bearer ${key}`,
+        "x-admin-secret": admin,
+        "Content-Type": "application/json"
+      },
+      body: JSON.stringify({ batch_id: batchId, mappings: vinculos })
+    });
+
+    if (!res.ok) throw new Error("Erro ao salvar vínculos no servidor.");
+
+    document.getElementById("modal-mapeamento-ig")?.remove();
+    setMsg("Contas do Instagram vinculadas com sucesso!");
+    testarConexaoSupabase();
+  } catch (e) {
+    setMsg("Erro ao salvar mapeamento: " + e.message, true);
+  }
+}
+
+// ---------------------------------------------------------------------------
 // Upload de vídeo
 // ---------------------------------------------------------------------------
 async function uploadVideo(canalId, file) {
@@ -390,8 +502,8 @@ async function processarArquivo(id, file) {
   setCardStatus(id, "Enviando vídeo...", "info");
 
   try {
-    const url = await uploadVideo(id, file);
-    estadoCanais[id].videoUrl = url;
+    const videoUrl = await uploadVideo(id, file);
+    estadoCanais[id].videoUrl = videoUrl;
     setMsg(`Vídeo de ${id} enviado com sucesso!`);
     setCardStatus(id, "Vídeo enviado com sucesso!", "ok");
   } catch (e) {
@@ -400,28 +512,6 @@ async function processarArquivo(id, file) {
   } finally {
     atualizarVisualContainer(id);
   }
-}
-
-// ---------------------------------------------------------------------------
-// Lote de vídeos
-// ---------------------------------------------------------------------------
-async function processarArquivosVideo(files) {
-  const listaArquivos = Array.from(files);
-  for (let i = 0; i < listaArquivos.length; i++) {
-    const f = listaArquivos[i];
-    let cid = extrairCanalDoNome(f.name);
-
-    if (!cid && CANAIS[i]) {
-      cid = CANAIS[i].id;
-    }
-
-    if (cid) await processarArquivo(cid, f);
-  }
-}
-
-function extrairCanalDoNome(nome) {
-  const lower = nome.toLowerCase();
-  return CANAIS.find((c) => lower.includes(c.id))?.id || null;
 }
 
 // ---------------------------------------------------------------------------
@@ -439,7 +529,6 @@ function processarArquivoJson(file) {
         if (!c) return;
 
         const titulo = item.titulo || item.title || item.legenda || item.caption || "";
-
         if (titulo) estadoCanais[c.id].titulo = titulo;
 
         const inputTitulo = document.getElementById(`titulo-${c.id}`);
@@ -455,19 +544,13 @@ function processarArquivoJson(file) {
   reader.readAsText(file);
 }
 
-// ---------------------------------------------------------------------------
-// Atualização visual do card
-// ---------------------------------------------------------------------------
 function atualizarVisualContainer(id) {
   const dz = document.getElementById(`dz-${id}`);
   const st = estadoCanais[id];
 
   if (dz) {
-    if (st.arquivo) {
-      dz.classList.add("cheio");
-    } else {
-      dz.classList.remove("cheio");
-    }
+    if (st.arquivo) dz.classList.add("cheio");
+    else dz.classList.remove("cheio");
   }
 
   let html = "";
@@ -485,7 +568,6 @@ function atualizarVisualContainer(id) {
 async function salvarAgendamentoNoBanco(canalId) {
   const { url, key } = getCreds();
   const st = estadoCanais[canalId];
-
   const plataformasAtivas = PLATAFORMAS.filter((p) => st.plataformas[p]);
 
   const payload = {
@@ -512,13 +594,9 @@ async function salvarAgendamentoNoBanco(canalId) {
     const errText = await res.text();
     throw new Error(`HTTP ${res.status}: ${errText}`);
   }
-
   return true;
 }
 
-// ---------------------------------------------------------------------------
-// Agendar canal individualmente
-// ---------------------------------------------------------------------------
 async function agendarCanalIndividual(canalId) {
   const { url, key } = getCreds();
   if (!url || !key) {
@@ -530,126 +608,61 @@ async function agendarCanalIndividual(canalId) {
   if (!st) return;
 
   if (!st.videoUrl) {
-    setCardStatus(canalId, "Envie um vídeo (upload concluído) antes de agendar.", "erro");
-    setMsg(`Canal ${canalId}: envie um vídeo antes de agendar.`, true);
+    setCardStatus(canalId, "Envie um vídeo antes de agendar.", "erro");
     return;
   }
-
   if (!st.titulo) {
     setCardStatus(canalId, "Preencha o título antes de agendar.", "erro");
-    setMsg(`Canal ${canalId}: preencha o título.`, true);
     return;
   }
-
   if (!st.agendamento) {
-    setCardStatus(canalId, "Selecione data e hora antes de agendar.", "erro");
-    setMsg(`Canal ${canalId}: selecione data e hora de agendamento.`, true);
-    return;
-  }
-
-  const plataformasAtivas = PLATAFORMAS.filter((p) => st.plataformas[p]);
-  if (plataformasAtivas.length === 0) {
-    setCardStatus(canalId, "Nenhuma plataforma selecionada.", "erro");
-    setMsg(`Canal ${canalId}: nenhuma plataforma selecionada.`, true);
+    setCardStatus(canalId, "Selecione data e hora.", "erro");
     return;
   }
 
   setCardStatus(canalId, "Agendando...", "info");
-  setMsg(`Agendando canal ${canalId}...`);
-
   try {
     await salvarAgendamentoNoBanco(canalId);
     setCardStatus(canalId, "📅 Agendado com sucesso!", "ok");
-    setMsg(`Canal ${canalId}: agendamento salvo no banco de dados!`);
   } catch (e) {
-    setCardStatus(canalId, `Erro ao agendar: ${e.message}`, "erro");
-    setMsg(`Canal ${canalId}: falha ao agendar (${e.message})`, true);
+    setCardStatus(canalId, `Erro: ${e.message}`, "erro");
   }
 }
 
-// ---------------------------------------------------------------------------
-// Agendar programacao em lote (respeita cada card)
-// ---------------------------------------------------------------------------
-async function dispararProgramacao() {
-  const { url, key } = getCreds();
-  if (!url || !key) {
-    setMsg("Configure URL e Key do Supabase antes de agendar.", true);
-    return;
-  }
-
-  const canaisParaAgendar = Object.keys(estadoCanais)
-    .map((id) => ({ id, ...estadoCanais[id] }))
-    .filter((c) => c.videoUrl && c.titulo && c.agendamento);
-
-  if (canaisParaAgendar.length === 0) {
-    setMsg("Nenhum canal possui vídeo, título e agendamento preenchidos para salvar.");
-    return;
-  }
-
-  let sucessos = 0;
-  let erros = 0;
-
-  for (const item of canaisParaAgendar) {
-    const plataformasAtivas = PLATAFORMAS.filter((p) => item.plataformas[p]);
-
-    if (plataformasAtivas.length === 0) {
-      setCardStatus(item.id, "Nenhuma plataforma selecionada — ignorado.", "aviso");
-      continue;
-    }
-
-    setCardStatus(item.id, "Agendando...", "info");
-
-    try {
-      await salvarAgendamentoNoBanco(item.id);
-      sucessos++;
-      setCardStatus(item.id, "📅 Agendado com sucesso!", "ok");
-    } catch (err) {
-      erros++;
-      setCardStatus(item.id, `Erro ao agendar: ${err.message}`, "erro");
-      console.error(`Falha ao salvar agendamento ${item.id}:`, err.message);
+// Mensagem entre abas/janelas para pegar o batch de contas do Instagram
+window.addEventListener("message", async (e) => {
+  if (e.data && e.data.type === "instagram_pending_map") {
+    const params = new URLSearchParams(e.data.search);
+    const batchId = params.get("batch_id");
+    if (batchId) {
+      const { url, key } = getCreds();
+      try {
+        const res = await fetch(`${url.replace(/\/$/, "")}/rest/v1/contas_pendentes_meta?batch_id=eq.${batchId}&select=*`, {
+          headers: { apikey: key, Authorization: `Bearer ${key}` }
+        });
+        const dados = await res.json();
+        if (dados && dados.length > 0) {
+          criarModalMapeamento(batchId, dados[0].contas);
+        }
+      } catch (err) {
+        setMsg("Erro ao carregar contas para mapeamento.", true);
+      }
     }
   }
-
-  setMsg(`Processo concluído! Agendamentos salvos: ${sucessos} | Erros: ${erros}`);
-}
-
-// ---------------------------------------------------------------------------
-// Drag global
-// ---------------------------------------------------------------------------
-window.addEventListener("dragover", (e) => {
-  e.preventDefault();
-  const drop = document.getElementById("globalDrop");
-  if (drop) drop.classList.add("active");
 });
-window.addEventListener("dragleave", (e) => {
-  const drop = document.getElementById("globalDrop");
-  if (e.relatedTarget === null && drop) drop.classList.remove("active");
-});
-window.addEventListener("drop", (e) => {
-  e.preventDefault();
-  const drop = document.getElementById("globalDrop");
-  if (drop) drop.classList.remove("active");
-  const files = e.dataTransfer.files;
-  if (!files || files.length === 0) return;
-  const first = files[0];
-  if (first.name.toLowerCase().endsWith(".json")) {
-    processarArquivoJson(first);
-  } else {
-    processarArquivosVideo(files);
+
+if (new URLSearchParams(location.search).get("auth") === "instagram_pending_map") {
+  const batchId = new URLSearchParams(location.search).get("batch_id");
+  if (batchId) {
+    getCreds().url && fetch(`${getCreds().url.replace(/\/$/, "")}/rest/v1/contas_pendentes_meta?batch_id=eq.${batchId}&select=*`, {
+      headers: { apikey: getCreds().key, Authorization: `Bearer ${getCreds().key}` }
+    }).then(r => r.json()).then(dados => {
+      if (dados && dados.length > 0) criarModalMapeamento(batchId, dados[0].contas);
+    });
   }
-});
-
-// Mensagem entre abas/janelas
-window.addEventListener("message", (e) => {
-  if (e.data && typeof e.data === "string" && e.data.startsWith("auth_")) {
-    testarConexaoSupabase();
-  }
-});
-
-if (new URLSearchParams(location.search).get("auth")) {
+} else if (new URLSearchParams(location.search).get("auth")) {
   setMsg("Conexão realizada! Atualizando status...");
   testarConexaoSupabase();
 }
 
-// ---------------------------------------------------------------------------
 montarInterface();
