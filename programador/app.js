@@ -179,7 +179,10 @@ async function conectarPlataforma(canalId, plataforma) {
         "x-admin-secret": admin,
         "Content-Type": "application/json"
       },
-      body: JSON.stringify({ channel_id: canalId })
+      body: JSON.stringify({ 
+        channel_id: canalId,
+        redirect_to: window.location.href.split("?")[0]
+      })
     });
 
     if (!res.ok) {
