@@ -237,7 +237,7 @@ async function uploadVideo(canalId, file) {
 // ---------------------------------------------------------------------------
 async function tratarDropCard(e, id) {
   e.preventDefault();
-  e.stopPropagation(); // Impede de subir para o evento global
+  e.stopPropagation(); // Impede de propagar para o manipulador global
   e.currentTarget.classList.remove("over");
   const files = e.dataTransfer.files;
   if (!files || files.length === 0) return;
@@ -255,17 +255,23 @@ async function processarArquivo(id, file) {
     processarArquivoJson(file);
     return;
   }
+
+  // Renderização instantânea do nome no card antes do upload finalizar
   estadoCanais[id].arquivo = file.name;
+  estadoCanais[id].videoUrl = null;
+  atualizarVisualContainer(id);
+
   setMsg(`Enviando vídeo para ${id}...`);
+
   try {
     const url = await uploadVideo(id, file);
     estadoCanais[id].videoUrl = url;
     setMsg(`Vídeo de ${id} enviado com sucesso!`);
   } catch (e) {
     setMsg(`Erro ao enviar vídeo de ${id}: ${e.message}`, true);
-    return;
+  } finally {
+    atualizarVisualContainer(id);
   }
-  atualizarVisualContainer(id);
 }
 
 // ---------------------------------------------------------------------------
@@ -277,7 +283,7 @@ async function processarArquivosVideo(files) {
     const f = listaArquivos[i];
     let cid = extrairCanalDoNome(f.name);
     
-    // Fallback: Se não achar pelo nome e os arquivos forem ordenados ( ex: 1.mp4, 2.mp4 )
+    // Fallback: Se não encontrar o id no nome, atribui pela ordem dos cards
     if (!cid && CANAIS[i]) {
       cid = CANAIS[i].id;
     }
@@ -320,14 +326,22 @@ function processarArquivoJson(file) {
 // ---------------------------------------------------------------------------
 function atualizarVisualContainer(id) {
   const dz = document.getElementById(`dz-${id}`);
-  if (dz) dz.classList.add("cheio");
   const st = estadoCanais[id];
+
+  if (dz) {
+    if (st.arquivo || st.titulo) {
+      dz.classList.add("cheio");
+    } else {
+      dz.classList.remove("cheio");
+    }
+  }
+
   let html = "";
-  if (st.arquivo) html += `<span class="arquivo">🎬 ${st.arquivo}</span>`;
-  if (st.videoUrl) html += `<span class="url-meta">🔗 ${st.videoUrl}</span>`;
-  if (st.titulo) html += `<span class="titulo-meta">📝 ${st.titulo}</span>`;
+  if (st.arquivo) html += `<span class="arquivo" style="display:block;font-size:12px;margin-bottom:2px;">🎬 ${st.arquivo}</span>`;
+  if (st.videoUrl) html += `<span class="url-meta" style="display:block;font-size:10px;color:#38bdf8;">🔗 Enviado ao Storage</span>`;
+  if (st.titulo) html += `<span class="titulo-meta" style="display:block;font-size:11px;color:#cbd5e1;">📝 ${st.titulo}</span>`;
   if (!html) html = `<span class="dz-text">Vídeo ou JSON</span>`;
-  
+
   const meta = document.getElementById(`meta-${id}`);
   if (meta) meta.innerHTML = html;
 }
