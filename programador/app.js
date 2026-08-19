@@ -60,7 +60,7 @@ function getCreds() {
   };
 }
 
-// Data padrão sugerida para agendamento: amanhã (evita sugerir horários de hoje que já passaram)
+// Data padrão sugerida para agendamento: amanhã
 function obterDataPadrao() {
   const d = new Date();
   d.setDate(d.getDate() + 1);
@@ -129,7 +129,7 @@ function montarInterface() {
         <input type="text" class="input-titulo" id="titulo-${c.id}" placeholder="Título (usado em todas as plataformas)"
                oninput="atualizarTexto('${c.id}','titulo',this.value)">
       </div>
-      <button class="btn-disparar-card" onclick="dispararCanalIndividual('${c.id}')">🚀 Disparar Este Canal</button>
+      <button class="btn-disparar-card" onclick="agendarCanalIndividual('${c.id}')">📅 Agendar Este Canal</button>
       <div class="card-status" id="card-status-${c.id}"></div>
     </div>`;
 
@@ -137,7 +137,6 @@ function montarInterface() {
     else if (containerNoite) containerNoite.innerHTML += cardHTML;
   });
 
-  // Calcula o agendamento inicial (data + hora combinados) de cada canal
   CANAIS.forEach((c) => atualizarAgendamento(c.id));
 }
 
@@ -167,7 +166,6 @@ function atualizarTexto(canalId, campo, valor) {
   estadoCanais[canalId][campo] = valor;
 }
 
-// Combina os inputs de data + hora do card em uma única string de agendamento (ex: 2026-08-20T11:00:00)
 function atualizarAgendamento(canalId) {
   const dataEl = document.getElementById(`data-${canalId}`);
   const horaEl = document.getElementById(`hora-${canalId}`);
@@ -178,7 +176,6 @@ function atualizarAgendamento(canalId) {
   estadoCanais[canalId].agendamento = data && hora ? `${data}T${hora}:00` : "";
 }
 
-// Aplica a data selecionada no campo global a todos os cards, preservando o horário de cada um
 function aplicarDataATodos() {
   const dataGlobalEl = document.getElementById("dataGlobal");
   if (!dataGlobalEl || !dataGlobalEl.value) {
@@ -197,8 +194,6 @@ function aplicarDataATodos() {
   setMsg("Data aplicada a todos os canais!");
 }
 
-// Aplica o status de conexão de uma plataforma a um canal: habilita/desabilita
-// o checkbox e, ao detectar uma conexão nova (ou a primeira carga), marca por padrão.
 function aplicarStatusConexao(canalId, platform, conectado) {
   const cb = document.getElementById(`chk-${platform}-${canalId}`);
   if (!cb) return;
@@ -208,7 +203,6 @@ function aplicarStatusConexao(canalId, platform, conectado) {
   cb.dataset.conectado = conectado ? "1" : "0";
 
   if (conectado && !eraConectado) {
-    // Recém-conectado (ou primeira checagem) -> marca por padrão
     cb.checked = true;
     estadoCanais[canalId].plataformas[platform] = true;
   } else if (!conectado) {
@@ -217,7 +211,6 @@ function aplicarStatusConexao(canalId, platform, conectado) {
   }
 }
 
-// Marca todos os checkboxes habilitados (plataformas conectadas) de todos os canais
 function selecionarTudoGlobal() {
   let marcados = 0;
   CANAIS.forEach((c) => {
@@ -249,7 +242,6 @@ async function testarConexaoSupabase() {
     if (!resposta.ok) throw new Error(`HTTP ${resposta.status}`);
     const dados = await resposta.json();
 
-    // Monta mapa canal -> { youtube, instagram, tiktok } conectados
     const conectadoPorCanal = {};
     CANAIS.forEach((c) => {
       conectadoPorCanal[c.id] = { youtube: false, instagram: false, tiktok: false };
@@ -371,7 +363,7 @@ async function uploadVideo(canalId, file) {
 // ---------------------------------------------------------------------------
 async function tratarDropCard(e, id) {
   e.preventDefault();
-  e.stopPropagation(); // Impede de propagar para o manipulador global
+  e.stopPropagation();
   e.currentTarget.classList.remove("over");
   const files = e.dataTransfer.files;
   if (!files || files.length === 0) return;
@@ -390,7 +382,6 @@ async function processarArquivo(id, file) {
     return;
   }
 
-  // Renderização instantânea do nome no card antes do upload finalizar
   estadoCanais[id].arquivo = file.name;
   estadoCanais[id].videoUrl = null;
   atualizarVisualContainer(id);
@@ -420,7 +411,6 @@ async function processarArquivosVideo(files) {
     const f = listaArquivos[i];
     let cid = extrairCanalDoNome(f.name);
 
-    // Fallback: Se não encontrar o id no nome, atribui pela ordem dos cards
     if (!cid && CANAIS[i]) {
       cid = CANAIS[i].id;
     }
@@ -490,47 +480,49 @@ function atualizarVisualContainer(id) {
 }
 
 // ---------------------------------------------------------------------------
-// Publicação (chamada de baixo nível reutilizada pelo disparo individual e em lote)
+// Gravação do Agendamento na tabela do Supabase (REST API)
 // ---------------------------------------------------------------------------
-async function publicarPlataforma(canalId, platform) {
-  const { url, key, admin } = getCreds();
+async function salvarAgendamentoNoBanco(canalId) {
+  const { url, key } = getCreds();
   const st = estadoCanais[canalId];
 
+  const plataformasAtivas = PLATAFORMAS.filter((p) => st.plataformas[p]);
+
   const payload = {
+    canal_id: canalId,
     video_url: st.videoUrl || "",
-    title: st.titulo || "",
-    caption: st.titulo || "",
-    platform,
-    channel_id: canalId,
-    privacy_status: "private",
-    scheduled_at: st.agendamento || "",
+    titulo: st.titulo || "",
+    plataformas: plataformasAtivas,
+    agendado_para: st.agendamento || "",
+    status: "pendente"
   };
 
-  const res = await fetch(`${url.replace(/\/$/, "")}/functions/v1/publish-post`, {
+  const res = await fetch(`${url.replace(/\/$/, "")}/rest/v1/posts_agendados`, {
     method: "POST",
     headers: {
       "Content-Type": "application/json",
-      apikey: key,
-      Authorization: `Bearer ${key}`,
-      "x-admin-secret": admin,
+      "apikey": key,
+      "Authorization": `Bearer ${key}`,
+      "Prefer": "return=minimal"
     },
     body: JSON.stringify(payload),
   });
 
-  const out = await res.json().catch(() => ({}));
-  if (!res.ok || !out.ok) {
-    throw new Error(out.error || `HTTP ${res.status}`);
+  if (!res.ok) {
+    const errText = await res.text();
+    throw new Error(`HTTP ${res.status}: ${errText}`);
   }
-  return out;
+
+  return true;
 }
 
 // ---------------------------------------------------------------------------
-// Disparo individual por card
+// Agendar canal individualmente
 // ---------------------------------------------------------------------------
-async function dispararCanalIndividual(canalId) {
-  const { url, key, admin } = getCreds();
-  if (!url || !key || !admin) {
-    setMsg("Configure URL, Key e Admin Secret antes de disparar.", true);
+async function agendarCanalIndividual(canalId) {
+  const { url, key } = getCreds();
+  if (!url || !key) {
+    setMsg("Configure URL e Key do Supabase antes de agendar.", true);
     return;
   }
 
@@ -538,19 +530,19 @@ async function dispararCanalIndividual(canalId) {
   if (!st) return;
 
   if (!st.videoUrl) {
-    setCardStatus(canalId, "Envie um vídeo (upload concluído) antes de disparar.", "erro");
-    setMsg(`Canal ${canalId}: envie um vídeo antes de disparar.`, true);
+    setCardStatus(canalId, "Envie um vídeo (upload concluído) antes de agendar.", "erro");
+    setMsg(`Canal ${canalId}: envie um vídeo antes de agendar.`, true);
     return;
   }
 
   if (!st.titulo) {
-    setCardStatus(canalId, "Preencha o título antes de disparar.", "erro");
+    setCardStatus(canalId, "Preencha o título antes de agendar.", "erro");
     setMsg(`Canal ${canalId}: preencha o título.`, true);
     return;
   }
 
   if (!st.agendamento) {
-    setCardStatus(canalId, "Selecione data e hora antes de disparar.", "erro");
+    setCardStatus(canalId, "Selecione data e hora antes de agendar.", "erro");
     setMsg(`Canal ${canalId}: selecione data e hora de agendamento.`, true);
     return;
   }
@@ -562,50 +554,42 @@ async function dispararCanalIndividual(canalId) {
     return;
   }
 
-  setCardStatus(canalId, "Disparando...", "info");
-  setMsg(`Disparando canal ${canalId}...`);
+  setCardStatus(canalId, "Agendando...", "info");
+  setMsg(`Agendando canal ${canalId}...`);
 
-  let sucessos = 0;
-  let erros = 0;
-  for (const platform of plataformasAtivas) {
-    try {
-      await publicarPlataforma(canalId, platform);
-      sucessos++;
-    } catch (e) {
-      erros++;
-      console.error(`Erro ${canalId}/${platform}:`, e.message);
-    }
+  try {
+    await salvarAgendamentoNoBanco(canalId);
+    setCardStatus(canalId, "📅 Agendado com sucesso!", "ok");
+    setMsg(`Canal ${canalId}: agendamento salvo no banco de dados!`);
+  } catch (e) {
+    setCardStatus(canalId, `Erro ao agendar: ${e.message}`, "erro");
+    setMsg(`Canal ${canalId}: falha ao agendar (${e.message})`, true);
   }
-
-  const resumo = `${sucessos} ok / ${erros} erro(s)`;
-  setCardStatus(canalId, resumo, erros > 0 ? (sucessos > 0 ? "aviso" : "erro") : "ok");
-  setMsg(`Canal ${canalId}: ${resumo}`, erros > 0 && sucessos === 0);
 }
 
 // ---------------------------------------------------------------------------
-// Disparar programação (lote — respeita seleção individual de cada card)
+// Agendar programacao em lote (respeita cada card)
 // ---------------------------------------------------------------------------
 async function dispararProgramacao() {
-  const { url, key, admin } = getCreds();
-  if (!url || !key || !admin) {
-    setMsg("Configure URL, Key e Admin Secret antes de disparar.", true);
+  const { url, key } = getCreds();
+  if (!url || !key) {
+    setMsg("Configure URL e Key do Supabase antes de agendar.", true);
     return;
   }
 
-  const canaisParaDisparar = Object.keys(estadoCanais)
+  const canaisParaAgendar = Object.keys(estadoCanais)
     .map((id) => ({ id, ...estadoCanais[id] }))
     .filter((c) => c.videoUrl && c.titulo && c.agendamento);
 
-  if (canaisParaDisparar.length === 0) {
-    setMsg("Nenhum canal possui vídeo, título e agendamento preenchidos para disparar.");
+  if (canaisParaAgendar.length === 0) {
+    setMsg("Nenhum canal possui vídeo, título e agendamento preenchidos para salvar.");
     return;
   }
 
   let sucessos = 0;
   let erros = 0;
-  let totalChamadas = 0;
 
-  for (const item of canaisParaDisparar) {
+  for (const item of canaisParaAgendar) {
     const plataformasAtivas = PLATAFORMAS.filter((p) => item.plataformas[p]);
 
     if (plataformasAtivas.length === 0) {
@@ -613,29 +597,20 @@ async function dispararProgramacao() {
       continue;
     }
 
-    setCardStatus(item.id, "Disparando...", "info");
+    setCardStatus(item.id, "Agendando...", "info");
 
-    let sucessosCanal = 0;
-    let errosCanal = 0;
-
-    for (const platform of plataformasAtivas) {
-      totalChamadas++;
-      try {
-        await publicarPlataforma(item.id, platform);
-        sucessos++;
-        sucessosCanal++;
-      } catch (err) {
-        erros++;
-        errosCanal++;
-        console.error(`Falha de conexão ${item.id}/${platform}:`, err.message);
-      }
+    try {
+      await salvarAgendamentoNoBanco(item.id);
+      sucessos++;
+      setCardStatus(item.id, "📅 Agendado com sucesso!", "ok");
+    } catch (err) {
+      erros++;
+      setCardStatus(item.id, `Erro ao agendar: ${err.message}`, "erro");
+      console.error(`Falha ao salvar agendamento ${item.id}:`, err.message);
     }
-
-    const resumoCanal = `${sucessosCanal} ok / ${errosCanal} erro(s)`;
-    setCardStatus(item.id, resumoCanal, errosCanal > 0 ? (sucessosCanal > 0 ? "aviso" : "erro") : "ok");
   }
 
-  setMsg(`Disparo concluído! Chamadas: ${totalChamadas} | Sucessos: ${sucessos} | Erros: ${erros}`);
+  setMsg(`Processo concluído! Agendamentos salvos: ${sucessos} | Erros: ${erros}`);
 }
 
 // ---------------------------------------------------------------------------
