@@ -1,0 +1,43 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Programador de Vídeos - 11 Canais</title>
+<link rel="stylesheet" href="style.css">
+</head>
+<body>
+
+<header>
+  <h1>Programador de Vídeos — 11 Canais</h1>
+  <span id="msg">Pronto para uso</span>
+</header>
+
+<div class="toolbar">
+  <input id="supaUrl" placeholder="Supabase URL" size="22">
+  <input id="supaKey" placeholder="Supabase Anon Key" size="22">
+  <input id="adminSecret" placeholder="Admin Secret" size="18">
+  <button onclick="salvarSupa()">Salvar Credenciais</button>
+  <button onclick="testarConexaoSupabase()">Testar Conexão</button>
+  <button onclick="document.getElementById('fileInput').click()">Vídeos (Lote)</button>
+  <button onclick="document.getElementById('jsonInput').click()" style="background: #059669;">Importar JSON (Títulos)</button>
+  <button onclick="dispararProgramacao()" style="background: #2563eb;">Disparar Programação</button>
+  <input id="fileInput" type="file" accept="video/*" multiple style="display:none" onchange="processarArquivosVideo(this.files)">
+  <input id="jsonInput" type="file" accept=".json" style="display:none" onchange="processarArquivoJson(this.files[0])">
+</div>
+
+<div id="globalDrop">Solte os vídeos ou o arquivo JSON aqui — O sistema organizará tudo!</div>
+
+<div class="bloco">
+  <h2>Bloco Manhã</h2>
+  <div class="grid" id="grid-manha"></div>
+</div>
+
+<div class="bloco">
+  <h2>Bloco Noite</h2>
+  <div class="grid" id="grid-noite"></div>
+</div>
+
+<script src="app.js"></script>
+</body>
+</html>

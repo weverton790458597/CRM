@@ -1,0 +1,301 @@
+* {
+    margin: 0;
+    padding: 0;
+    box-sizing: border-box;
+    font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+}
+
+body {
+    background-color: #0f0f12;
+    color: #e2e8f0;
+    height: 100vh;
+    overflow: hidden;
+}
+
+.app-container {
+    display: grid;
+    grid-template-columns: 400px 1fr;
+    height: 100vh;
+}
+
+.sidebar {
+    background-color: #17171c;
+    padding: 30px;
+    border-right: 1px solid #2a2a35;
+    display: flex;
+    flex-direction: column;
+    gap: 15px;
+    overflow-y: auto;
+}
+
+.sidebar h2 {
+    color: #3b82f6;
+    font-size: 24px;
+}
+
+.subtitle {
+    color: #94a3b8;
+    font-size: 13px;
+    margin-top: -10px;
+}
+
+.upload-form {
+    display: flex;
+    flex-direction: column;
+    gap: 12px;
+}
+
+.input-group {
+    display: flex;
+    flex-direction: column;
+    gap: 6px;
+}
+
+.input-group label {
+    font-size: 13px;
+    font-weight: 600;
+    color: #cbd5e1;
+}
+
+.input-group input[type="file"], 
+.input-group select,
+.input-group textarea {
+    background-color: #202029;
+    border: 1px solid #3f3f50;
+    border-radius: 6px;
+    padding: 10px;
+    color: #fff;
+    font-size: 13px;
+    outline: none;
+}
+
+.input-group select option {
+    background-color: #17171c;
+}
+
+.range-group {
+    background-color: #202029;
+    padding: 10px;
+    border-radius: 6px;
+}
+.range-group label {
+    font-size: 12px;
+    display: flex;
+    justify-content: space-between;
+}
+.range-group label span {
+    color: #3b82f6;
+    font-weight: bold;
+}
+.range-group input[type="range"] {
+    width: 100%;
+    margin-top: 5px;
+    cursor: pointer;
+}
+
+#btn-gerar {
+    background-color: #3b82f6;
+    color: white;
+    border: none;
+    border-radius: 6px;
+    padding: 12px;
+    font-weight: bold;
+    font-size: 14px;
+    cursor: pointer;
+    margin-top: 5px;
+}
+
+#btn-gerar:hover {
+    background-color: #2563eb;
+}
+
+.status-box {
+    margin-top: 15px;
+    background-color: #202029;
+    padding: 10px;
+    border-radius: 6px;
+    font-size: 12px;
+    display: flex;
+    align-items: center;
+    gap: 10px;
+}
+
+.status-dot {
+    width: 8px;
+    height: 8px;
+    background-color: #10b981;
+    border-radius: 50%;
+}
+
+.toggle-group {
+    flex-direction: row !important;
+    justify-content: space-between;
+    align-items: center;
+    background-color: #202029;
+    padding: 10px;
+    border-radius: 6px;
+}
+.switch-label { font-size: 12px !important; color: #cbd5e1; }
+.switch { position: relative; display: inline-block; width: 40px; height: 20px; }
+.switch input { opacity: 0; width: 0; height: 0; }
+.slider { position: absolute; cursor: pointer; top: 0; left: 0; right: 0; bottom: 0; background-color: #4b5563; transition: .3s; }
+.slider:before { position: absolute; content: ""; height: 14px; width: 14px; left: 3px; bottom: 3px; background-color: white; transition: .3s; }
+input:checked + .slider { background-color: #3b82f6; }
+input:checked + .slider:before { transform: translateX(20px); }
+.slider.round { border-radius: 20px; }
+.slider.round:before { border-radius: 50%; }
+.esconder-moldura { opacity: 0 !important; }
+.layer-overlay-moldura { transition: opacity 0.2s ease-in-out; }
+
+.preview-area {
+    background-color: #0b0b0d;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    padding: 20px;
+}
+
+.preview-area h3 { color: #64748b; font-size: 14px; margin-bottom: 15px; }
+
+.short-frame-canva {
+    width: 337px;
+    height: 600px;
+    position: relative;
+    border-radius: 12px;
+    overflow: hidden;
+    box-shadow: 0 25px 50px -12px rgba(0, 0, 0, 0.8);
+    background-color: #000;
+}
+
+.layer-videos-container {
+    position: absolute;
+    top: 0; left: 0; width: 100%; height: 100%;
+    display: flex;
+    z-index: 1;
+}
+
+.video-wrapper { height: 100%; position: relative; overflow: hidden; }
+
+.principal-60 {
+    width: 55%;
+    border-right: 2px solid rgba(255, 255, 255, 0.15);
+}
+.satisfatorio-40 {
+    width: 45%;
+}
+
+.layer-videos-container video { width: 100%; height: 100%; object-fit: cover; }
+
+.layer-overlay-moldura {
+    position: absolute;
+    top: 0; left: 0; width: 100%; height: 100%;
+    background-image: url('assets/moldura_canva.png');
+    background-size: cover;
+    background-position: center;
+    z-index: 2;
+    pointer-events: none;
+}
+
+/* CONTAINER PAI DO TOPO - Cobre toda a área útil superior */
+.layer-content-top {
+    position: absolute;
+    top: 0; 
+    left: 0; 
+    width: 100%;
+    height: 50%; /* Aumentado para garantir espaço de sobra na captura */
+    z-index: 10;
+    pointer-events: auto; /* Permite capturar cliques e digitação */
+}
+
+/* CONTAINER DA LOGO - Mantido na posição exata dos seus controles */
+.logo-slot-container {
+    position: absolute;
+    width: 75px; 
+    height: 75px;
+    left: -11px;
+    top: 92px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    z-index: 11;
+}
+
+.preview-logo-img { 
+    width: 100%; 
+    height: 100%; 
+    border-radius: 50%; 
+    object-fit: cover; 
+}
+
+/* ÁREA DE TEXTO CORRIGIDA COM POSICIONAMENTO EM PERCENTUAL */
+.preview-title {
+    position: absolute;
+    top: 34.5%;         /* CORREÇÃO CRÍTICA: Alinha dinamicamente com a faixa clara da moldura */
+    left: 62px;         /* Empurra o início do texto para o lado da logo */
+    width: calc(100% - 72px); /* Ocupa o restante da largura da faixa */
+    height: 48px;       /* Limita a altura para centralizar verticalmente na faixa */
+    
+    /* Centralização perfeita das palavras interativas */
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    flex-wrap: wrap;    /* Permite quebra de linha se o título for grande */
+    
+    padding: 0 8px;
+    font-size: 12px;    /* Tamanho ideal para caber bem na faixa */
+    font-weight: 800;
+    line-height: 1.1;
+    text-transform: uppercase;
+    text-align: center;
+    
+    /* Força o estado inicial a ser visível e preto puro */
+    color: #000000 !important; 
+    z-index: 12;
+    pointer-events: auto; 
+}
+
+/* ESTILO DAS PALAVRAS INTERATIVAS */
+.palavra-interativa {
+    display: inline-block;
+    margin: 0 2px;
+    cursor: pointer;
+    user-select: none;  /* Evita que o texto fique selecionado em azul no dblclick */
+    transition: color 0.1s ease;
+    color: #000000;     /* Garante a cor preta inicial para cada palavra */
+}
+
+.preview-watermark {
+    position: absolute;
+    color: rgba(255, 255, 255, 0.35);
+    font-size: 11px;
+    font-weight: bold;
+    top: 55%; left: 50%;
+    transform: translate(-50%, -50%);
+    pointer-events: none;
+    white-space: nowrap;
+    z-index: 4;
+}
+
+/* Classes de controle de cor ativadas pelo Duplo Clique */
+.c-black { color: #000000 !important; }
+.c-red { color: #e11d48 !important; }
+
+/* ESTILO DAS PALAVRAS - FORÇANDO PRETO COMO PADRÃO INICIAL */
+.palavra-interativa {
+    display: inline-block;
+    margin: 0 2px;
+    cursor: pointer;
+    user-select: none;  /* Impede que o texto fique azul/selecionado */
+    transition: color 0.1s ease;
+    color: #000000 !important; /* Sempre começa preto pura */
+}
+
+/* CLASSES DE ALTERNÂNCIA ATIVADAS PELO BOTÃO DIREITO */
+.palavra-interativa.c-red { 
+    color: #e11d48 !important; /* Vermelho vivo chamativo */
+}
+
+.palavra-interativa.c-black { 
+    color: #000000 !important; /* Força retornar para o preto */
+}
