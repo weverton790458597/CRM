@@ -1,11 +1,8 @@
 // ============================================================================
 // app.js — Programador de Vídeos (front-end)
-// Gerencia: credenciais Supabase (URL/anon/admin secret), cards de 11 canais,
-// OAuth via popup, upload real de vídeo para o Storage, importação de JSON de
-// títulos e disparo de publicação por plataforma conectada.
 // ============================================================================
 
-// ---- Auto-fechamento do Pop-up OAuth (Opção 2) ----
+// ---- Auto-fechamento do Pop-up OAuth ----
 if (window.opener && new URLSearchParams(window.location.search).has("auth")) {
   try {
     if (typeof window.opener.testarConexaoSupabase === "function") {
@@ -13,9 +10,7 @@ if (window.opener && new URLSearchParams(window.location.search).has("auth")) {
     } else {
       window.opener.location.reload();
     }
-  } catch (_) {
-    // Caso haja restrição de cross-origin no reload
-  }
+  } catch (_) {}
   window.close();
 }
 
@@ -34,7 +29,6 @@ const CANAIS = [
   { id: "vibex", nome: "Vibex", faixa: "noite", horario: "19:20" },
 ];
 
-// Estado por canal: arquivo (File), titulo, videoUrl (URL pública do Storage)
 const estadoCanais = {};
 
 // ---------------------------------------------------------------------------
@@ -83,8 +77,8 @@ function montarInterface() {
         </div>
       </div>
       <div class="dropzone" id="dz-${c.id}"
-           ondragover="event.preventDefault(); this.classList.add('over')"
-           ondragleave="this.classList.remove('over')"
+           ondragover="event.preventDefault(); event.stopPropagation(); this.classList.add('over')"
+           ondragleave="event.stopPropagation(); this.classList.remove('over')"
            ondrop="tratarDropCard(event, '${c.id}')"
            onclick="document.getElementById('single-${c.id}').click()">
         <span class="dz-text" id="dz-text-${c.id}">Vídeo ou JSON</span>
@@ -111,7 +105,7 @@ function salvarSupa() {
 }
 
 // ---------------------------------------------------------------------------
-// Testar conexão + pintar indicadores YT/IG/TK (formato longo)
+// Testar conexão
 // ---------------------------------------------------------------------------
 async function testarConexaoSupabase() {
   const { url, key } = getCreds();
@@ -126,7 +120,6 @@ async function testarConexaoSupabase() {
     if (!resposta.ok) throw new Error(`HTTP ${resposta.status}`);
     const dados = await resposta.json();
 
-    // Reseta indicadores
     CANAIS.forEach((c) => {
       const yt = document.getElementById(`st-yt-${c.id}`);
       const ig = document.getElementById(`st-ig-${c.id}`);
@@ -136,7 +129,6 @@ async function testarConexaoSupabase() {
       if (tk) tk.className = "err";
     });
 
-    // Agrupa por canal_id + provider
     dados.forEach((row) => {
       const cid = (row.canal_id || "").toLowerCase();
       const canal = CANAIS.find((c) => c.id === cid);
@@ -159,7 +151,7 @@ async function testarConexaoSupabase() {
 }
 
 // ---------------------------------------------------------------------------
-// Conexão OAuth via popup
+// Conexão OAuth
 // ---------------------------------------------------------------------------
 async function conectarPlataforma(canalId, plataforma) {
   const { url, key, admin } = getCreds();
@@ -201,7 +193,7 @@ async function conectarPlataforma(canalId, plataforma) {
             clearInterval(timer);
             testarConexaoSupabase();
           }
-        } catch (_) { /* cross-origin até voltar ao domínio local */ }
+        } catch (_) {}
       }, 1500);
     } else {
       throw new Error("URL de autenticação não retornada pela API.");
@@ -212,7 +204,7 @@ async function conectarPlataforma(canalId, plataforma) {
 }
 
 // ---------------------------------------------------------------------------
-// Upload real de vídeo para o Storage (Edge Function upload-video)
+// Upload de vídeo
 // ---------------------------------------------------------------------------
 async function uploadVideo(canalId, file) {
   const { url, key, admin } = getCreds();
@@ -245,6 +237,7 @@ async function uploadVideo(canalId, file) {
 // ---------------------------------------------------------------------------
 async function tratarDropCard(e, id) {
   e.preventDefault();
+  e.stopPropagation(); // Impede de subir para o evento global
   e.currentTarget.classList.remove("over");
   const files = e.dataTransfer.files;
   if (!files || files.length === 0) return;
@@ -263,7 +256,7 @@ async function processarArquivo(id, file) {
     return;
   }
   estadoCanais[id].arquivo = file.name;
-  setMsg(`Enviando vídeo de ${id}...`);
+  setMsg(`Enviando vídeo para ${id}...`);
   try {
     const url = await uploadVideo(id, file);
     estadoCanais[id].videoUrl = url;
@@ -276,11 +269,19 @@ async function processarArquivo(id, file) {
 }
 
 // ---------------------------------------------------------------------------
-// Lote de vídeos (input do toolbar)
+// Lote de vídeos
 // ---------------------------------------------------------------------------
 async function processarArquivosVideo(files) {
-  for (const f of Array.from(files)) {
-    const cid = extrairCanalDoNome(f.name);
+  const listaArquivos = Array.from(files);
+  for (let i = 0; i < listaArquivos.length; i++) {
+    const f = listaArquivos[i];
+    let cid = extrairCanalDoNome(f.name);
+    
+    // Fallback: Se não achar pelo nome e os arquivos forem ordenados ( ex: 1.mp4, 2.mp4 )
+    if (!cid && CANAIS[i]) {
+      cid = CANAIS[i].id;
+    }
+    
     if (cid) await processarArquivo(cid, f);
   }
 }
@@ -291,7 +292,7 @@ function extrairCanalDoNome(nome) {
 }
 
 // ---------------------------------------------------------------------------
-// Importação de JSON de títulos
+// Importação de JSON
 // ---------------------------------------------------------------------------
 function processarArquivoJson(file) {
   const reader = new FileReader();
@@ -332,7 +333,7 @@ function atualizarVisualContainer(id) {
 }
 
 // ---------------------------------------------------------------------------
-// Disparar programação — uma chamada publish-post por plataforma conectada
+// Disparar programação
 // ---------------------------------------------------------------------------
 async function dispararProgramacao() {
   const { url, key, admin } = getCreds();
