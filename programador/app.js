@@ -145,8 +145,6 @@ function atualizarTexto(canalId, campo, valor) {
   estadoCanais[canalId][campo] = valor;
 }
 
-// Aplica o status de conexão de uma plataforma a um canal: habilita/desabilita
-// o checkbox e, ao detectar uma conexão nova (ou a primeira carga), marca por padrão.
 function aplicarStatusConexao(canalId, platform, conectado) {
   const cb = document.getElementById(`chk-${platform}-${canalId}`);
   if (!cb) return;
@@ -156,7 +154,6 @@ function aplicarStatusConexao(canalId, platform, conectado) {
   cb.dataset.conectado = conectado ? "1" : "0";
 
   if (conectado && !eraConectado) {
-    // Recém-conectado (ou primeira checagem) -> marca por padrão
     cb.checked = true;
     estadoCanais[canalId].plataformas[platform] = true;
   } else if (!conectado) {
@@ -165,7 +162,6 @@ function aplicarStatusConexao(canalId, platform, conectado) {
   }
 }
 
-// Marca todos os checkboxes habilitados (plataformas conectadas) de todos os canais
 function selecionarTudoGlobal() {
   let marcados = 0;
   CANAIS.forEach((c) => {
@@ -197,7 +193,6 @@ async function testarConexaoSupabase() {
     if (!resposta.ok) throw new Error(`HTTP ${resposta.status}`);
     const dados = await resposta.json();
 
-    // Monta mapa canal -> { youtube, instagram, tiktok } conectados
     const conectadoPorCanal = {};
     CANAIS.forEach((c) => {
       conectadoPorCanal[c.id] = { youtube: false, instagram: false, tiktok: false };
@@ -319,7 +314,7 @@ async function uploadVideo(canalId, file) {
 // ---------------------------------------------------------------------------
 async function tratarDropCard(e, id) {
   e.preventDefault();
-  e.stopPropagation(); // Impede de propagar para o manipulador global
+  e.stopPropagation();
   e.currentTarget.classList.remove("over");
   const files = e.dataTransfer.files;
   if (!files || files.length === 0) return;
@@ -338,7 +333,6 @@ async function processarArquivo(id, file) {
     return;
   }
 
-  // Renderização instantânea do nome no card antes do upload finalizar
   estadoCanais[id].arquivo = file.name;
   estadoCanais[id].videoUrl = null;
   atualizarVisualContainer(id);
@@ -368,7 +362,6 @@ async function processarArquivosVideo(files) {
     const f = listaArquivos[i];
     let cid = extrairCanalDoNome(f.name);
 
-    // Fallback: Se não encontrar o id no nome, atribui pela ordem dos cards
     if (!cid && CANAIS[i]) {
       cid = CANAIS[i].id;
     }
@@ -438,7 +431,7 @@ function atualizarVisualContainer(id) {
 }
 
 // ---------------------------------------------------------------------------
-// Publicação (chamada de baixo nível reutilizada pelo disparo individual e em lote)
+// Publicação
 // ---------------------------------------------------------------------------
 async function publicarPlataforma(canalId, platform) {
   const { url, key, admin } = getCreds();
@@ -524,7 +517,7 @@ async function dispararCanalIndividual(canalId) {
 }
 
 // ---------------------------------------------------------------------------
-// Disparar programação (lote — respeita seleção individual de cada card)
+// Disparar programação (lote)
 // ---------------------------------------------------------------------------
 async function dispararProgramacao() {
   const { url, key, admin } = getCreds();
