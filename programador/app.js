@@ -5,6 +5,20 @@
 // títulos e disparo de publicação por plataforma conectada.
 // ============================================================================
 
+// ---- Auto-fechamento do Pop-up OAuth (Opção 2) ----
+if (window.opener && new URLSearchParams(window.location.search).has("auth")) {
+  try {
+    if (typeof window.opener.testarConexaoSupabase === "function") {
+      window.opener.testarConexaoSupabase();
+    } else {
+      window.opener.location.reload();
+    }
+  } catch (_) {
+    // Caso haja restrição de cross-origin no reload
+  }
+  window.close();
+}
+
 // ---- Lista fixa de canais (6 manhã, 5 noite) ----
 const CANAIS = [
   { id: "alvox", nome: "Alvox", faixa: "manha", horario: "11:00" },
@@ -425,12 +439,13 @@ window.addEventListener("drop", (e) => {
   }
 });
 
-// Atualiza indicadores caso o popup tenha voltado com ?auth=... na mesma aba
+// Mensagem entre abas/janelas
 window.addEventListener("message", (e) => {
   if (e.data && typeof e.data === "string" && e.data.startsWith("auth_")) {
     testarConexaoSupabase();
   }
 });
+
 if (new URLSearchParams(location.search).get("auth")) {
   setMsg("Conexão realizada! Atualizando status...");
   testarConexaoSupabase();
