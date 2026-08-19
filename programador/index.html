@@ -20,6 +20,10 @@
   <button onclick="document.getElementById('fileInput').click()">Vídeos (Lote)</button>
   <button onclick="document.getElementById('jsonInput').click()" style="background: #059669;">Importar JSON (Títulos)</button>
   <button onclick="selecionarTudoGlobal()" style="background: #7c3aed;">Selecionar Todos os Canais/Redes</button>
+  <span class="toolbar-separator"></span>
+  <label class="toolbar-label" for="dataGlobal">Data:</label>
+  <input type="date" id="dataGlobal">
+  <button onclick="aplicarDataATodos()" style="background: #0891b2;">📅 Aplicar Data a Todos</button>
   <button onclick="dispararProgramacao()" style="background: #2563eb;">Disparar Programação</button>
   <input id="fileInput" type="file" accept="video/*" multiple style="display:none" onchange="processarArquivosVideo(this.files)">
   <input id="jsonInput" type="file" accept=".json" style="display:none" onchange="processarArquivoJson(this.files[0])">
