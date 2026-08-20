@@ -30,20 +30,40 @@ const CANAIS = [
 const PLATAFORMAS = ["youtube", "instagram", "tiktok"];
 const estadoCanais = {};
 
+/* ---- Paleta de status usada por setMsg / setCardStatus (alinhada ao style.css) ---- */
+const CORES = { info: "#22d3ee", ok: "#34d399", erro: "#fb7185", aviso: "#fbbf24" };
+
+/* ---- Biblioteca de ícones SVG inline usada por todo o conteúdo gerado via JS ---- */
+const ICONS = {
+  rocket: '<svg class="icon" viewBox="0 0 24 24"><path d="M12 2.5c2.6 2 4.2 5.1 4.2 8.6 0 2-.6 3.9-1.7 5.5l-2.5 3-2.5-3a9.4 9.4 0 0 1-1.7-5.5c0-3.5 1.6-6.6 4.2-8.6z"/><circle cx="12" cy="10.5" r="1.7"/><path d="M8.7 16.3L6 18l.6-3"/><path d="M15.3 16.3L18 18l-.6-3"/></svg>',
+  camera: '<svg class="icon" viewBox="0 0 24 24"><path d="M4 8h3.2l1.8-2h6l1.8 2H20v11H4z"/><circle cx="12" cy="13.5" r="3.3"/></svg>',
+  save: '<svg class="icon" viewBox="0 0 24 24"><path d="M4 4h12l4 4v12H4z"/><path d="M8 4v5h7V4"/><path d="M7 20v-7h10v7"/></svg>',
+  film: '<svg class="icon icon-sm" viewBox="0 0 24 24"><rect x="3" y="4" width="18" height="16" rx="2"/><line x1="7" y1="4" x2="7" y2="20"/><line x1="17" y1="4" x2="17" y2="20"/><line x1="3" y1="9" x2="7" y2="9"/><line x1="3" y1="15" x2="7" y2="15"/><line x1="17" y1="9" x2="21" y2="9"/><line x1="17" y1="15" x2="21" y2="15"/></svg>',
+  link: '<svg class="icon icon-sm" viewBox="0 0 24 24"><path d="M9.5 14.5l5-5"/><path d="M8 11.5l-2 2a3 3 0 0 0 4.2 4.2l2-2"/><path d="M16 12.5l2-2a3 3 0 0 0-4.2-4.2l-2 2"/></svg>',
+  paperclip: '<svg class="icon icon-lg icon-default" viewBox="0 0 24 24"><path d="M17.5 9L10 16.5a2.8 2.8 0 0 1-4-4L13.5 5a4.2 4.2 0 1 1 6 6L11 19.5a5.6 5.6 0 1 1-8-8"/></svg>',
+  check: '<svg class="icon icon-lg icon-success" viewBox="0 0 24 24"><polyline points="4 12.5 9 17.5 20 6"/></svg>',
+  checkCircle: '<svg class="icon" viewBox="0 0 24 24"><circle cx="12" cy="12" r="9"/><polyline points="8 12.5 11 15.5 16 9.5"/></svg>',
+  xCircle: '<svg class="icon" viewBox="0 0 24 24"><circle cx="12" cy="12" r="9"/><line x1="9" y1="9" x2="15" y2="15"/><line x1="15" y1="9" x2="9" y2="15"/></svg>',
+  alert: '<svg class="icon" viewBox="0 0 24 24"><path d="M12 3.5l9.5 16.5H2.5z"/><line x1="12" y1="9.5" x2="12" y2="14"/><circle cx="12" cy="16.8" r=".6" fill="currentColor" stroke="none"/></svg>',
+  loader: '<svg class="icon icon-spin" viewBox="0 0 24 24"><circle cx="12" cy="12" r="9" stroke-dasharray="40 16"/></svg>',
+};
+
+/* ---- Ícone correspondente a cada "tipo" usado em setMsg / setCardStatus ---- */
+const ICONE_TIPO = { info: ICONS.loader, ok: ICONS.checkCircle, erro: ICONS.xCircle, aviso: ICONS.alert };
+
 function setMsg(text, isError = false) {
   const el = document.getElementById("msg");
-  if (el) {
-    el.textContent = text;
-    el.style.color = isError ? "#ef4444" : "#38bdf8";
-  }
+  if (!el) return;
+  el.innerHTML = `${isError ? ICONE_TIPO.erro : ICONE_TIPO.info}<span>${text}</span>`;
+  el.style.color = isError ? CORES.erro : CORES.info;
 }
 
 function setCardStatus(canalId, text, tipo = "info") {
   const el = document.getElementById(`card-status-${canalId}`);
   if (!el) return;
-  el.textContent = text;
-  const cores = { info: "#38bdf8", ok: "#22c55e", erro: "#ef4444", aviso: "#f59e0b" };
-  el.style.color = cores[tipo] || cores.info;
+  if (!text) { el.innerHTML = ""; return; }
+  el.innerHTML = `${ICONE_TIPO[tipo] || ICONE_TIPO.info}<span>${text}</span>`;
+  el.style.color = CORES[tipo] || CORES.info;
 }
 
 function getCreds() {
@@ -61,6 +81,38 @@ function obterDataPadrao() {
   const mes = String(d.getMonth() + 1).padStart(2, "0");
   const dia = String(d.getDate()).padStart(2, "0");
   return `${ano}-${mes}-${dia}`;
+}
+
+/* ---------------------------------------------------------------------------
+   Relógio do cabeçalho (puramente decorativo, não interfere na lógica)
+--------------------------------------------------------------------------- */
+function iniciarRelogio() {
+  const el = document.getElementById("liveClock");
+  if (!el) return;
+  const tick = () => {
+    el.textContent = new Date().toLocaleTimeString("pt-BR", { hour12: false });
+  };
+  tick();
+  setInterval(tick, 1000);
+}
+
+/* ---------------------------------------------------------------------------
+   Trilho de lançamento — mapeia visualmente o horário real de cada canal
+--------------------------------------------------------------------------- */
+function renderizarTrilho(faixa, containerId) {
+  const el = document.getElementById(containerId);
+  if (!el) return;
+  const canaisDaFaixa = CANAIS.filter((c) => c.faixa === faixa);
+  el.innerHTML = canaisDaFaixa
+    .map(
+      (c) => `
+    <div class="launch-beacon" title="${c.nome} agenda-se às ${c.horario}">
+      <span class="beacon-time">${c.horario}</span>
+      <span class="beacon-dot"></span>
+      <span class="beacon-name">${c.nome}</span>
+    </div>`
+    )
+    .join("");
 }
 
 function montarInterface() {
@@ -87,7 +139,7 @@ function montarInterface() {
 
     const cardHTML = `<div class="card" id="card-${c.id}">
       <div>
-        <div class="card-header"><span>${c.nome}</span></div>
+        <div class="card-header"><span>${c.nome}</span><span class="canal-slot">${c.horario}</span></div>
         <div class="auth-buttons">
           <button class="btn-auth btn-yt" onclick="conectarPlataforma('${c.id}', 'youtube')">YT</button>
           <button class="btn-auth btn-ig" onclick="conectarPlataforma('${c.id}', 'instagram')">IG</button>
@@ -111,6 +163,7 @@ function montarInterface() {
             ondragleave="event.stopPropagation(); this.classList.remove('over')"
             ondrop="tratarDropCard(event, '${c.id}')"
             onclick="document.getElementById('single-${c.id}').click()">
+        <span class="dz-icon-wrap">${ICONS.paperclip}${ICONS.check}</span>
         <span class="dz-text" id="dz-text-${c.id}">Vídeo ou JSON</span>
         <div class="detalhes-meta" id="meta-${c.id}"></div>
         <input id="single-${c.id}" type="file" accept="video/*,.json" style="display:none" onchange="tratarSelecaoCard(this, '${c.id}')">
@@ -119,7 +172,7 @@ function montarInterface() {
         <input type="text" class="input-titulo" id="titulo-${c.id}" placeholder="Título (usado em todas as plataformas)"
                 oninput="atualizarTexto('${c.id}','titulo',this.value)">
       </div>
-      <button class="btn-disparar-card" onclick="agendarCanalIndividual('${c.id}')">📅 Agendar Este Canal</button>
+      <button class="btn-disparar-card" onclick="agendarCanalIndividual('${c.id}')">${ICONS.rocket} Agendar Este Canal</button>
       <div class="card-status" id="card-status-${c.id}"></div>
     </div>`;
 
@@ -128,6 +181,9 @@ function montarInterface() {
   });
 
   CANAIS.forEach((c) => atualizarAgendamento(c.id));
+  renderizarTrilho("manha", "rail-manha");
+  renderizarTrilho("noite", "rail-noite");
+  iniciarRelogio();
   inicializarGlobalDropzone();
 }
 
@@ -291,55 +347,54 @@ async function conectarPlataforma(canalId, plataforma) {
   }
 }
 
+/* ---------------------------------------------------------------------------
+   Modal de Mapeamento Visual do Instagram (Drag and Drop)
+   — mesma lógica/IDs de antes, agora estilizada 100% via classes do style.css
+--------------------------------------------------------------------------- */
 function criarModalMapeamento(batchId, contas) {
   const antigo = document.getElementById("modal-mapeamento-ig");
   if (antigo) antigo.remove();
+
   const overlay = document.createElement("div");
   overlay.id = "modal-mapeamento-ig";
-  overlay.style.cssText = `
-    position: fixed; top: 0; left: 0; width: 100vw; height: 100vh;
-    background: rgba(0,0,0,0.85); z-index: 99999; display: flex;
-    align-items: center; justify-content: center; font-family: inherit; color: #fff;
-  `;
-  let contasHtml = contas.map(acc => {
-    const idVal = acc.igUserId || acc.ig_user_id || "";
-    return `
-      <div class="ig-account-chip" draggable="true" ondragstart="event.dataTransfer.setData('text/plain', '${idVal}')" data-ig-id="${idVal}" style="
-        background: #1e293b; border: 1px solid #38bdf8; padding: 10px; border-radius: 8px;
-        margin-bottom: 8px; cursor: grab; display: flex; align-items: center; gap: 10px;
-      ">
-        <div style="font-weight: bold; font-size: 14px;">📷 @${acc.username || idVal}</div>
-      </div>
-    `;
-  }).join("");
+  overlay.className = "modal-overlay";
 
-  let containersHtml = CANAIS.map(c => `
-    <div class="drop-target-canal" ondragover="event.preventDefault()" ondrop="receberDropContaIG(event, '${c.id}')" style="
-      background: #0f172a; border: 2px dashed #475569; padding: 12px; border-radius: 8px;
-      text-align: center; min-height: 70px; display: flex; flex-direction: column; align-items: center; justify-content: center;
-    " id="target-ig-${c.id}">
-      <span style="font-weight: bold; color: #38bdf8; font-size: 14px;">${c.nome}</span>
-      <span style="font-size: 11px; color: #94a3b8;" class="slot-status">Arraste a conta do IG aqui</span>
-    </div>
-  `).join("");
+  const contasHtml = contas
+    .map((acc) => {
+      const idVal = acc.igUserId || acc.ig_user_id || "";
+      return `
+      <div class="ig-account-chip" draggable="true" ondragstart="event.dataTransfer.setData('text/plain', '${idVal}')" data-ig-id="${idVal}">
+        ${ICONS.camera}<span>@${acc.username || idVal}</span>
+      </div>`;
+    })
+    .join("");
+
+  const containersHtml = CANAIS.map(
+    (c) => `
+    <div class="drop-target-canal" id="target-ig-${c.id}"
+         ondragover="event.preventDefault(); this.classList.add('drag-over')"
+         ondragleave="this.classList.remove('drag-over')"
+         ondrop="receberDropContaIG(event, '${c.id}')">
+      <span class="target-name">${c.nome}</span>
+      <span class="slot-status">Arraste a conta do IG aqui</span>
+    </div>`
+  ).join("");
 
   overlay.innerHTML = `
-    <div style="background: #111827; border: 1px solid #374151; width: 900px; max-height: 90vh; border-radius: 12px; display: flex; flex-direction: column; overflow: hidden; box-shadow: 0 20px 25px -5px rgba(0,0,0,0.5);">
-      <div style="padding: 20px; border-bottom: 1px solid #374151; background: #1f2937;">
-        <h2 style="margin: 0; font-size: 18px; color: #38bdf8;">Vincular Contas do Instagram aos Canais</h2>
-        <p style="margin: 5px 0 0 0; font-size: 13px; color: #9ca3af;">Arraste cada conta do Instagram da esquerda para o seu respectivo container de canal à direita.</p>
+    <div class="modal-box">
+      <div class="modal-head">
+        <h2>Vincular Contas do Instagram aos Canais</h2>
+        <p>Arraste cada conta do Instagram da esquerda para o seu respectivo container de canal à direita.</p>
       </div>
-      <div style="display: flex; flex: 1; overflow: hidden; padding: 20px; gap: 20px;">
-        <div style="width: 350px; overflow-y: auto; background: #0b0f19; padding: 15px; border-radius: 8px; border: 1px solid #1f2937;">
-          <h3 style="margin-top: 0; font-size: 14px; color: #cbd5e1; border-bottom: 1px solid #1f2937; padding-bottom: 8px;">Contas do Instagram (Meta)</h3>
+      <div class="modal-body">
+        <div class="modal-col-source">
+          <h3>Contas do Instagram (Meta)</h3>
           <div id="lista-chips-ig">${contasHtml}</div>
         </div>
-        <div style="flex: 1; overflow-y: auto; display: grid; grid-template-columns: repeat(2, 1fr); gap: 12px; align-content: start; padding-right: 5px;">
-          ${containersHtml}
-        </div>
+        <div class="modal-col-targets">${containersHtml}</div>
       </div>
-      <div style="padding: 15px 20px; border-top: 1px solid #374151; background: #1f2937; display: flex; justify-content: flex-end; gap: 10px;">
-        <button onclick="concluirMapeamentoIG('${batchId}')" style="background: #22c55e; color: white; border: none; padding: 10px 20px; border-radius: 6px; font-weight: bold; cursor: pointer;">Salvar Vínculos</button>
+      <div class="modal-foot">
+        <button onclick="concluirMapeamentoIG('${batchId}')" class="btn btn-success">${ICONS.save} Salvar Vínculos</button>
       </div>
     </div>
   `;
@@ -350,13 +405,13 @@ function criarModalMapeamento(batchId, contas) {
 
 async function receberDropContaIG(event, canalId) {
   event.preventDefault();
+  const targetEl = document.getElementById(`target-ig-${canalId}`);
+  if (targetEl) targetEl.classList.remove("drag-over");
   const igUserId = event.dataTransfer.getData("text/plain");
   if (!igUserId || igUserId === "undefined") return;
   window._mapeamentoVinculos[canalId] = igUserId;
-  const targetEl = document.getElementById(`target-ig-${canalId}`);
   if (targetEl) {
-    targetEl.style.borderColor = "#22c55e";
-    targetEl.style.background = "#064e3b";
+    targetEl.classList.add("linked");
     targetEl.querySelector(".slot-status").textContent = `Conectado: ID ${igUserId}`;
   }
 }
@@ -414,16 +469,32 @@ async function uploadVideo(canalId, file) {
 }
 
 // ---------------------------------------------------------------------------
-// Drag and Drop Global e Individual corrigido
+// Drag and Drop Global e Individual
 // ---------------------------------------------------------------------------
 function inicializarGlobalDropzone() {
+  const overlay = document.getElementById("globalDrop");
+  let dragCounter = 0;
+
   window.addEventListener("dragover", (e) => {
     e.preventDefault();
   });
 
+  window.addEventListener("dragenter", (e) => {
+    if (!e.dataTransfer || !Array.from(e.dataTransfer.types || []).includes("Files")) return;
+    dragCounter++;
+    if (overlay) overlay.classList.add("active");
+  });
+
+  window.addEventListener("dragleave", () => {
+    dragCounter = Math.max(0, dragCounter - 1);
+    if (dragCounter === 0 && overlay) overlay.classList.remove("active");
+  });
+
   window.addEventListener("drop", async (e) => {
     e.preventDefault();
-    
+    dragCounter = 0;
+    if (overlay) overlay.classList.remove("active");
+
     // Se o evento ocorreu diretamente em cima de um dropzone de canal, deixe que a função específica do card trate
     if (e.target.closest && e.target.closest('.dropzone')) return;
 
@@ -461,6 +532,31 @@ async function tratarSelecaoCard(input, id) {
   if (!input.files || input.files.length === 0) return;
   await processarArquivo(id, input.files[0]);
   input.value = "";
+}
+
+/* ---------------------------------------------------------------------------
+   Vídeos em Lote (botão da toolbar) — distribui múltiplos arquivos
+   selecionados de uma vez pelos canais, na ordem em que aparecem em CANAIS.
+   Segue o mesmo critério já usado no drop global.
+--------------------------------------------------------------------------- */
+async function processarArquivosVideo(fileList) {
+  const files = Array.from(fileList || []);
+  if (files.length === 0) return;
+
+  const videos = files
+    .filter(f => f.type.startsWith("video/") || f.name.match(/\.(mp4|mov|mkv|avi|webm)$/i))
+    .sort((a, b) => a.name.localeCompare(b.name, undefined, { numeric: true, sensitivity: 'base' }));
+
+  if (videos.length === 0) {
+    setMsg("Nenhum arquivo de vídeo válido selecionado.", true);
+    return;
+  }
+
+  const total = Math.min(videos.length, CANAIS.length);
+  for (let i = 0; i < total; i++) {
+    await processarArquivo(CANAIS[i].id, videos[i]);
+  }
+  setMsg(`${total} vídeo(s) distribuído(s) automaticamente para os canais!`);
 }
 
 async function processarArquivo(id, file) {
@@ -520,8 +616,8 @@ function atualizarVisualContainer(id) {
     else dz.classList.remove("cheio");
   }
   let html = "";
-  if (st.arquivo) html += `<span class="arquivo" style="display:block;font-size:12px;margin-bottom:2px;">🎬 ${st.arquivo}</span>`;
-  if (st.videoUrl) html += `<span class="url-meta" style="display:block;font-size:10px;color:#38bdf8;">🔗 Enviado ao Storage</span>`;
+  if (st.arquivo) html += `<span class="arquivo" style="font-size:12px;">${ICONS.film}${st.arquivo}</span>`;
+  if (st.videoUrl) html += `<span class="url-meta">${ICONS.link}Enviado ao Storage</span>`;
   if (!html) html = `<span class="dz-text">Vídeo ou JSON</span>`;
   const meta = document.getElementById(`meta-${id}`);
   if (meta) meta.innerHTML = html;
@@ -579,10 +675,56 @@ async function agendarCanalIndividual(canalId) {
   setCardStatus(canalId, "Agendando...", "info");
   try {
     await salvarAgendamentoNoBanco(canalId);
-    setCardStatus(canalId, "📅 Agendado com sucesso!", "ok");
+    setCardStatus(canalId, "Agendado com sucesso!", "ok");
   } catch (e) {
     setCardStatus(canalId, `Erro: ${e.message}`, "erro");
   }
+}
+
+/* ---------------------------------------------------------------------------
+   Disparar Programação (botão da toolbar) — percorre todos os canais que já
+   têm vídeo + título + agendamento prontos e envia cada um ao Supabase,
+   reaproveitando exatamente a mesma validação/gravação do disparo individual.
+--------------------------------------------------------------------------- */
+async function dispararProgramacao() {
+  const { url, key } = getCreds();
+  if (!url || !key) {
+    setMsg("Configure URL e Key do Supabase antes de disparar.", true);
+    return;
+  }
+
+  const prontos = CANAIS.filter((c) => {
+    const st = estadoCanais[c.id];
+    return st && st.videoUrl && st.titulo && st.agendamento;
+  });
+
+  if (prontos.length === 0) {
+    setMsg("Nenhum canal está pronto (vídeo + título + data/hora) para disparo.", true);
+    return;
+  }
+
+  setMsg(`Disparando programação para ${prontos.length} canal(is)...`);
+  let sucesso = 0;
+  let falhas = 0;
+
+  for (const c of prontos) {
+    setCardStatus(c.id, "Agendando...", "info");
+    try {
+      await salvarAgendamentoNoBanco(c.id);
+      setCardStatus(c.id, "Agendado com sucesso!", "ok");
+      sucesso++;
+    } catch (e) {
+      setCardStatus(c.id, `Erro: ${e.message}`, "erro");
+      falhas++;
+    }
+  }
+
+  setMsg(
+    falhas === 0
+      ? `Programação disparada! ${sucesso} canal(is) agendado(s) com sucesso.`
+      : `Programação concluída: ${sucesso} agendado(s), ${falhas} com erro.`,
+    falhas > 0
+  );
 }
 
 window.addEventListener("message", async (e) => {
