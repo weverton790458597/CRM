@@ -3,41 +3,94 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>Programador de Vídeos - 11 Canais</title>
+<title>Centro de Controle — Programador de Vídeos · 11 Canais</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@500;600;700&family=Inter:wght@400;500;600;700&family=JetBrains+Mono:wght@400;500;700&display=swap" rel="stylesheet">
 <link rel="stylesheet" href="style.css">
 </head>
 <body>
-<header>
-  <h1>Programador de Vídeos — 11 Canais</h1>
-  <span id="msg">Pronto para uso</span>
+
+<header class="app-header">
+  <div class="brand">
+    <div class="brand-mark"><svg class="icon" viewBox="0 0 24 24"><polygon points="12 2 22 12 12 22 2 12"/></svg></div>
+    <div class="brand-text">
+      <h1>Centro de Controle</h1>
+      <span class="brand-sub">Programador Multi-Canal · 11 Frequências Ativas</span>
+    </div>
+  </div>
+  <div class="header-status">
+    <div class="status-pulse"><span class="pulse-dot"></span>Sistema Online</div>
+    <span id="liveClock" class="header-clock">--:--:--</span>
+    <span id="msg" class="header-msg">Pronto para uso</span>
+  </div>
 </header>
-<div class="toolbar">
-  <input id="supaUrl" placeholder="Supabase URL" size="22">
-  <input id="supaKey" placeholder="Supabase Anon Key" size="22">
-  <input id="adminSecret" placeholder="Admin Secret" size="18">
-  <button onclick="salvarSupa()">Salvar Credenciais</button>
-  <button onclick="testarConexaoSupabase()">Testar Conexão</button>
-  <button onclick="document.getElementById('fileInput').click()">Vídeos (Lote)</button>
-  <button onclick="document.getElementById('jsonInput').click()" style="background: #059669;">Importar JSON (Títulos)</button>
-  <button onclick="selecionarTudoGlobal()" style="background: #7c3aed;">Selecionar Todos os Canais/Redes</button>
-  <span class="toolbar-separator"></span>
-  <label class="toolbar-label" for="dataGlobal">Data:</label>
-  <input type="date" id="dataGlobal">
-  <button onclick="aplicarDataATodos()" style="background: #0891b2;">📅 Aplicar Data a Todos</button>
-  <button onclick="dispararProgramacao()" style="background: #2563eb;">Disparar Programação</button>
+
+<div class="control-panel">
+
+  <div class="control-group">
+    <span class="control-group-label">Credenciais Supabase</span>
+    <div class="control-group-row">
+      <input id="supaUrl" placeholder="Supabase URL" size="20">
+      <input id="supaKey" placeholder="Supabase Anon Key" size="20">
+      <input id="adminSecret" placeholder="Admin Secret" size="16">
+      <button onclick="salvarSupa()" class="btn btn-outline"><svg class="icon" viewBox="0 0 24 24"><path d="M4 4h12l4 4v12H4z"/><path d="M8 4v5h7V4"/><path d="M7 20v-7h10v7"/></svg> Salvar</button>
+      <button onclick="testarConexaoSupabase()" class="btn btn-cyan"><svg class="icon" viewBox="0 0 24 24"><path d="M20 11a8 8 0 1 0-2.6 6.2"/><polyline points="20 4 20 11 13 11"/></svg> Testar Conexão</button>
+    </div>
+  </div>
+
+  <div class="control-divider"></div>
+
+  <div class="control-group">
+    <span class="control-group-label">Importação em Lote</span>
+    <div class="control-group-row">
+      <button onclick="document.getElementById('fileInput').click()" class="btn btn-outline"><svg class="icon" viewBox="0 0 24 24"><rect x="3" y="4" width="18" height="16" rx="2"/><line x1="7" y1="4" x2="7" y2="20"/><line x1="17" y1="4" x2="17" y2="20"/><line x1="3" y1="9" x2="7" y2="9"/><line x1="3" y1="15" x2="7" y2="15"/><line x1="17" y1="9" x2="21" y2="9"/><line x1="17" y1="15" x2="21" y2="15"/></svg> Vídeos (Lote)</button>
+      <button onclick="document.getElementById('jsonInput').click()" class="btn btn-success"><svg class="icon" viewBox="0 0 24 24"><path d="M3 6.5A1.5 1.5 0 0 1 4.5 5H9l2 2h8.5A1.5 1.5 0 0 1 21 8.5v10A1.5 1.5 0 0 1 19.5 20h-15A1.5 1.5 0 0 1 3 18.5z"/></svg> Importar JSON (Títulos)</button>
+    </div>
+  </div>
+
+  <div class="control-divider"></div>
+
+  <div class="control-group">
+    <span class="control-group-label">Ações Globais</span>
+    <div class="control-group-row">
+      <button onclick="selecionarTudoGlobal()" class="btn btn-violet"><svg class="icon" viewBox="0 0 24 24"><circle cx="12" cy="12" r="9"/><polyline points="8 12.5 11 15.5 16 9.5"/></svg> Selecionar Todos os Canais/Redes</button>
+      <label class="toolbar-label" for="dataGlobal">Data:</label>
+      <input type="date" id="dataGlobal">
+      <button onclick="aplicarDataATodos()" class="btn btn-cyan"><svg class="icon" viewBox="0 0 24 24"><rect x="3" y="5" width="18" height="16" rx="2"/><line x1="3" y1="10" x2="21" y2="10"/><line x1="8" y1="3" x2="8" y2="7"/><line x1="16" y1="3" x2="16" y2="7"/></svg> Aplicar Data a Todos</button>
+    </div>
+  </div>
+
+  <div class="control-group control-group-fire">
+    <button onclick="dispararProgramacao()" class="btn btn-fire"><svg class="icon" viewBox="0 0 24 24"><path d="M12 2.5c2.6 2 4.2 5.1 4.2 8.6 0 2-.6 3.9-1.7 5.5l-2.5 3-2.5-3a9.4 9.4 0 0 1-1.7-5.5c0-3.5 1.6-6.6 4.2-8.6z"/><circle cx="12" cy="10.5" r="1.7"/><path d="M8.7 16.3L6 18l.6-3"/><path d="M15.3 16.3L18 18l-.6-3"/></svg> Disparar Programação</button>
+  </div>
+
   <input id="fileInput" type="file" accept="video/*" multiple style="display:none" onchange="processarArquivosVideo(this.files)">
   <input id="jsonInput" type="file" accept=".json" style="display:none" onchange="processarArquivoJson(this.files[0])">
 </div>
-<div id="globalDrop">Solte os vídeos ou o arquivo JSON aqui — O sistema organizará tudo!</div>
+
+<div id="globalDrop">Solte os vídeos ou o arquivo JSON aqui — o sistema organizará tudo!</div>
+
 <div class="bloco">
-  <h2>Bloco Manhã</h2>
+  <div class="bloco-header">
+    <span class="bloco-icon"><svg class="icon" viewBox="0 0 24 24"><circle cx="12" cy="12" r="4"/><line x1="12" y1="2.5" x2="12" y2="4.5"/><line x1="12" y1="19.5" x2="12" y2="21.5"/><line x1="2.5" y1="12" x2="4.5" y2="12"/><line x1="19.5" y1="12" x2="21.5" y2="12"/><line x1="5" y1="5" x2="6.4" y2="6.4"/><line x1="17.6" y1="17.6" x2="19" y2="19"/><line x1="5" y1="19" x2="6.4" y2="17.6"/><line x1="17.6" y1="6.4" x2="19" y2="5"/></svg></span>
+    <h2>Bloco Manhã</h2>
+    <span class="bloco-range">11:00 → 12:40</span>
+  </div>
+  <div class="launch-rail" id="rail-manha"></div>
   <div class="grid" id="grid-manha"></div>
 </div>
+
 <div class="bloco">
-  <h2>Bloco Noite</h2>
+  <div class="bloco-header">
+    <span class="bloco-icon noite"><svg class="icon" viewBox="0 0 24 24"><path d="M20 14.2A8.5 8.5 0 1 1 9.8 4a7 7 0 0 0 10.2 10.2z"/></svg></span>
+    <h2>Bloco Noite</h2>
+    <span class="bloco-range">18:00 → 19:20</span>
+  </div>
+  <div class="launch-rail noite" id="rail-noite"></div>
   <div class="grid" id="grid-noite"></div>
 </div>
+
 <script src="app.js"></script>
 </body>
 </html>
-
