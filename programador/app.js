@@ -121,10 +121,10 @@ function montarInterface() {
         </div>
       </div>
       <div class="dropzone" id="dz-${c.id}"
-           ondragover="event.preventDefault(); event.stopPropagation(); this.classList.add('over')"
-           ondragleave="event.stopPropagation(); this.classList.remove('over')"
-           ondrop="tratarDropCard(event, '${c.id}')"
-           onclick="document.getElementById('single-${c.id}').click()">
+            ondragover="event.preventDefault(); event.stopPropagation(); this.classList.add('over')"
+            ondragleave="event.stopPropagation(); this.classList.remove('over')"
+            ondrop="tratarDropCard(event, '${c.id}')"
+            onclick="document.getElementById('single-${c.id}').click()">
         <span class="dz-text" id="dz-text-${c.id}">Vídeo ou JSON</span>
         <div class="detalhes-meta" id="meta-${c.id}"></div>
         <input id="single-${c.id}" type="file" accept="video/*,.json" style="display:none" onchange="tratarSelecaoCard(this, '${c.id}')">
@@ -348,14 +348,17 @@ function criarModalMapeamento(batchId, contas) {
     align-items: center; justify-content: center; font-family: inherit; color: #fff;
   `;
 
-  let contasHtml = contas.map(acc => `
-    <div class="ig-account-chip" draggable="true" ondragstart="event.dataTransfer.setData('text/plain', '${acc.ig_user_id}')" data-ig-id="${acc.ig_user_id}" style="
-      background: #1e293b; border: 1px solid #38bdf8; padding: 10px; border-radius: 8px;
-      margin-bottom: 8px; cursor: grab; display: flex; align-items: center; gap: 10px;
-    ">
-      <div style="font-weight: bold; font-size: 14px;">📷 @${acc.username || acc.ig_user_id}</div>
-    </div>
-  `).join("");
+  let contasHtml = contas.map(acc => {
+    const idVal = acc.igUserId || acc.ig_user_id || "";
+    return `
+      <div class="ig-account-chip" draggable="true" ondragstart="event.dataTransfer.setData('text/plain', '${idVal}')" data-ig-id="${idVal}" style="
+        background: #1e293b; border: 1px solid #38bdf8; padding: 10px; border-radius: 8px;
+        margin-bottom: 8px; cursor: grab; display: flex; align-items: center; gap: 10px;
+      ">
+        <div style="font-weight: bold; font-size: 14px;">📷 @${acc.username || idVal}</div>
+      </div>
+    `;
+  }).join("");
 
   let containersHtml = CANAIS.map(c => `
     <div class="drop-target-canal" ondragover="event.preventDefault()" ondrop="receberDropContaIG(event, '${c.id}')" style="
@@ -396,7 +399,7 @@ function criarModalMapeamento(batchId, contas) {
 async function receberDropContaIG(event, canalId) {
   event.preventDefault();
   const igUserId = event.dataTransfer.getData("text/plain");
-  if (!igUserId) return;
+  if (!igUserId || igUserId === "undefined") return;
 
   window._mapeamentoVinculos[canalId] = igUserId;
 
