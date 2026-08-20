@@ -40,8 +40,8 @@ function montarInterface(){
 function salvarSupa(){const url=document.getElementById("supaUrl").value.trim();const key=document.getElementById("supaKey").value.trim();const admin=document.getElementById("adminSecret").value.trim();localStorage.setItem("supa_url",url);localStorage.setItem("supa_key",key);localStorage.setItem("admin_secret",admin);setMsg("Credenciais salvas!");}
 function atualizarPlataforma(canalId,platform,checked){if(!estadoCanais[canalId])return;estadoCanais[canalId].plataformas[platform]=checked;}
 function atualizarTexto(canalId,campo,valor){if(!estadoCanais[canalId])return;estadoCanais[canalId][campo]=valor;}
-function atualizarTitulo(canalId,plataforma,valor){if(!estadoCanais[canalId])return;if(!estadoCanais[canalId].titulo)estadoCanais[canalId].titulo={};estadoCanais[canalId].titulo[plataforma]=valor;}
-function temTitulo(st){if(!st||!st.titulo)return false;return PLATAFORMAS.some((p)=>(st.titulo[p]||"").trim()!=="");}
+function atualizarTitulo(canalId,plataforma,valor){if(!estadoCanais[canalId])return;if(!estadoCanais[canalId].titulo)estadoCanais[canalId].titulo={};estadoCanais[canalId].titulo[plataforma]=String(valor||"");}
+function temTitulo(st){if(!st||!st.titulo)return false;return PLATAFORMAS.some((p)=>typeof st.titulo[p]==="string"&&(st.titulo[p]||"").trim()!=="");}
 function atualizarAgendamento(canalId){const dataEl=document.getElementById(`data-${canalId}`);const horaEl=document.getElementById(`hora-${canalId}`);if(!dataEl||!horaEl||!estadoCanais[canalId])return;const data=dataEl.value;const hora=horaEl.value;estadoCanais[canalId].agendamento=data&&hora?`${data}T${hora}:00`:"";}
 function aplicarDataATodos(){const dataGlobalEl=document.getElementById("dataGlobal");if(!dataGlobalEl||!dataGlobalEl.value){setMsg("Selecione uma data global antes de aplicar.",true);return;}CANAIS.forEach((c)=>{const dataEl=document.getElementById(`data-${c.id}`);if(dataEl){dataEl.value=dataGlobalEl.value;atualizarAgendamento(c.id);}});setMsg("Data aplicada a todos os canais!");}
 function aplicarStatusConexao(canalId,platform,conectado){const cb=document.getElementById(`chk-${platform}-${canalId}`);if(!cb)return;const eraConectado=cb.dataset.conectado==="1";cb.disabled=!conectado;cb.dataset.conectado=conectado?"1":"0";if(conectado&&!eraConectado){cb.checked=true;estadoCanais[canalId].plataformas[platform]=true;}else if(!conectado){cb.checked=false;estadoCanais[canalId].plataformas[platform]=false;}}
@@ -54,7 +54,6 @@ async function receberDropContaIG(event,canalId){event.preventDefault();const ta
 async function concluirMapeamentoIG(batchId){const{url,key,admin}=getCreds();const vinculos=window._mapeamentoVinculos||{};if(Object.keys(vinculos).length===0){alert("Vincule pelo menos uma conta antes de salvar.");return;}setMsg("Salvando vínculos do Instagram...");try{const res=await fetch(`${url.replace(/\/$/,"")}/functions/v1/auth-instagram/save-mappings`,{method:"POST",headers:{"apikey":key,"Authorization":`Bearer ${key}`,"x-admin-secret":admin,"Content-Type":"application/json"},body:JSON.stringify({batch_id:batchId,mappings:vinculos})});if(!res.ok)throw new Error("Erro ao salvar vínculos no servidor.");document.getElementById("modal-mapeamento-ig")?.remove();setMsg("Contas do Instagram vinculadas com sucesso!");testarConexaoSupabase();}catch(e){setMsg("Erro ao salvar mapeamento: "+e.message,true);}}
 async function uploadVideo(canalId,file){const{url,key,admin}=getCreds();if(!url||!key||!admin)throw new Error("Credenciais do Supabase ausentes");const fd=new FormData();fd.append("file",file);fd.append("canal_id",canalId);const res=await fetch(`${url.replace(/\/$/,"")}/functions/v1/upload-video`,{method:"POST",headers:{"apikey":key,"Authorization":`Bearer ${key}`,"x-admin-secret":admin},body:fd});if(!res.ok){const errJson=await res.json().catch(()=>({}));throw new Error(errJson.error||`Upload HTTP ${res.status}`);}const out=await res.json();if(!out.ok)throw new Error(out.error||"Falha no upload");return out.url;}
 
-// Função para mapear o vídeo ao canal correto com base no nome do arquivo
 async function distribuirVideosCanais(videos){
   let distribuidos=0;
   const canaisOcupados=new Set();
@@ -72,7 +71,6 @@ async function distribuirVideosCanais(videos){
     }
   }
 
-  // Fallback para vídeos cujos nomes não correspondem a nenhum canal
   if(videosNaoAlocados.length>0){
     const canaisLivres=CANAIS.filter(c=>!canaisOcupados.has(c.id));
     for(let i=0;i<Math.min(videosNaoAlocados.length,canaisLivres.length);i++){
@@ -120,9 +118,89 @@ async function processarArquivosVideo(fileList){
 
 async function processarArquivo(id,file){if(file.name.toLowerCase().endsWith(".json")){processarArquivoJson(file);return;}estadoCanais[id].arquivo=file.name;estadoCanais[id].videoUrl=null;atualizarVisualContainer(id);setMsg(`Enviando vídeo para ${id}...`);setCardStatus(id,"Enviando vídeo...","info");try{const videoUrl=await uploadVideo(id,file);estadoCanais[id].videoUrl=videoUrl;setMsg(`Vídeo de ${id} enviado com sucesso!`);setCardStatus(id,"Vídeo enviado com sucesso!","ok");}catch(e){setMsg(`Erro ao enviar vídeo de ${id}: ${e.message}`,true);setCardStatus(id,`Erro no upload: ${e.message}`,"erro");}finally{atualizarVisualContainer(id);}}
 
-function processarArquivoJson(file){if(!file)return;const reader=new FileReader();reader.onload=(e)=>{try{const data=JSON.parse(e.target.result);const lista=Array.isArray(data)?data:[data];lista.forEach((item)=>{const c=CANAIS.find((c)=>c.id===item.canal||c.nome===item.canal);if(!c)return;const titulo=item.titulo||item.title||item.legenda||item.caption||"";const titulos=item.titulos||item.titles||{};PLATAFORMAS.forEach((p)=>{const v=titulos[p]||titulo;estadoCanais[c.id].titulo[p]=v;const inp=document.getElementById(`titulo-${p}-${c.id}`);if(inp&&v)inp.value=v;});atualizarVisualContainer(c.id);});setMsg("JSON de títulos importado!");}catch(err){setMsg("JSON inválido: "+err.message,true);}};reader.readAsText(file);}
+function processarArquivoJson(file){
+  if(!file)return;
+  const reader=new FileReader();
+  reader.onload=(e)=>{
+    try{
+      const data=JSON.parse(e.target.result);
+      const lista=Array.isArray(data)?data:[data];
+      lista.forEach((item)=>{
+        const c=CANAIS.find((c)=>c.id.toLowerCase()===String(item.canal||"").toLowerCase()||c.nome.toLowerCase()===String(item.canal||"").toLowerCase());
+        if(!c)return;
+
+        let titulosObj={};
+        if(item.titulos&&typeof item.titulos==="object") titulosObj=item.titulos;
+        else if(item.titles&&typeof item.titles==="object") titulosObj=item.titles;
+        else if(item.titulo&&typeof item.titulo==="object") titulosObj=item.titulo;
+        else if(item.title&&typeof item.title==="object") titulosObj=item.title;
+
+        const tituloGeral=(typeof item.titulo==="string"?item.titulo:"")||
+                           (typeof item.title==="string"?item.title:"")||
+                           (typeof item.legenda==="string"?item.legenda:"")||
+                           (typeof item.caption==="string"?item.caption:"");
+
+        PLATAFORMAS.forEach((p)=>{
+          const val=(titulosObj[p]&&typeof titulosObj[p]==="string")?titulosObj[p]:tituloGeral;
+          if(!estadoCanais[c.id].titulo) estadoCanais[c.id].titulo={};
+          estadoCanais[c.id].titulo[p]=val;
+          const inp=document.getElementById(`titulo-${p}-${c.id}`);
+          if(inp)inp.value=val;
+        });
+        atualizarVisualContainer(c.id);
+      });
+      setMsg("JSON de títulos importado!");
+    }catch(err){
+      setMsg("JSON inválido: "+err.message,true);
+    }
+  };
+  reader.readAsText(file);
+}
+
 function atualizarVisualContainer(id){const dz=document.getElementById(`dz-${id}`);const st=estadoCanais[id];if(dz){if(st.arquivo)dz.classList.add("cheio");else dz.classList.remove("cheio");}let html="";if(st.arquivo)html+=`<span class="arquivo" style="font-size:12px;">${ICONS.film}${st.arquivo}</span>`;if(st.videoUrl)html+=`<span class="url-meta">${ICONS.link}Enviado ao Storage</span>`;if(!html)html=`<span class="dz-text">Vídeo ou JSON</span>`;const meta=document.getElementById(`meta-${id}`);if(meta)meta.innerHTML=html;}
-async function salvarAgendamentoNoBanco(canalId){const{url,key}=getCreds();const st=estadoCanais[canalId];const plataformasAtivas=PLATAFORMAS.filter((p)=>st.plataformas[p]);const payload={canal_id:canalId,video_url:st.videoUrl||"",titulo:st.titulo||{},plataformas:plataformasAtivas,agendado_para:st.agendamento||"",status:"pendente"};const res=await fetch(`${url.replace(/\/$/,"")}/rest/v1/posts_agendados`,{method:"POST",headers:{"Content-Type":"application/json","apikey":key,"Authorization":`Bearer ${key}`,"Prefer":"return=minimal"},body:JSON.stringify(payload)});if(!res.ok){const errText=await res.text();throw new Error(`HTTP ${res.status}: ${errText}`);}return true;}
+
+async function salvarAgendamentoNoBanco(canalId){
+  const{url,key}=getCreds();
+  const st=estadoCanais[canalId];
+  const plataformasAtivas=PLATAFORMAS.filter((p)=>st.plataformas[p]);
+
+  const titulosLimpos={};
+  PLATAFORMAS.forEach((p)=>{
+    let txt=(st.titulo&&typeof st.titulo[p]==="string")?st.titulo[p].trim():"";
+    // Trava para respeitar o limite máximo de 100 caracteres do YouTube
+    if(p==="youtube"&&txt.length>100){
+      txt=txt.substring(0,97)+"...";
+    }
+    titulosLimpos[p]=txt;
+  });
+
+  const payload={
+    canal_id:canalId,
+    video_url:st.videoUrl||"",
+    titulo:titulosLimpos,
+    plataformas:plataformasAtivas,
+    agendado_para:st.agendamento||"",
+    status:"pendente"
+  };
+
+  const res=await fetch(`${url.replace(/\/$/,"")}/rest/v1/posts_agendados`,{
+    method:"POST",
+    headers:{
+      "Content-Type":"application/json",
+      "apikey":key,
+      "Authorization":`Bearer ${key}`,
+      "Prefer":"return=minimal"
+    },
+    body:JSON.stringify(payload)
+  });
+
+  if(!res.ok){
+    const errText=await res.text();
+    throw new Error(`HTTP ${res.status}: ${errText}`);
+  }
+  return true;
+}
+
 async function agendarCanalIndividual(canalId){const{url,key}=getCreds();if(!url||!key){setMsg("Configure URL e Key do Supabase antes de agendar.",true);return;}const st=estadoCanais[canalId];if(!st)return;if(!st.videoUrl){setCardStatus(canalId,"Envie um vídeo antes de agendar.","erro");return;}if(!temTitulo(st)){setCardStatus(canalId,"Preencha ao menos um título antes de agendar.","erro");return;}if(!st.agendamento){setCardStatus(canalId,"Selecione data e hora.","erro");return;}setCardStatus(canalId,"Agendando...","info");try{await salvarAgendamentoNoBanco(canalId);setCardStatus(canalId,"Agendado com sucesso!","ok");}catch(e){setCardStatus(canalId,`Erro: ${e.message}`,"erro");}}
 async function dispararProgramacao(){const{url,key}=getCreds();if(!url||!key){setMsg("Configure URL e Key do Supabase antes de disparar.",true);return;}const prontos=CANAIS.filter((c)=>{const st=estadoCanais[c.id];return st&&st.videoUrl&&temTitulo(st)&&st.agendamento;});if(prontos.length===0){setMsg("Nenhum canal está pronto (vídeo + título + data/hora) para disparo.",true);return;}setMsg(`Disparando programação para ${prontos.length} canal(is)...`);let sucesso=0;let falhas=0;for(const c of prontos){setCardStatus(c.id,"Agendando...","info");try{await salvarAgendamentoNoBanco(c.id);setCardStatus(c.id,"Agendado com sucesso!","ok");sucesso++;}catch(e){setCardStatus(c.id,`Erro: ${e.message}`,"erro");falhas++;}}setMsg(falhas===0?`Programação disparada! ${sucesso} canal(is) agendado(s) com sucesso.`:`Programação concluída: ${sucesso} agendado(s), ${falhas} com erro.`,falhas>0);}
 
