@@ -339,7 +339,7 @@ function criarModalMapeamento(batchId, contas) {
         </div>
       </div>
       <div style="padding: 15px 20px; border-top: 1px solid #374151; background: #1f2937; display: flex; justify-content: flex-end; gap: 10px;">
-        <button onclick="con concluirMapeamentoIG('${batchId}')" style="background: #22c55e; color: white; border: none; padding: 10px 20px; border-radius: 6px; font-weight: bold; cursor: pointer;">Salvar Vínculos</button>
+        <button onclick="concluirMapeamentoIG('${batchId}')" style="background: #22c55e; color: white; border: none; padding: 10px 20px; border-radius: 6px; font-weight: bold; cursor: pointer;">Salvar Vínculos</button>
       </div>
     </div>
   `;
@@ -414,13 +414,19 @@ async function uploadVideo(canalId, file) {
 }
 
 // ---------------------------------------------------------------------------
-// Drag and Drop Global e Individual
+// Drag and Drop Global e Individual corrigido
 // ---------------------------------------------------------------------------
 function inicializarGlobalDropzone() {
-  window.addEventListener("dragover", (e) => e.preventDefault());
+  window.addEventListener("dragover", (e) => {
+    e.preventDefault();
+  });
+
   window.addEventListener("drop", async (e) => {
     e.preventDefault();
+    
+    // Se o evento ocorreu diretamente em cima de um dropzone de canal, deixe que a função específica do card trate
     if (e.target.closest && e.target.closest('.dropzone')) return;
+
     const files = Array.from(e.dataTransfer.files || []);
     if (files.length === 0) return;
 
