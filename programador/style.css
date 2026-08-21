@@ -800,3 +800,10 @@ font-family:var(--font-mono);
 .launch-rail { overflow-x:auto; justify-content:flex-start; gap:18px; }
 .form-grid { grid-template-columns:1fr; }
 }
+
+.brand-logo {
+  height: 38px;       /* Altura ideal para encaixar bem no seu header */
+  width: auto;        /* Mém-se na proporção original */
+  object-fit: contain;
+  display: block;
+}
