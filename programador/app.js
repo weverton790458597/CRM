@@ -1,9 +1,12 @@
 if(window.opener&&new URLSearchParams(window.location.search).has("auth")){try{const params=new URLSearchParams(window.location.search);const authType=params.get("auth");if(authType==="instagram_pending_map"){window.opener.postMessage({type:"instagram_pending_map",search:window.location.search},"*");}else if(typeof window.opener.testarConexaoSupabase==="function"){window.opener.testarConexaoSupabase();}else{window.opener.location.reload();}}catch(_){}window.close();}
 
-const CANAIS=[{id:"alvox",nome:"Alvox",faixa:"manha",horario:"11:00"},{id:"flux",nome:"Flux",faixa:"manha",horario:"11:20"},{id:"loopx",nome:"Loopx",faixa:"manha",horario:"11:40"},{id:"cris",nome:"Cris",faixa:"manha",horario:"12:00"},{id:"lunax",nome:"Lunax",faixa:"manha",horario:"12:20"},{id:"maxx",nome:"Maxx",faixa:"manha",horario:"12:40"},{id:"most",nome:"Most",faixa:"noite",horario:"18:00"},{id:"post",nome:"Post",faixa:"noite",horario:"18:20"},{id:"primordial",nome:"Primordial",faixa:"noite",horario:"18:40"},{id:"topx",nome:"Topx",faixa:"noite",horario:"19:00"},{id:"vibex",nome:"Vibex",faixa:"noite",horario:"19:20"}];
+// Lista de canais dinâmicos vinda da tabela conexoes_canais (Supabase)
+let CANAIS_DINAMICOS = [];
+
 const PLATAFORMAS=["youtube","instagram","tiktok"];
 const estadoCanais={};
 const processandoAgendamento={}; // Trava anti-duplo clique por canal
+const processandoExclusao={}; // Trava anti-duplo clique por canal (apagar)
 let processandoDisparoGlobal=false; // Trava anti-duplo clique no disparo geral
 
 const CORES={info:"#22d3ee",ok:"#34d399",erro:"#fb7185",aviso:"#fbbf24"};
@@ -15,30 +18,226 @@ function setCardStatus(canalId,text,tipo="info"){const el=document.getElementByI
 function getCreds(){return{url:localStorage.getItem("supa_url")||"",key:localStorage.getItem("supa_key")||"",admin:localStorage.getItem("admin_secret")||""};}
 function obterDataPadrao(){const d=new Date();d.setDate(d.getDate()+1);const ano=d.getFullYear();const mes=String(d.getMonth()+1).padStart(2,"0");const dia=String(d.getDate()).padStart(2,"0");return `${ano}-${mes}-${dia}`;}
 function iniciarRelogio(){const el=document.getElementById("liveClock");if(!el)return;const tick=()=>{el.textContent=new Date().toLocaleTimeString("pt-BR",{hour12:false});};tick();setInterval(tick,1000);}
-function renderizarTrilho(faixa,containerId){const el=document.getElementById(containerId);if(!el)return;const canaisDaFaixa=CANAIS.filter((c)=>c.faixa===faixa);el.innerHTML=canaisDaFaixa.map((c)=>`<div class="launch-beacon" title="${c.nome} agenda-se às ${c.horario}"><span class="beacon-time">${c.horario}</span><span class="beacon-dot"></span><span class="beacon-name">${c.nome}</span></div>`).join("");}
+
+// Lê os canais dinamicamente da lista CANAIS_DINAMICOS
+function renderizarTrilho(faixa,containerId){
+  const el=document.getElementById(containerId);
+  if(!el)return;
+  const canaisDaFaixa=CANAIS_DINAMICOS.filter((c)=>c.faixa===faixa);
+  el.innerHTML=canaisDaFaixa.map((c)=>`<div class="launch-beacon" title="${c.nome} agenda-se às ${c.horario}"><span class="beacon-time">${c.horario}</span><span class="beacon-dot"></span><span class="beacon-name">${c.nome}</span></div>`).join("");
+}
+
+// Atualiza os rótulos de faixa com base nos canais carregados
+function atualizarFaixasRange(){
+  const calc=(faixa,elId)=>{
+    const el=document.getElementById(elId);
+    if(!el)return;
+    const hrs=CANAIS_DINAMICOS.filter(c=>c.faixa===faixa&&c.horario&&c.horario!=="--:--").map(c=>c.horario).sort();
+    if(hrs.length)el.textContent=`${hrs[0]} → ${hrs[hrs.length-1]}`;
+  };
+  calc("manha","range-manha");
+  calc("noite","range-noite");
+}
+
+function gerarHTMLCard(c, dataPadrao) {
+  const faixaTexto = c.faixa ? c.faixa.toUpperCase() : "SEM FAIXA";
+  const horarioTexto = c.horario || "--:--";
+
+  return `<div class="card" id="card-${c.id}">
+    <div>
+      <div class="card-header">
+        <span class="canal-titulo">${c.nome}</span>
+        <div class="canal-badge-container">
+          <span class="canal-faixa-badge">${faixaTexto}</span>
+          <span class="canal-slot">${horarioTexto}</span>
+        </div>
+      </div>
+      <div class="auth-buttons">
+        <button class="btn-auth btn-yt" onclick="conectarPlataforma('${c.id}','youtube')">YT</button>
+        <button class="btn-auth btn-ig" onclick="conectarPlataforma('${c.id}','instagram')">IG</button>
+        <button class="btn-auth btn-tk" onclick="conectarPlataforma('${c.id}','tiktok')">TK</button>
+      </div>
+      <div class="status">
+        <span id="st-yt-${c.id}" class="err">YT</span>
+        <span id="st-ig-${c.id}" class="err">IG</span>
+        <span id="st-tk-${c.id}" class="err">TK</span>
+      </div>
+      <div class="plataformas-select">
+        <label class="chk-plataforma"><input type="checkbox" id="chk-youtube-${c.id}" disabled onchange="atualizarPlataforma('${c.id}','youtube',this.checked)"> YT</label>
+        <label class="chk-plataforma"><input type="checkbox" id="chk-instagram-${c.id}" disabled onchange="atualizarPlataforma('${c.id}','instagram',this.checked)"> IG</label>
+        <label class="chk-plataforma"><input type="checkbox" id="chk-tiktok-${c.id}" disabled onchange="atualizarPlataforma('${c.id}','tiktok',this.checked)"> TK</label>
+      </div>
+      <div class="agendamento-select">
+        <input type="date" class="input-data" id="data-${c.id}" value="${dataPadrao}" onchange="atualizarAgendamento('${c.id}')">
+        <input type="time" class="input-hora" id="hora-${c.id}" value="${c.horario !== '--:--' ? c.horario : '00:00'}" onchange="atualizarAgendamento('${c.id}')">
+      </div>
+    </div>
+    <div class="dropzone" id="dz-${c.id}" ondragover="event.preventDefault();event.stopPropagation();this.classList.add('over')" ondragleave="event.stopPropagation();this.classList.remove('over')" ondrop="tratarDropCard(event,'${c.id}')" onclick="document.getElementById('single-${c.id}').click()">
+      <span class="dz-icon-wrap">${ICONS.paperclip}${ICONS.check}</span>
+      <span class="dz-text" id="dz-text-${c.id}">Vídeo ou JSON</span>
+      <div class="detalhes-meta" id="meta-${c.id}"></div>
+      <input id="single-${c.id}" type="file" accept="video/*,.json" style="display:none" onchange="tratarSelecaoCard(this,'${c.id}')">
+    </div>
+    <div class="campos-texto">
+      <input type="text" class="input-titulo" id="titulo-youtube-${c.id}" placeholder="Título YouTube" oninput="atualizarTitulo('${c.id}','youtube',this.value)">
+      <input type="text" class="input-titulo" id="titulo-instagram-${c.id}" placeholder="Título Instagram" oninput="atualizarTitulo('${c.id}','instagram',this.value)">
+      <input type="text" class="input-titulo" id="titulo-tiktok-${c.id}" placeholder="Título TikTok" oninput="atualizarTitulo('${c.id}','tiktok',this.value)">
+    </div>
+
+    <!-- Container do Rodapé: Lixeira no Canto Esquerdo + Botão de Agendar -->
+    <div style="display:flex; gap:8px; align-items:center;">
+      <button id="btn-apagar-${c.id}" onclick="apagarCanalIndividual('${c.id}')" title="Excluir canal" aria-label="Excluir canal" style="background:transparent; border:none; color:#64748b; cursor:pointer; padding:8px; display:flex; align-items:center; justify-content:center; transition:color 0.2s;" onmouseover="this.style.color='#f87171'" onmouseout="this.style.color='#64748b'">
+        <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M3 6h18"></path><path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"></path></svg>
+      </button>
+      <button class="btn-disparar-card" id="btn-agendar-${c.id}" onclick="agendarCanalIndividual('${c.id}')" style="flex:1;">${ICONS.rocket} Agendar Este Canal</button>
+    </div>
+
+    <div class="card-status" id="card-status-${c.id}"></div>
+  </div>`;
+}
+
+// Busca os registros do Supabase extraindo os campos 'faixa' e 'horario'
+// AJUSTE: agora mescla todas as linhas do mesmo canal_id e usa o primeiro valor
+// VÁLIDO encontrado (não sobrescreve um dado bom com um NULL de uma linha órfã,
+// por exemplo a linha criada quando você conecta uma plataforma).
+async function carregarCanaisDoSupabase(){
+  const{url,key}=getCreds();
+  const gridManha=document.getElementById("grid-manha");
+  const gridNoite=document.getElementById("grid-noite");
+
+  if(!url||!key){
+    const hint=`<div class="empty-hint">Configure a URL e a Key do Supabase para carregar os canais dinamicamente.</div>`;
+    if(gridManha)gridManha.innerHTML=hint;
+    if(gridNoite)gridNoite.innerHTML="";
+    setMsg("Configure URL e Key do Supabase para carregar os canais.",true);
+    return;
+  }
+
+  setMsg("Carregando canais do Supabase...");
+  try{
+    let res=await fetch(`${url.replace(/\/$/,"")}/rest/v1/conexoes_canais?select=*&order=horario.asc`,{
+      headers:{apikey:key,Authorization:`Bearer ${key}`}
+    });
+
+    if(!res.ok) {
+      res=await fetch(`${url.replace(/\/$/,"")}/rest/v1/conexoes_canais?select=*`,{
+        headers:{apikey:key,Authorization:`Bearer ${key}`}
+      });
+    }
+
+    if(!res.ok)throw new Error(`HTTP ${res.status}`);
+
+    const rows=await res.json();
+    const mapaCanais = {};
+
+    (rows || []).forEach(r => {
+      const slugCanal = (r.canal_id || r.canal || "").toString().trim().toLowerCase();
+      if (!slugCanal) return;
+
+      const nomeExibicao = (r.nome_canal || r.nome || r.title || slugCanal).toString().trim();
+
+      // Mapeamento resiliente para ler 'faixa' e 'horario' mesmo se nulos ou com nomenclaturas variadas
+      let faixaCanal = (r.faixa || r.faixa_horario || "").toString().trim().toLowerCase();
+      let horarioCanal = (r.horario || r.hora || r.horario_postagem || "").toString().trim();
+
+      const faixaValida = !!(faixaCanal && faixaCanal !== "null");
+      const horarioValido = !!(horarioCanal && horarioCanal !== "null" && horarioCanal !== "--:--");
+
+      if (!mapaCanais[slugCanal]) {
+        mapaCanais[slugCanal] = {
+          id: slugCanal,
+          nome: nomeExibicao,
+          faixa: faixaValida ? faixaCanal : "manha",
+          horario: horarioValido ? horarioCanal : "--:--",
+          _faixaValida: faixaValida,
+          _horarioValida: horarioValido,
+          uuids: [],
+          raw: r
+        };
+      } else {
+        const alvo = mapaCanais[slugCanal];
+        // Se ainda não temos faixa/horario "de verdade" registrados, e esta linha tem, usa esta
+        if (!alvo._faixaValida && faixaValida) {
+          alvo.faixa = faixaCanal;
+          alvo._faixaValida = true;
+        }
+        if (!alvo._horarioValida && horarioValido) {
+          alvo.horario = horarioCanal;
+          alvo._horarioValida = true;
+        }
+        // Preenche nome caso a primeira linha não tivesse um nome melhor
+        if ((!alvo.nome || alvo.nome === slugCanal) && nomeExibicao && nomeExibicao !== slugCanal) {
+          alvo.nome = nomeExibicao;
+        }
+      }
+
+      if (r.id && !mapaCanais[slugCanal].uuids.includes(r.id)) {
+        mapaCanais[slugCanal].uuids.push(r.id);
+      }
+    });
+
+    CANAIS_DINAMICOS = Object.values(mapaCanais);
+
+    if(gridManha)gridManha.innerHTML="";
+    if(gridNoite)gridNoite.innerHTML="";
+
+    const dataGlobalEl=document.getElementById("dataGlobal");
+    const dataPadrao=obterDataPadrao();
+    const dataGlobal=(dataGlobalEl&&dataGlobalEl.value)?dataGlobalEl.value:dataPadrao;
+    if(dataGlobalEl&&!dataGlobalEl.value)dataGlobalEl.value=dataPadrao;
+
+    let htmlManha="";
+    let htmlNoite="";
+
+    CANAIS_DINAMICOS.forEach((c)=>{
+      const cardHTML = gerarHTMLCard(c, dataGlobal);
+      if(c.faixa==="manha") htmlManha += cardHTML;
+      else htmlNoite += cardHTML;
+    });
+
+    if(gridManha) gridManha.innerHTML = htmlManha;
+    if(gridNoite) gridNoite.innerHTML = htmlNoite;
+
+    CANAIS_DINAMICOS.forEach((c)=>{
+      estadoCanais[c.id]={
+        arquivo:null,
+        videoUrl:null,
+        titulo:{youtube:"",instagram:"",tiktok:""},
+        plataformas:{youtube:false,instagram:false,tiktok:false},
+        agendamento:""
+      };
+      atualizarAgendamento(c.id);
+    });
+
+    renderizarTrilho("manha","rail-manha");
+    renderizarTrilho("noite","rail-noite");
+    atualizarFaixasRange();
+
+    await testarConexaoSupabase();
+
+    if(CANAIS_DINAMICOS.length===0) setMsg("Nenhum canal cadastrado.", true);
+    else setMsg(`${CANAIS_DINAMICOS.length} canal(is) carregado(s) com sucesso!`);
+  }catch(e){
+    setMsg("Erro ao carregar canais: "+e.message,true);
+    if(gridManha)gridManha.innerHTML=`<div class="empty-hint">Falha ao carregar canais: ${e.message}</div>`;
+  }
+}
 
 function montarInterface(){
-  const containerManha=document.getElementById("grid-manha");
-  const containerNoite=document.getElementById("grid-noite");
   const{url,key,admin}=getCreds();
   if(document.getElementById("supaUrl"))document.getElementById("supaUrl").value=url;
   if(document.getElementById("supaKey"))document.getElementById("supaKey").value=key;
   if(document.getElementById("adminSecret"))document.getElementById("adminSecret").value=admin;
-  const dataPadrao=obterDataPadrao();
   const dataGlobalEl=document.getElementById("dataGlobal");
-  if(dataGlobalEl&&!dataGlobalEl.value)dataGlobalEl.value=dataPadrao;
-  
-  CANAIS.forEach((c)=>{
-    estadoCanais[c.id]={arquivo:null,videoUrl:null,titulo:{youtube:"",instagram:"",tiktok:""},plataformas:{youtube:true,instagram:true,tiktok:true},agendamento:""};
-    const cardHTML=`<div class="card" id="card-${c.id}"><div><div class="card-header"><span>${c.nome}</span><span class="canal-slot">${c.horario}</span></div><div class="auth-buttons"><button class="btn-auth btn-yt" onclick="conectarPlataforma('${c.id}','youtube')">YT</button><button class="btn-auth btn-ig" onclick="conectarPlataforma('${c.id}','instagram')">IG</button><button class="btn-auth btn-tk" onclick="conectarPlataforma('${c.id}','tiktok')">TK</button></div><div class="status"><span id="st-yt-${c.id}" class="err">YT</span><span id="st-ig-${c.id}" class="err">IG</span><span id="st-tk-${c.id}" class="err">TK</span></div><div class="plataformas-select"><label class="chk-plataforma"><input type="checkbox" id="chk-youtube-${c.id}" disabled onchange="atualizarPlataforma('${c.id}','youtube',this.checked)"> YT</label><label class="chk-plataforma"><input type="checkbox" id="chk-instagram-${c.id}" disabled onchange="atualizarPlataforma('${c.id}','instagram',this.checked)"> IG</label><label class="chk-plataforma"><input type="checkbox" id="chk-tiktok-${c.id}" disabled onchange="atualizarPlataforma('${c.id}','tiktok',this.checked)"> TK</label></div><div class="agendamento-select"><input type="date" class="input-data" id="data-${c.id}" value="${dataPadrao}" onchange="atualizarAgendamento('${c.id}')"><input type="time" class="input-hora" id="hora-${c.id}" value="${c.horario}" onchange="atualizarAgendamento('${c.id}')"></div></div><div class="dropzone" id="dz-${c.id}" ondragover="event.preventDefault();event.stopPropagation();this.classList.add('over')" ondragleave="event.stopPropagation();this.classList.remove('over')" ondrop="tratarDropCard(event,'${c.id}')" onclick="document.getElementById('single-${c.id}').click()"><span class="dz-icon-wrap">${ICONS.paperclip}${ICONS.check}</span><span class="dz-text" id="dz-text-${c.id}">Vídeo ou JSON</span><div class="detalhes-meta" id="meta-${c.id}"></div><input id="single-${c.id}" type="file" accept="video/*,.json" style="display:none" onchange="tratarSelecaoCard(this,'${c.id}')"></div><div class="campos-texto"><input type="text" class="input-titulo" id="titulo-youtube-${c.id}" placeholder="Título YouTube" oninput="atualizarTitulo('${c.id}','youtube',this.value)"><input type="text" class="input-titulo" id="titulo-instagram-${c.id}" placeholder="Título Instagram" oninput="atualizarTitulo('${c.id}','instagram',this.value)"><input type="text" class="input-titulo" id="titulo-tiktok-${c.id}" placeholder="Título TikTok" oninput="atualizarTitulo('${c.id}','tiktok',this.value)"></div><button class="btn-disparar-card" id="btn-agendar-${c.id}" onclick="agendarCanalIndividual('${c.id}')">${ICONS.rocket} Agendar Este Canal</button><div class="card-status" id="card-status-${c.id}"></div></div>`;
-    if(c.faixa==="manha"&&containerManha)containerManha.innerHTML+=cardHTML;
-    else if(containerNoite)containerNoite.innerHTML+=cardHTML;
-  });
-  CANAIS.forEach((c)=>atualizarAgendamento(c.id));
-  renderizarTrilho("manha","rail-manha");
-  renderizarTrilho("noite","rail-noite");
+  if(dataGlobalEl&&!dataGlobalEl.value)dataGlobalEl.value=obterDataPadrao();
+
+  const overlay=document.getElementById("modal-canal");
+  if(overlay)overlay.addEventListener("click",(e)=>{if(e.target===overlay)fecharModalCanal();});
+
   iniciarRelogio();
   inicializarGlobalDropzone();
+
+  carregarCanaisDoSupabase();
 }
 
 function salvarSupa(){const url=document.getElementById("supaUrl").value.trim();const key=document.getElementById("supaKey").value.trim();const admin=document.getElementById("adminSecret").value.trim();localStorage.setItem("supa_url",url);localStorage.setItem("supa_key",key);localStorage.setItem("admin_secret",admin);setMsg("Credenciais salvas!");}
@@ -47,32 +246,15 @@ function atualizarTexto(canalId,campo,valor){if(!estadoCanais[canalId])return;es
 function atualizarTitulo(canalId,plataforma,valor){if(!estadoCanais[canalId])return;if(!estadoCanais[canalId].titulo)estadoCanais[canalId].titulo={};estadoCanais[canalId].titulo[plataforma]=String(valor||"");}
 function temTitulo(st){if(!st||!st.titulo)return false;return PLATAFORMAS.some((p)=>typeof st.titulo[p]==="string"&&(st.titulo[p]||"").trim()!=="");}
 
-// ----------------------------------------------------------------------
-// CORREÇÃO (Bug de fuso horário / disparo imediato):
-// Antes esta função montava a string "${data}T${hora}:00" (sem 'Z' e sem
-// offset) e mandava direto pro banco. O Postgres/Supabase, ao receber uma
-// string ISO sem fuso numa coluna timestamptz, assume que ela já está em
-// UTC. Resultado: quem digitava "11:00" pensando no horário local (ex:
-// UTC-3) fazia o banco entender "11:00 UTC" — 3h mais cedo do que o
-// pretendido. Como o cron compara agendado_para <= NOW() (em UTC), o post
-// muitas vezes já nascia "atrasado" e disparava na hora do clique, ao
-// invés de esperar o horário programado.
-// AGORA: usamos o construtor Date(ano, mes, dia, hora, min) do JS, que
-// interpreta os valores como horário LOCAL do navegador, e então
-// convertemos para ISO/UTC com .toISOString() antes de salvar. Isso
-// garante que o horário digitado na tela é respeitado corretamente
-// independente do fuso de quem estiver usando o painel.
-// ----------------------------------------------------------------------
 function atualizarAgendamento(canalId){
   const dataEl=document.getElementById(`data-${canalId}`);
   const horaEl=document.getElementById(`hora-${canalId}`);
   if(!dataEl||!horaEl||!estadoCanais[canalId])return;
   const data=dataEl.value;
   const hora=horaEl.value;
-  if(data&&hora){
+  if(data&&hora&&hora!=="--:--"){
     const[ano,mes,dia]=data.split("-").map(Number);
     const[h,m]=hora.split(":").map(Number);
-    // new Date(ano,mesIndex,dia,hora,min) monta a data no fuso LOCAL do navegador
     const dataLocal=new Date(ano,mes-1,dia,h,m,0);
     estadoCanais[canalId].agendamento=dataLocal.toISOString();
   }else{
@@ -80,15 +262,179 @@ function atualizarAgendamento(canalId){
   }
 }
 
-function aplicarDataATodos(){const dataGlobalEl=document.getElementById("dataGlobal");if(!dataGlobalEl||!dataGlobalEl.value){setMsg("Selecione uma data global antes de aplicar.",true);return;}CANAIS.forEach((c)=>{const dataEl=document.getElementById(`data-${c.id}`);if(dataEl){dataEl.value=dataGlobalEl.value;atualizarAgendamento(c.id);}});setMsg("Data aplicada a todos os canais!");}
-function aplicarStatusConexao(canalId,platform,conectado){const cb=document.getElementById(`chk-${platform}-${canalId}`);if(!cb)return;const eraConectado=cb.dataset.conectado==="1";cb.disabled=!conectado;cb.dataset.conectado=conectado?"1":"0";if(conectado&&!eraConectado){cb.checked=true;estadoCanais[canalId].plataformas[platform]=true;}else if(!conectado){cb.checked=false;estadoCanais[canalId].plataformas[platform]=false;}}
-function selecionarTudoGlobal(){let marcados=0;CANAIS.forEach((c)=>{PLATAFORMAS.forEach((p)=>{const cb=document.getElementById(`chk-${p}-${c.id}`);if(cb&&!cb.disabled){cb.checked=true;estadoCanais[c.id].plataformas[p]=true;marcados++;}});});setMsg(marcados>0?"Todas as plataformas conectadas foram selecionadas!":"Nenhuma plataforma conectada para selecionar.");}
+function aplicarDataATodos(){const dataGlobalEl=document.getElementById("dataGlobal");if(!dataGlobalEl||!dataGlobalEl.value){setMsg("Selecione uma data global antes de aplicar.",true);return;}CANAIS_DINAMICOS.forEach((c)=>{const dataEl=document.getElementById(`data-${c.id}`);if(dataEl){dataEl.value=dataGlobalEl.value;atualizarAgendamento(c.id);}});setMsg("Data aplicada a todos os canais!");}
 
-async function testarConexaoSupabase(){const{url,key}=getCreds();if(!url||!key){setMsg("Configure URL e Key do Supabase primeiro!",true);return;}try{const resposta=await fetch(`${url.replace(/\/$/,"")}/rest/v1/conexoes_canais_status?select=*`,{headers:{apikey:key,Authorization:`Bearer ${key}`}});if(!resposta.ok)throw new Error(`HTTP ${resposta.status}`);const dados=await resposta.json();const conectadoPorCanal={};CANAIS.forEach((c)=>{conectadoPorCanal[c.id]={youtube:false,instagram:false,tiktok:false};});dados.forEach((row)=>{const cid=(row.canal_id||"").toLowerCase();if(!conectadoPorCanal[cid])return;if(row.provider in conectadoPorCanal[cid]){conectadoPorCanal[cid][row.provider]=!!row.conectado;}});CANAIS.forEach((c)=>{const conn=conectadoPorCanal[c.id];const yt=document.getElementById(`st-yt-${c.id}`);const ig=document.getElementById(`st-ig-${c.id}`);const tk=document.getElementById(`st-tk-${c.id}`);if(yt)yt.className=conn.youtube?"ok":"err";if(ig)ig.className=conn.instagram?"ok":"err";if(tk)tk.className=conn.tiktok?"ok":"err";aplicarStatusConexao(c.id,"youtube",conn.youtube);aplicarStatusConexao(c.id,"instagram",conn.instagram);aplicarStatusConexao(c.id,"tiktok",conn.tiktok);});setMsg("Conectado e status atualizado!");}catch(e){setMsg("Erro ao testar conexão: "+e.message,true);}}
-async function conectarPlataforma(canalId,plataforma){const{url,key,admin}=getCreds();if(!url||!key||!admin){setMsg("Configure URL, Key e Admin Secret antes de conectar.",true);return;}setMsg(`Iniciando conexão com ${plataforma}...`);try{const res=await fetch(`${url.replace(/\/$/,"")}/functions/v1/auth-${plataforma}`,{method:"POST",headers:{"apikey":key,"Authorization":`Bearer ${key}`,"x-admin-secret":admin,"Content-Type":"application/json"},body:JSON.stringify({channel_id:canalId,redirect_to:window.location.href.split("?")[0]})});if(!res.ok){const errJson=await res.json().catch(()=>({}));throw new Error(errJson.error||`HTTP ${res.status}`);}const data=await res.json();if(data.url){const popup=window.open(data.url,`auth_${plataforma}`,"width=600,height=700");const timer=setInterval(()=>{try{if(!popup||popup.closed){clearInterval(timer);testarConexaoSupabase();}}catch(_){}},1500);}else{throw new Error("URL de autenticação não retornada pela API.");}}catch(e){setMsg(`Erro ao conectar com ${plataforma}: `+e.message,true);}}
-function criarModalMapeamento(batchId,contas){const antigo=document.getElementById("modal-mapeamento-ig");if(antigo)antigo.remove();const overlay=document.createElement("div");overlay.id="modal-mapeamento-ig";overlay.className="modal-overlay";const contasHtml=contas.map((acc)=>{const idVal=acc.igUserId||acc.ig_user_id||"";return `<div class="ig-account-chip" draggable="true" ondragstart="event.dataTransfer.setData('text/plain','${idVal}')" data-ig-id="${idVal}">${ICONS.camera}<span>@${acc.username||idVal}</span></div>`;}).join("");const containersHtml=CANAIS.map((c)=>`<div class="drop-target-canal" id="target-ig-${c.id}" ondragover="event.preventDefault();this.classList.add('drag-over')" ondragleave="this.classList.remove('drag-over')" ondrop="receberDropContaIG(event,'${c.id}')"><span class="target-name">${c.nome}</span><span class="slot-status">Arraste a conta do IG aqui</span></div>`).join("");overlay.innerHTML=`<div class="modal-box"><div class="modal-head"><h2>Vincular Contas do Instagram aos Canais</h2><p>Arraste cada conta do Instagram da esquerda para o seu respectivo container de canal à direita.</p></div><div class="modal-body"><div class="modal-col-source"><h3>Contas do Instagram (Meta)</h3><div id="lista-chips-ig">${contasHtml}</div></div><div class="modal-col-targets">${containersHtml}</div></div><div class="modal-foot"><button onclick="concluirMapeamentoIG('${batchId}')" class="btn btn-success">${ICONS.save} Salvar Vínculos</button></div></div>`;document.body.appendChild(overlay);window._mapeamentoTempContas=contas;window._mapeamentoVinculos={};}
-async function receberDropContaIG(event,canalId){event.preventDefault();const targetEl=document.getElementById(`target-ig-${canalId}`);if(targetEl)targetEl.classList.remove("drag-over");const igUserId=event.dataTransfer.getData("text/plain");if(!igUserId||igUserId==="undefined")return;window._mapeamentoVinculos[canalId]=igUserId;if(targetEl){targetEl.classList.add("linked");targetEl.querySelector(".slot-status").textContent=`Conectado: ID ${igUserId}`;}}
-async function concluirMapeamentoIG(batchId){const{url,key,admin}=getCreds();const vinculos=window._mapeamentoVinculos||{};if(Object.keys(vinculos).length===0){alert("Vincule pelo menos uma conta antes de salvar.");return;}setMsg("Salvando vínculos do Instagram...");try{const res=await fetch(`${url.replace(/\/$/,"")}/functions/v1/auth-instagram/save-mappings`,{method:"POST",headers:{"apikey":key,"Authorization":`Bearer ${key}`,"x-admin-secret":admin,"Content-Type":"application/json"},body:JSON.stringify({batch_id:batchId,mappings:vinculos})});if(!res.ok)throw new Error("Erro ao salvar vínculos no servidor.");document.getElementById("modal-mapeamento-ig")?.remove();setMsg("Contas do Instagram vinculadas com sucesso!");testarConexaoSupabase();}catch(e){setMsg("Erro ao salvar mapeamento: "+e.message,true);}}
+function aplicarStatusConexao(canalId,platform,conectado){
+  const cb=document.getElementById(`chk-${platform}-${canalId}`);
+  if(!cb)return;
+  cb.disabled=!conectado;
+  cb.dataset.conectado=conectado?"1":"0";
+  if(conectado){
+    cb.checked=true;
+    if(estadoCanais[canalId]) estadoCanais[canalId].plataformas[platform]=true;
+  }else{
+    cb.checked=false;
+    if(estadoCanais[canalId]) estadoCanais[canalId].plataformas[platform]=false;
+  }
+}
+
+function selecionarTudoGlobal(){let marcados=0;CANAIS_DINAMICOS.forEach((c)=>{PLATAFORMAS.forEach((p)=>{const cb=document.getElementById(`chk-${p}-${c.id}`);if(cb&&!cb.disabled){cb.checked=true;estadoCanais[c.id].plataformas[p]=true;marcados++;}});});setMsg(marcados>0?"Todas as plataformas conectadas foram selecionadas!":"Nenhuma plataforma conectada para selecionar.");}
+
+// Teste de Conexão resiliente: conserta dados NULL tratando respostas ausentes ou com colunas variadas
+async function testarConexaoSupabase(){
+  const{url,key}=getCreds();
+  if(!url||!key){setMsg("Configure URL e Key do Supabase primeiro!",true);return;}
+
+  const conectadoPorCanal={};
+  CANAIS_DINAMICOS.forEach((c)=>{
+    conectadoPorCanal[c.id]={youtube:false,instagram:false,tiktok:false};
+  });
+
+  try{
+    const resposta=await fetch(`${url.replace(/\/$/,"")}/rest/v1/conexoes_canais_status?select=*`,{
+      headers:{apikey:key,Authorization:`Bearer ${key}`}
+    });
+
+    if(resposta.ok){
+      const dados=await resposta.json();
+      (dados || []).forEach((row)=>{
+        const cid=(row.canal_id || row.canal || "").toLowerCase();
+        if(!conectadoPorCanal[cid]) return;
+
+        if(row.provider && row.provider in conectadoPorCanal[cid]){
+          const isOk = Boolean(row.conectado || row.status === "ok" || row.status === "connected" || row.token_valid);
+          conectadoPorCanal[cid][row.provider] = isOk;
+        } else {
+          PLATAFORMAS.forEach(p => {
+            if(row[p] !== undefined || row[`${p}_status`] !== undefined || row[`status_${p}`] !== undefined) {
+              const val = row[p] ?? row[`${p}_status`] ?? row[`status_${p}`];
+              conectadoPorCanal[cid][p] = Boolean(val && val !== "NULL" && val !== "false");
+            }
+          });
+        }
+      });
+    }
+
+    CANAIS_DINAMICOS.forEach((c)=>{
+      const conn=conectadoPorCanal[c.id];
+      const yt=document.getElementById(`st-yt-${c.id}`);
+      const ig=document.getElementById(`st-ig-${c.id}`);
+      const tk=document.getElementById(`st-tk-${c.id}`);
+
+      if(yt)yt.className=conn.youtube?"ok":"err";
+      if(ig)ig.className=conn.instagram?"ok":"err";
+      if(tk)tk.className=conn.tiktok?"ok":"err";
+
+      aplicarStatusConexao(c.id,"youtube",conn.youtube);
+      aplicarStatusConexao(c.id,"instagram",conn.instagram);
+      aplicarStatusConexao(c.id,"tiktok",conn.tiktok);
+    });
+
+    setMsg("Conexão e status verificados com sucesso!");
+  }catch(e){
+    setMsg("Erro ao testar conexão: "+e.message,true);
+  }
+}
+
+// AJUSTE PRINCIPAL: agora localizamos o canal em CANAIS_DINAMICOS e enviamos
+// faixa/horario junto no body da requisição para a Edge Function auth-{plataforma}.
+// Isso permite que a function grave esses campos na linha criada/atualizada
+// durante o fluxo OAuth, em vez de deixar faixa/horario como NULL.
+// IMPORTANTE: a Edge Function no Supabase também precisa ler `faixa` e `horario`
+// do body e usá-los no insert/upsert em conexoes_canais para o fix funcionar de ponta a ponta.
+async function conectarPlataforma(canalId,plataforma){
+  const{url,key,admin}=getCreds();
+  if(!url||!key||!admin){setMsg("Configure URL, Key e Admin Secret antes de conectar.",true);return;}
+
+  const canal=CANAIS_DINAMICOS.find((c)=>c.id===canalId);
+  const faixaCanal=canal?canal.faixa:undefined;
+  const horarioCanal=canal?canal.horario:undefined;
+
+  setMsg(`Iniciando conexão com ${plataforma}...`);
+  try{
+    const res=await fetch(`${url.replace(/\/$/,"")}/functions/v1/auth-${plataforma}`,{
+      method:"POST",
+      headers:{"apikey":key,"Authorization":`Bearer ${key}`,"x-admin-secret":admin,"Content-Type":"application/json"},
+      body:JSON.stringify({
+        channel_id:canalId,
+        redirect_to:window.location.href.split("?")[0],
+        faixa:faixaCanal,
+        horario:horarioCanal
+      })
+    });
+    if(!res.ok){const errJson=await res.json().catch(()=>({}));throw new Error(errJson.error||`HTTP ${res.status}`);}
+    const data=await res.json();
+    if(data.url){
+      const popup=window.open(data.url,`auth_${plataforma}`,"width=600,height=700");
+      const timer=setInterval(()=>{
+        try{
+          if(!popup||popup.closed){
+            clearInterval(timer);
+            // Recarrega os canais do banco (não só o status) para refletir
+            // qualquer faixa/horario gravado pela Edge Function na volta do OAuth.
+            carregarCanaisDoSupabase();
+          }
+        }catch(_){}
+      },1500);
+    }else{
+      throw new Error("URL de autenticação não retornada pela API.");
+    }
+  }catch(e){
+    setMsg(`Erro ao conectar com ${plataforma}: `+e.message,true);
+  }
+}
+
+// --------- MODAL DE CADASTRO DE NOVO CANAL ---------
+function abrirModalCanal(){const m=document.getElementById("modal-canal");if(m)m.style.display="flex";}
+function fecharModalCanal(){const m=document.getElementById("modal-canal");if(m)m.style.display="none";}
+
+// Salva o registro diretamente na tabela 'conexoes_canais' do Supabase enviando faixa e horario
+async function salvarNovoCanal(){
+  const nome=document.getElementById("nc-nome").value.trim();
+  const id=document.getElementById("nc-id").value.trim().toLowerCase();
+  const faixa=document.getElementById("nc-faixa").value;
+  const horario=document.getElementById("nc-horario").value;
+
+  if(!nome||!id||!horario){setMsg("Preencha todos os campos do canal.",true);return;}
+
+  const{url,key}=getCreds();
+  if(!url||!key){setMsg("Configure as credenciais do Supabase.",true);return;}
+
+  setMsg("Salvando canal no Supabase...");
+
+  try {
+    const res = await fetch(`${url.replace(/\/$/,"")}/rest/v1/conexoes_canais`, {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json",
+        "apikey": key,
+        "Authorization": `Bearer ${key}`,
+        "Prefer": "return=minimal"
+      },
+      body: JSON.stringify({
+        canal_id: id,
+        nome_canal: nome,
+        faixa: faixa,
+        horario: horario
+      })
+    });
+
+    if(!res.ok) {
+      const errTxt = await res.text();
+      throw new Error(`HTTP ${res.status}: ${errTxt}`);
+    }
+
+    fecharModalCanal();
+    document.getElementById("nc-nome").value="";
+    document.getElementById("nc-id").value="";
+
+    setMsg(`Canal '${nome}' cadastrado com sucesso no Supabase!`);
+    await carregarCanaisDoSupabase();
+  } catch(e) {
+    setMsg(`Erro ao salvar canal: ${e.message}`, true);
+  }
+}
+
 async function uploadVideo(canalId,file){const{url,key,admin}=getCreds();if(!url||!key||!admin)throw new Error("Credenciais do Supabase ausentes");const fd=new FormData();fd.append("file",file);fd.append("canal_id",canalId);const res=await fetch(`${url.replace(/\/$/,"")}/functions/v1/upload-video`,{method:"POST",headers:{"apikey":key,"Authorization":`Bearer ${key}`,"x-admin-secret":admin},body:fd});if(!res.ok){const errJson=await res.json().catch(()=>({}));throw new Error(errJson.error||`Upload HTTP ${res.status}`);}const out=await res.json();if(!out.ok)throw new Error(out.error||"Falha no upload");return out.url;}
 
 async function distribuirVideosCanais(videos){
@@ -98,7 +444,7 @@ async function distribuirVideosCanais(videos){
 
   for(const video of videos){
     const nomeLow=video.name.toLowerCase();
-    const canal=CANAIS.find(c=>!canaisOcupados.has(c.id)&&!estadoCanais[c.id]?.videoUrl&&(nomeLow.includes(c.id.toLowerCase())||nomeLow.includes(c.nome.toLowerCase())));
+    const canal=CANAIS_DINAMICOS.find(c=>!canaisOcupados.has(c.id)&&!estadoCanais[c.id]?.videoUrl&&(nomeLow.includes(c.id.toLowerCase())||nomeLow.includes(c.nome.toLowerCase())));
     if(canal){
       await processarArquivo(canal.id,video);
       canaisOcupados.add(canal.id);
@@ -109,7 +455,7 @@ async function distribuirVideosCanais(videos){
   }
 
   if(videosNaoAlocados.length>0){
-    const canaisLivres=CANAIS.filter(c=>!canaisOcupados.has(c.id)&&!estadoCanais[c.id]?.videoUrl);
+    const canaisLivres=CANAIS_DINAMICOS.filter(c=>!canaisOcupados.has(c.id)&&!estadoCanais[c.id]?.videoUrl);
     for(let i=0;i<Math.min(videosNaoAlocados.length,canaisLivres.length);i++){
       await processarArquivo(canaisLivres[i].id,videosNaoAlocados[i]);
       distribuidos++;
@@ -163,7 +509,7 @@ function processarArquivoJson(file){
       const data=JSON.parse(e.target.result);
       const lista=Array.isArray(data)?data:[data];
       lista.forEach((item)=>{
-        const c=CANAIS.find((c)=>c.id.toLowerCase()===String(item.canal||"").toLowerCase()||c.nome.toLowerCase()===String(item.canal||"").toLowerCase());
+        const c=CANAIS_DINAMICOS.find((c)=>c.id.toLowerCase()===String(item.canal||"").toLowerCase()||c.nome.toLowerCase()===String(item.canal||"").toLowerCase());
         if(!c)return;
 
         let titulosObj={};
@@ -201,7 +547,7 @@ function limparCard(canalId){
   estadoCanais[canalId].arquivo=null;
   estadoCanais[canalId].videoUrl=null;
   estadoCanais[canalId].titulo={youtube:"",instagram:"",tiktok:""};
-  
+
   PLATAFORMAS.forEach((p)=>{
     const inp=document.getElementById(`titulo-${p}-${canalId}`);
     if(inp)inp.value="";
@@ -222,7 +568,6 @@ async function salvarAgendamentoNoBanco(canalId){
     throw new Error("Selecione ao menos uma plataforma ativa para agendar.");
   }
 
-  // Fallback: se uma plataforma selecionada não tiver título preenchido, usa qualquer outro título disponível no card
   const primeiroTituloDisponivel=PLATAFORMAS.map(p=>st.titulo?.[p]).find(t=>typeof t==="string"&&t.trim()!=="")||"";
 
   const titulosLimpos={};
@@ -259,7 +604,6 @@ async function salvarAgendamentoNoBanco(canalId){
     throw new Error(`HTTP ${res.status}: ${errText}`);
   }
 
-  // Limpa o card após o agendamento bem-sucedido para proibir duplicações
   limparCard(canalId);
   return true;
 }
@@ -269,7 +613,7 @@ async function agendarCanalIndividual(canalId){
 
   const{url,key}=getCreds();
   if(!url||!key){setMsg("Configure URL e Key do Supabase antes de agendar.",true);return;}
-  
+
   const st=estadoCanais[canalId];
   if(!st)return;
   if(!st.videoUrl){setCardStatus(canalId,"Envie um vídeo antes de agendar.","erro");return;}
@@ -292,13 +636,82 @@ async function agendarCanalIndividual(canalId){
   }
 }
 
+// Apaga um canal por completo: remove todas as linhas de conexão dele em
+// conexoes_canais (YouTube, Instagram, TikTok e a linha "base" sem provider,
+// se existir) e também os agendamentos pendentes dele em posts_agendados,
+// pra não sobrar lixo órfão no banco. Pede confirmação antes de executar.
+async function apagarCanalIndividual(canalId){
+  if(processandoExclusao[canalId])return;
+
+  const canal=CANAIS_DINAMICOS.find((c)=>c.id===canalId);
+  const nomeCanal=canal?canal.nome:canalId;
+
+  const confirmado=window.confirm(`Tem certeza que deseja apagar o canal "${nomeCanal}"?\n\nIsso vai remover TODAS as conexões (YouTube, Instagram, TikTok) e os agendamentos pendentes desse canal. Essa ação não pode ser desfeita.`);
+  if(!confirmado)return;
+
+  const{url,key}=getCreds();
+  if(!url||!key){setMsg("Configure URL e Key do Supabase antes de apagar.",true);return;}
+
+  processandoExclusao[canalId]=true;
+  setCardStatus(canalId,"Apagando canal...","info");
+  setMsg(`Apagando canal "${nomeCanal}"...`);
+
+  try{
+    // Remove todas as linhas de conexão desse canal (todos os providers)
+    const resConexoes=await fetch(`${url.replace(/\/$/,"")}/rest/v1/conexoes_canais?canal_id=eq.${encodeURIComponent(canalId)}`,{
+      method:"DELETE",
+      headers:{
+        "apikey":key,
+        "Authorization":`Bearer ${key}`,
+        "Prefer":"return=minimal"
+      }
+    });
+    if(!resConexoes.ok){
+      const errTxt=await resConexoes.text();
+      throw new Error(`Falha ao remover conexões: HTTP ${resConexoes.status}: ${errTxt}`);
+    }
+
+    // Remove agendamentos pendentes desse canal (não deixa lixo órfão)
+    const resAgendamentos=await fetch(`${url.replace(/\/$/,"")}/rest/v1/posts_agendados?canal_id=eq.${encodeURIComponent(canalId)}`,{
+      method:"DELETE",
+      headers:{
+        "apikey":key,
+        "Authorization":`Bearer ${key}`,
+        "Prefer":"return=minimal"
+      }
+    });
+    if(!resAgendamentos.ok){
+      // Não interrompe o fluxo por causa disso, só avisa no console/log
+      console.warn(`Aviso: falha ao remover agendamentos pendentes de ${canalId}: HTTP ${resAgendamentos.status}`);
+    }
+
+    // Limpa estado local e remove o card da tela sem precisar recarregar tudo
+    delete estadoCanais[canalId];
+    delete processandoAgendamento[canalId];
+    CANAIS_DINAMICOS=CANAIS_DINAMICOS.filter((c)=>c.id!==canalId);
+    const cardEl=document.getElementById(`card-${canalId}`);
+    if(cardEl)cardEl.remove();
+
+    renderizarTrilho("manha","rail-manha");
+    renderizarTrilho("noite","rail-noite");
+    atualizarFaixasRange();
+
+    setMsg(`Canal "${nomeCanal}" apagado com sucesso!`);
+  }catch(e){
+    setCardStatus(canalId,`Erro ao apagar: ${e.message}`,"erro");
+    setMsg(`Erro ao apagar canal "${nomeCanal}": ${e.message}`,true);
+  }finally{
+    delete processandoExclusao[canalId];
+  }
+}
+
 async function dispararProgramacao(){
   if(processandoDisparoGlobal)return;
 
   const{url,key}=getCreds();
   if(!url||!key){setMsg("Configure URL e Key do Supabase antes de disparar.",true);return;}
-  
-  const prontos=CANAIS.filter((c)=>{
+
+  const prontos=CANAIS_DINAMICOS.filter((c)=>{
     const st=estadoCanais[c.id];
     const temPlat=st&&PLATAFORMAS.some(p=>st.plataformas[p]);
     return st&&st.videoUrl&&temTitulo(st)&&st.agendamento&&temPlat;
@@ -328,6 +741,11 @@ async function dispararProgramacao(){
 }
 
 window.addEventListener("message",async(e)=>{if(e.data&&e.data.type==="instagram_pending_map"){const params=new URLSearchParams(e.data.search);const batchId=params.get("batch_id");if(batchId){const{url,key}=getCreds();try{const res=await fetch(`${url.replace(/\/$/,"")}/rest/v1/contas_pendentes_meta?batch_id=eq.${batchId}&select=*`,{headers:{apikey:key,Authorization:`Bearer ${key}`}});const dados=await res.json();if(dados&&dados.length>0){criarModalMapeamento(batchId,dados[0].contas);}}catch(err){setMsg("Erro ao carregar contas para mapeamento.",true);}}}});
-if(new URLSearchParams(location.search).get("auth")==="instagram_pending_map"){const batchId=new URLSearchParams(location.search).get("batch_id");if(batchId){getCreds().url&&fetch(`${getCreds().url.replace(/\/$/,"")}/rest/v1/contas_pendentes_meta?batch_id=eq.${batchId}&select=*`,{headers:{apikey:getCreds().key,Authorization:`Bearer ${getCreds().key}`}}).then((r)=>r.json()).then((dados)=>{if(dados&&dados.length>0)criarModalMapeamento(batchId,dados[0].contas);});}}else if(new URLSearchParams(location.search).get("auth")){setMsg("Conexão realizada! Atualizando status...");testarConexaoSupabase();}
+
+async function receberDropContaIG(event,canalId){event.preventDefault();const targetEl=document.getElementById(`target-ig-${canalId}`);if(targetEl)targetEl.classList.remove("drag-over");const igUserId=event.dataTransfer.getData("text/plain");if(!igUserId||igUserId==="undefined")return;window._mapeamentoVinculos=window._mapeamentoVinculos||{};window._mapeamentoVinculos[canalId]=igUserId;if(targetEl){targetEl.classList.add("linked");targetEl.querySelector(".slot-status").textContent=`Conectado: ID ${igUserId}`;}}
+async function concluirMapeamentoIG(batchId){const{url,key,admin}=getCreds();const vinculos=window._mapeamentoVinculos||{};if(Object.keys(vinculos).length===0){alert("Vincule pelo menos uma conta antes de salvar.");return;}setMsg("Salvando vínculos do Instagram...");try{const res=await fetch(`${url.replace(/\/$/,"")}/functions/v1/auth-instagram/save-mappings`,{method:"POST",headers:{"apikey":key,"Authorization":`Bearer ${key}`,"x-admin-secret":admin,"Content-Type":"application/json"},body:JSON.stringify({batch_id:batchId,mappings:vinculos})});if(!res.ok)throw new Error("Erro ao salvar vínculos no servidor.");document.getElementById("modal-mapeamento-ig")?.remove();setMsg("Contas do Instagram vinculadas com sucesso!");testarConexaoSupabase();}catch(e){setMsg("Erro ao salvar mapeamento: "+e.message,true);}}
+function criarModalMapeamento(batchId,contas){const antigo=document.getElementById("modal-mapeamento-ig");if(antigo)antigo.remove();const overlay=document.createElement("div");overlay.id="modal-mapeamento-ig";overlay.className="modal-overlay";const contasHtml=contas.map((acc)=>{const idVal=acc.igUserId||acc.ig_user_id||"";return `<div class="ig-account-chip" draggable="true" ondragstart="event.dataTransfer.setData('text/plain','${idVal}')" data-ig-id="${idVal}">${ICONS.camera}<span>@${acc.username||idVal}</span></div>`;}).join("");const containersHtml=CANAIS_DINAMICOS.map((c)=>`<div class="drop-target-canal" id="target-ig-${c.id}" ondragover="event.preventDefault();this.classList.add('drag-over')" ondragleave="this.classList.remove('drag-over')" ondrop="receberDropContaIG(event,'${c.id}')"><span class="target-name">${c.nome}</span><span class="slot-status">Arraste a conta do IG aqui</span></div>`).join("");overlay.innerHTML=`<div class="modal-box"><div class="modal-head"><h2>Vincular Contas do Instagram aos Canais</h2><p>Arraste cada conta do Instagram da esquerda para o seu respectivo container de canal à direita.</p></div><div class="modal-body"><div class="modal-col-source"><h3>Contas do Instagram (Meta)</h3><div id="lista-chips-ig">${contasHtml}</div></div><div class="modal-col-targets">${containersHtml}</div></div><div class="modal-foot"><button onclick="concluirMapeamentoIG('${batchId}')" class="btn btn-success">${ICONS.save} Salvar Vínculos</button></div></div>`;document.body.appendChild(overlay);window._mapeamentoTempContas=contas;window._mapeamentoVinculos={};}
+
+if(new URLSearchParams(location.search).get("auth")==="instagram_pending_map"){const batchId=new URLSearchParams(location.search).get("batch_id");if(batchId){getCreds().url&&fetch(`${getCreds().url.replace(/\/$/,"")}/rest/v1/contas_pendentes_meta?batch_id=eq.${batchId}&select=*`,{headers:{apikey:getCreds().key,Authorization:`Bearer ${getCreds().key}`}}).then((r)=>r.json()).then((dados)=>{if(dados&&dados.length>0)criarModalMapeamento(batchId,dados[0].contas);});}}else if(new URLSearchParams(location.search).get("auth")){setMsg("Conexão realizada! Atualizando status...");(async()=>{await carregarCanaisDoSupabase();testarConexaoSupabase();})();}
 
 montarInterface();
