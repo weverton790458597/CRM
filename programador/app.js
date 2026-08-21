@@ -1,7 +1,11 @@
 if(window.opener&&new URLSearchParams(window.location.search).has("auth")){try{const params=new URLSearchParams(window.location.search);const authType=params.get("auth");if(authType==="instagram_pending_map"){window.opener.postMessage({type:"instagram_pending_map",search:window.location.search},"*");}else if(typeof window.opener.testarConexaoSupabase==="function"){window.opener.testarConexaoSupabase();}else{window.opener.location.reload();}}catch(_){}window.close();}
+
 const CANAIS=[{id:"alvox",nome:"Alvox",faixa:"manha",horario:"11:00"},{id:"flux",nome:"Flux",faixa:"manha",horario:"11:20"},{id:"loopx",nome:"Loopx",faixa:"manha",horario:"11:40"},{id:"cris",nome:"Cris",faixa:"manha",horario:"12:00"},{id:"lunax",nome:"Lunax",faixa:"manha",horario:"12:20"},{id:"maxx",nome:"Maxx",faixa:"manha",horario:"12:40"},{id:"most",nome:"Most",faixa:"noite",horario:"18:00"},{id:"post",nome:"Post",faixa:"noite",horario:"18:20"},{id:"primordial",nome:"Primordial",faixa:"noite",horario:"18:40"},{id:"topx",nome:"Topx",faixa:"noite",horario:"19:00"},{id:"vibex",nome:"Vibex",faixa:"noite",horario:"19:20"}];
 const PLATAFORMAS=["youtube","instagram","tiktok"];
 const estadoCanais={};
+const processandoAgendamento={}; // Trava anti-duplo clique por canal
+let processandoDisparoGlobal=false; // Trava anti-duplo clique no disparo geral
+
 const CORES={info:"#22d3ee",ok:"#34d399",erro:"#fb7185",aviso:"#fbbf24"};
 const ICONS={rocket:'<svg class="icon" viewBox="0 0 24 24"><path d="M12 2.5c2.6 2 4.2 5.1 4.2 8.6 0 2-.6 3.9-1.7 5.5l-2.5 3-2.5-3a9.4 9.4 0 0 1-1.7-5.5c0-3.5 1.6-6.6 4.2-8.6z"/><circle cx="12" cy="10.5" r="1.7"/><path d="M8.7 16.3L6 18l.6-3"/><path d="M15.3 16.3L18 18l-.6-3"/></svg>',camera:'<svg class="icon" viewBox="0 0 24 24"><path d="M4 8h3.2l1.8-2h6l1.8 2H20v11H4z"/><circle cx="12" cy="13.5" r="3.3"/></svg>',save:'<svg class="icon" viewBox="0 0 24 24"><path d="M4 4h12l4 4v12H4z"/><path d="M8 4v5h7V4"/><path d="M7 20v-7h10v7"/></svg>',film:'<svg class="icon icon-sm" viewBox="0 0 24 24"><rect x="3" y="4" width="18" height="16" rx="2"/><line x1="7" y1="4" x2="7" y2="20"/><line x1="17" y1="4" x2="17" y2="20"/><line x1="3" y1="9" x2="7" y2="9"/><line x1="3" y1="15" x2="7" y2="15"/><line x1="17" y1="9" x2="21" y2="9"/><line x1="17" y1="15" x2="21" y2="15"/></svg>',link:'<svg class="icon icon-sm" viewBox="0 0 24 24"><path d="M9.5 14.5l5-5"/><path d="M8 11.5l-2 2a3 3 0 0 0 4.2 4.2l2-2"/><path d="M16 12.5l2-2a3 3 0 0 0-4.2-4.2l-2 2"/></svg>',paperclip:'<svg class="icon icon-lg icon-default" viewBox="0 0 24 24"><path d="M17.5 9L10 16.5a2.8 2.8 0 0 1-4-4L13.5 5a4.2 4.2 0 1 1 6 6L11 19.5a5.6 5.6 0 1 1-8-8"/></svg>',check:'<svg class="icon icon-lg icon-success" viewBox="0 0 24 24"><polyline points="4 12.5 9 17.5 20 6"/></svg>',checkCircle:'<svg class="icon" viewBox="0 0 24 24"><circle cx="12" cy="12" r="9"/><polyline points="8 12.5 11 15.5 16 9.5"/></svg>',xCircle:'<svg class="icon" viewBox="0 0 24 24"><circle cx="12" cy="12" r="9"/><line x1="9" y1="9" x2="15" y2="15"/><line x1="15" y1="9" x2="9" y2="15"/></svg>',alert:'<svg class="icon" viewBox="0 0 24 24"><path d="M12 3.5l9.5 16.5H2.5z"/><line x1="12" y1="9.5" x2="12" y2="14"/><circle cx="12" cy="16.8" r=".6" fill="currentColor" stroke="none"/></svg>',loader:'<svg class="icon icon-spin" viewBox="0 0 24 24"><circle cx="12" cy="12" r="9" stroke-dasharray="40 16"/></svg>'};
 const ICONE_TIPO={info:ICONS.loader,ok:ICONS.checkCircle,erro:ICONS.xCircle,aviso:ICONS.alert};
@@ -26,7 +30,7 @@ function montarInterface(){
   
   CANAIS.forEach((c)=>{
     estadoCanais[c.id]={arquivo:null,videoUrl:null,titulo:{youtube:"",instagram:"",tiktok:""},plataformas:{youtube:true,instagram:true,tiktok:true},agendamento:""};
-    const cardHTML=`<div class="card" id="card-${c.id}"><div><div class="card-header"><span>${c.nome}</span><span class="canal-slot">${c.horario}</span></div><div class="auth-buttons"><button class="btn-auth btn-yt" onclick="conectarPlataforma('${c.id}','youtube')">YT</button><button class="btn-auth btn-ig" onclick="conectarPlataforma('${c.id}','instagram')">IG</button><button class="btn-auth btn-tk" onclick="conectarPlataforma('${c.id}','tiktok')">TK</button></div><div class="status"><span id="st-yt-${c.id}" class="err">YT</span><span id="st-ig-${c.id}" class="err">IG</span><span id="st-tk-${c.id}" class="err">TK</span></div><div class="plataformas-select"><label class="chk-plataforma"><input type="checkbox" id="chk-youtube-${c.id}" disabled onchange="atualizarPlataforma('${c.id}','youtube',this.checked)"> YT</label><label class="chk-plataforma"><input type="checkbox" id="chk-instagram-${c.id}" disabled onchange="atualizarPlataforma('${c.id}','instagram',this.checked)"> IG</label><label class="chk-plataforma"><input type="checkbox" id="chk-tiktok-${c.id}" disabled onchange="atualizarPlataforma('${c.id}','tiktok',this.checked)"> TK</label></div><div class="agendamento-select"><input type="date" class="input-data" id="data-${c.id}" value="${dataPadrao}" onchange="atualizarAgendamento('${c.id}')"><input type="time" class="input-hora" id="hora-${c.id}" value="${c.horario}" onchange="atualizarAgendamento('${c.id}')"></div></div><div class="dropzone" id="dz-${c.id}" ondragover="event.preventDefault();event.stopPropagation();this.classList.add('over')" ondragleave="event.stopPropagation();this.classList.remove('over')" ondrop="tratarDropCard(event,'${c.id}')" onclick="document.getElementById('single-${c.id}').click()"><span class="dz-icon-wrap">${ICONS.paperclip}${ICONS.check}</span><span class="dz-text" id="dz-text-${c.id}">Vídeo ou JSON</span><div class="detalhes-meta" id="meta-${c.id}"></div><input id="single-${c.id}" type="file" accept="video/*,.json" style="display:none" onchange="tratarSelecaoCard(this,'${c.id}')"></div><div class="campos-texto"><input type="text" class="input-titulo" id="titulo-youtube-${c.id}" placeholder="Título YouTube" oninput="atualizarTitulo('${c.id}','youtube',this.value)"><input type="text" class="input-titulo" id="titulo-instagram-${c.id}" placeholder="Título Instagram" oninput="atualizarTitulo('${c.id}','instagram',this.value)"><input type="text" class="input-titulo" id="titulo-tiktok-${c.id}" placeholder="Título TikTok" oninput="atualizarTitulo('${c.id}','tiktok',this.value)"></div><button class="btn-disparar-card" onclick="agendarCanalIndividual('${c.id}')">${ICONS.rocket} Agendar Este Canal</button><div class="card-status" id="card-status-${c.id}"></div></div>`;
+    const cardHTML=`<div class="card" id="card-${c.id}"><div><div class="card-header"><span>${c.nome}</span><span class="canal-slot">${c.horario}</span></div><div class="auth-buttons"><button class="btn-auth btn-yt" onclick="conectarPlataforma('${c.id}','youtube')">YT</button><button class="btn-auth btn-ig" onclick="conectarPlataforma('${c.id}','instagram')">IG</button><button class="btn-auth btn-tk" onclick="conectarPlataforma('${c.id}','tiktok')">TK</button></div><div class="status"><span id="st-yt-${c.id}" class="err">YT</span><span id="st-ig-${c.id}" class="err">IG</span><span id="st-tk-${c.id}" class="err">TK</span></div><div class="plataformas-select"><label class="chk-plataforma"><input type="checkbox" id="chk-youtube-${c.id}" disabled onchange="atualizarPlataforma('${c.id}','youtube',this.checked)"> YT</label><label class="chk-plataforma"><input type="checkbox" id="chk-instagram-${c.id}" disabled onchange="atualizarPlataforma('${c.id}','instagram',this.checked)"> IG</label><label class="chk-plataforma"><input type="checkbox" id="chk-tiktok-${c.id}" disabled onchange="atualizarPlataforma('${c.id}','tiktok',this.checked)"> TK</label></div><div class="agendamento-select"><input type="date" class="input-data" id="data-${c.id}" value="${dataPadrao}" onchange="atualizarAgendamento('${c.id}')"><input type="time" class="input-hora" id="hora-${c.id}" value="${c.horario}" onchange="atualizarAgendamento('${c.id}')"></div></div><div class="dropzone" id="dz-${c.id}" ondragover="event.preventDefault();event.stopPropagation();this.classList.add('over')" ondragleave="event.stopPropagation();this.classList.remove('over')" ondrop="tratarDropCard(event,'${c.id}')" onclick="document.getElementById('single-${c.id}').click()"><span class="dz-icon-wrap">${ICONS.paperclip}${ICONS.check}</span><span class="dz-text" id="dz-text-${c.id}">Vídeo ou JSON</span><div class="detalhes-meta" id="meta-${c.id}"></div><input id="single-${c.id}" type="file" accept="video/*,.json" style="display:none" onchange="tratarSelecaoCard(this,'${c.id}')"></div><div class="campos-texto"><input type="text" class="input-titulo" id="titulo-youtube-${c.id}" placeholder="Título YouTube" oninput="atualizarTitulo('${c.id}','youtube',this.value)"><input type="text" class="input-titulo" id="titulo-instagram-${c.id}" placeholder="Título Instagram" oninput="atualizarTitulo('${c.id}','instagram',this.value)"><input type="text" class="input-titulo" id="titulo-tiktok-${c.id}" placeholder="Título TikTok" oninput="atualizarTitulo('${c.id}','tiktok',this.value)"></div><button class="btn-disparar-card" id="btn-agendar-${c.id}" onclick="agendarCanalIndividual('${c.id}')">${ICONS.rocket} Agendar Este Canal</button><div class="card-status" id="card-status-${c.id}"></div></div>`;
     if(c.faixa==="manha"&&containerManha)containerManha.innerHTML+=cardHTML;
     else if(containerNoite)containerNoite.innerHTML+=cardHTML;
   });
@@ -61,7 +65,7 @@ async function distribuirVideosCanais(videos){
 
   for(const video of videos){
     const nomeLow=video.name.toLowerCase();
-    const canal=CANAIS.find(c=>nomeLow.includes(c.id.toLowerCase())||nomeLow.includes(c.nome.toLowerCase()));
+    const canal=CANAIS.find(c=>!canaisOcupados.has(c.id)&&!estadoCanais[c.id]?.videoUrl&&(nomeLow.includes(c.id.toLowerCase())||nomeLow.includes(c.nome.toLowerCase())));
     if(canal){
       await processarArquivo(canal.id,video);
       canaisOcupados.add(canal.id);
@@ -72,7 +76,7 @@ async function distribuirVideosCanais(videos){
   }
 
   if(videosNaoAlocados.length>0){
-    const canaisLivres=CANAIS.filter(c=>!canaisOcupados.has(c.id));
+    const canaisLivres=CANAIS.filter(c=>!canaisOcupados.has(c.id)&&!estadoCanais[c.id]?.videoUrl);
     for(let i=0;i<Math.min(videosNaoAlocados.length,canaisLivres.length);i++){
       await processarArquivo(canaisLivres[i].id,videosNaoAlocados[i]);
       distribuidos++;
@@ -159,15 +163,38 @@ function processarArquivoJson(file){
 
 function atualizarVisualContainer(id){const dz=document.getElementById(`dz-${id}`);const st=estadoCanais[id];if(dz){if(st.arquivo)dz.classList.add("cheio");else dz.classList.remove("cheio");}let html="";if(st.arquivo)html+=`<span class="arquivo" style="font-size:12px;">${ICONS.film}${st.arquivo}</span>`;if(st.videoUrl)html+=`<span class="url-meta">${ICONS.link}Enviado ao Storage</span>`;if(!html)html=`<span class="dz-text">Vídeo ou JSON</span>`;const meta=document.getElementById(`meta-${id}`);if(meta)meta.innerHTML=html;}
 
+function limparCard(canalId){
+  if(!estadoCanais[canalId])return;
+  estadoCanais[canalId].arquivo=null;
+  estadoCanais[canalId].videoUrl=null;
+  estadoCanais[canalId].titulo={youtube:"",instagram:"",tiktok:""};
+  
+  PLATAFORMAS.forEach((p)=>{
+    const inp=document.getElementById(`titulo-${p}-${canalId}`);
+    if(inp)inp.value="";
+  });
+
+  const singleInput=document.getElementById(`single-${canalId}`);
+  if(singleInput)singleInput.value="";
+
+  atualizarVisualContainer(canalId);
+}
+
 async function salvarAgendamentoNoBanco(canalId){
   const{url,key}=getCreds();
   const st=estadoCanais[canalId];
   const plataformasAtivas=PLATAFORMAS.filter((p)=>st.plataformas[p]);
 
+  if(plataformasAtivas.length===0){
+    throw new Error("Selecione ao menos uma plataforma ativa para agendar.");
+  }
+
+  // Fallback: se uma plataforma selecionada não tiver título preenchido, usa qualquer outro título disponível no card
+  const primeiroTituloDisponivel=PLATAFORMAS.map(p=>st.titulo?.[p]).find(t=>typeof t==="string"&&t.trim()!=="")||"";
+
   const titulosLimpos={};
   PLATAFORMAS.forEach((p)=>{
-    let txt=(st.titulo&&typeof st.titulo[p]==="string")?st.titulo[p].trim():"";
-    // Trava para respeitar o limite máximo de 100 caracteres do YouTube
+    let txt=(st.titulo&&typeof st.titulo[p]==="string"&&st.titulo[p].trim()!=="")?st.titulo[p].trim():primeiroTituloDisponivel;
     if(p==="youtube"&&txt.length>100){
       txt=txt.substring(0,97)+"...";
     }
@@ -198,11 +225,74 @@ async function salvarAgendamentoNoBanco(canalId){
     const errText=await res.text();
     throw new Error(`HTTP ${res.status}: ${errText}`);
   }
+
+  // Limpa o card após o agendamento bem-sucedido para proibir duplicações
+  limparCard(canalId);
   return true;
 }
 
-async function agendarCanalIndividual(canalId){const{url,key}=getCreds();if(!url||!key){setMsg("Configure URL e Key do Supabase antes de agendar.",true);return;}const st=estadoCanais[canalId];if(!st)return;if(!st.videoUrl){setCardStatus(canalId,"Envie um vídeo antes de agendar.","erro");return;}if(!temTitulo(st)){setCardStatus(canalId,"Preencha ao menos um título antes de agendar.","erro");return;}if(!st.agendamento){setCardStatus(canalId,"Selecione data e hora.","erro");return;}setCardStatus(canalId,"Agendando...","info");try{await salvarAgendamentoNoBanco(canalId);setCardStatus(canalId,"Agendado com sucesso!","ok");}catch(e){setCardStatus(canalId,`Erro: ${e.message}`,"erro");}}
-async function dispararProgramacao(){const{url,key}=getCreds();if(!url||!key){setMsg("Configure URL e Key do Supabase antes de disparar.",true);return;}const prontos=CANAIS.filter((c)=>{const st=estadoCanais[c.id];return st&&st.videoUrl&&temTitulo(st)&&st.agendamento;});if(prontos.length===0){setMsg("Nenhum canal está pronto (vídeo + título + data/hora) para disparo.",true);return;}setMsg(`Disparando programação para ${prontos.length} canal(is)...`);let sucesso=0;let falhas=0;for(const c of prontos){setCardStatus(c.id,"Agendando...","info");try{await salvarAgendamentoNoBanco(c.id);setCardStatus(c.id,"Agendado com sucesso!","ok");sucesso++;}catch(e){setCardStatus(c.id,`Erro: ${e.message}`,"erro");falhas++;}}setMsg(falhas===0?`Programação disparada! ${sucesso} canal(is) agendado(s) com sucesso.`:`Programação concluída: ${sucesso} agendado(s), ${falhas} com erro.`,falhas>0);}
+async function agendarCanalIndividual(canalId){
+  if(processandoAgendamento[canalId])return;
+
+  const{url,key}=getCreds();
+  if(!url||!key){setMsg("Configure URL e Key do Supabase antes de agendar.",true);return;}
+  
+  const st=estadoCanais[canalId];
+  if(!st)return;
+  if(!st.videoUrl){setCardStatus(canalId,"Envie um vídeo antes de agendar.","erro");return;}
+  if(!temTitulo(st)){setCardStatus(canalId,"Preencha ao menos um título antes de agendar.","erro");return;}
+  if(!st.agendamento){setCardStatus(canalId,"Selecione data e hora.","erro");return;}
+
+  const temPlat=PLATAFORMAS.some(p=>st.plataformas[p]);
+  if(!temPlat){setCardStatus(canalId,"Selecione ao menos uma plataforma ativa.","erro");return;}
+
+  processandoAgendamento[canalId]=true;
+  setCardStatus(canalId,"Agendando...","info");
+
+  try{
+    await salvarAgendamentoNoBanco(canalId);
+    setCardStatus(canalId,"Agendado com sucesso!","ok");
+  }catch(e){
+    setCardStatus(canalId,`Erro: ${e.message}`,"erro");
+  }finally{
+    processandoAgendamento[canalId]=false;
+  }
+}
+
+async function dispararProgramacao(){
+  if(processandoDisparoGlobal)return;
+
+  const{url,key}=getCreds();
+  if(!url||!key){setMsg("Configure URL e Key do Supabase antes de disparar.",true);return;}
+  
+  const prontos=CANAIS.filter((c)=>{
+    const st=estadoCanais[c.id];
+    const temPlat=st&&PLATAFORMAS.some(p=>st.plataformas[p]);
+    return st&&st.videoUrl&&temTitulo(st)&&st.agendamento&&temPlat;
+  });
+
+  if(prontos.length===0){setMsg("Nenhum canal está pronto (vídeo + título + data/hora + plataforma) para disparo.",true);return;}
+
+  processandoDisparoGlobal=true;
+  setMsg(`Disparando programação para ${prontos.length} canal(is)...`);
+  let sucesso=0;
+  let falhas=0;
+
+  for(const c of prontos){
+    setCardStatus(c.id,"Agendando...","info");
+    try{
+      await salvarAgendamentoNoBanco(c.id);
+      setCardStatus(c.id,"Agendado com sucesso!","ok");
+      sucesso++;
+    }catch(e){
+      setCardStatus(c.id,`Erro: ${e.message}`,"erro");
+      falhas++;
+    }
+  }
+
+  setMsg(falhas===0?`Programação disparada! ${sucesso} canal(is) agendado(s) com sucesso.`:`Programação concluída: ${sucesso} agendado(s), ${falhas} com erro.`,falhas>0);
+  processandoDisparoGlobal=false;
+}
 
 window.addEventListener("message",async(e)=>{if(e.data&&e.data.type==="instagram_pending_map"){const params=new URLSearchParams(e.data.search);const batchId=params.get("batch_id");if(batchId){const{url,key}=getCreds();try{const res=await fetch(`${url.replace(/\/$/,"")}/rest/v1/contas_pendentes_meta?batch_id=eq.${batchId}&select=*`,{headers:{apikey:key,Authorization:`Bearer ${key}`}});const dados=await res.json();if(dados&&dados.length>0){criarModalMapeamento(batchId,dados[0].contas);}}catch(err){setMsg("Erro ao carregar contas para mapeamento.",true);}}}});
 if(new URLSearchParams(location.search).get("auth")==="instagram_pending_map"){const batchId=new URLSearchParams(location.search).get("batch_id");if(batchId){getCreds().url&&fetch(`${getCreds().url.replace(/\/$/,"")}/rest/v1/contas_pendentes_meta?batch_id=eq.${batchId}&select=*`,{headers:{apikey:getCreds().key,Authorization:`Bearer ${getCreds().key}`}}).then((r)=>r.json()).then((dados)=>{if(dados&&dados.length>0)criarModalMapeamento(batchId,dados[0].contas);});}}else if(new URLSearchParams(location.search).get("auth")){setMsg("Conexão realizada! Atualizando status...");testarConexaoSupabase();}
