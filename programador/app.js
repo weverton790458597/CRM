@@ -46,7 +46,40 @@ function atualizarPlataforma(canalId,platform,checked){if(!estadoCanais[canalId]
 function atualizarTexto(canalId,campo,valor){if(!estadoCanais[canalId])return;estadoCanais[canalId][campo]=valor;}
 function atualizarTitulo(canalId,plataforma,valor){if(!estadoCanais[canalId])return;if(!estadoCanais[canalId].titulo)estadoCanais[canalId].titulo={};estadoCanais[canalId].titulo[plataforma]=String(valor||"");}
 function temTitulo(st){if(!st||!st.titulo)return false;return PLATAFORMAS.some((p)=>typeof st.titulo[p]==="string"&&(st.titulo[p]||"").trim()!=="");}
-function atualizarAgendamento(canalId){const dataEl=document.getElementById(`data-${canalId}`);const horaEl=document.getElementById(`hora-${canalId}`);if(!dataEl||!horaEl||!estadoCanais[canalId])return;const data=dataEl.value;const hora=horaEl.value;estadoCanais[canalId].agendamento = data && hora ? `${data}T${hora}:00` : "";}
+
+// ----------------------------------------------------------------------
+// CORREÇÃO (Bug de fuso horário / disparo imediato):
+// Antes esta função montava a string "${data}T${hora}:00" (sem 'Z' e sem
+// offset) e mandava direto pro banco. O Postgres/Supabase, ao receber uma
+// string ISO sem fuso numa coluna timestamptz, assume que ela já está em
+// UTC. Resultado: quem digitava "11:00" pensando no horário local (ex:
+// UTC-3) fazia o banco entender "11:00 UTC" — 3h mais cedo do que o
+// pretendido. Como o cron compara agendado_para <= NOW() (em UTC), o post
+// muitas vezes já nascia "atrasado" e disparava na hora do clique, ao
+// invés de esperar o horário programado.
+// AGORA: usamos o construtor Date(ano, mes, dia, hora, min) do JS, que
+// interpreta os valores como horário LOCAL do navegador, e então
+// convertemos para ISO/UTC com .toISOString() antes de salvar. Isso
+// garante que o horário digitado na tela é respeitado corretamente
+// independente do fuso de quem estiver usando o painel.
+// ----------------------------------------------------------------------
+function atualizarAgendamento(canalId){
+  const dataEl=document.getElementById(`data-${canalId}`);
+  const horaEl=document.getElementById(`hora-${canalId}`);
+  if(!dataEl||!horaEl||!estadoCanais[canalId])return;
+  const data=dataEl.value;
+  const hora=horaEl.value;
+  if(data&&hora){
+    const[ano,mes,dia]=data.split("-").map(Number);
+    const[h,m]=hora.split(":").map(Number);
+    // new Date(ano,mesIndex,dia,hora,min) monta a data no fuso LOCAL do navegador
+    const dataLocal=new Date(ano,mes-1,dia,h,m,0);
+    estadoCanais[canalId].agendamento=dataLocal.toISOString();
+  }else{
+    estadoCanais[canalId].agendamento="";
+  }
+}
+
 function aplicarDataATodos(){const dataGlobalEl=document.getElementById("dataGlobal");if(!dataGlobalEl||!dataGlobalEl.value){setMsg("Selecione uma data global antes de aplicar.",true);return;}CANAIS.forEach((c)=>{const dataEl=document.getElementById(`data-${c.id}`);if(dataEl){dataEl.value=dataGlobalEl.value;atualizarAgendamento(c.id);}});setMsg("Data aplicada a todos os canais!");}
 function aplicarStatusConexao(canalId,platform,conectado){const cb=document.getElementById(`chk-${platform}-${canalId}`);if(!cb)return;const eraConectado=cb.dataset.conectado==="1";cb.disabled=!conectado;cb.dataset.conectado=conectado?"1":"0";if(conectado&&!eraConectado){cb.checked=true;estadoCanais[canalId].plataformas[platform]=true;}else if(!conectado){cb.checked=false;estadoCanais[canalId].plataformas[platform]=false;}}
 function selecionarTudoGlobal(){let marcados=0;CANAIS.forEach((c)=>{PLATAFORMAS.forEach((p)=>{const cb=document.getElementById(`chk-${p}-${c.id}`);if(cb&&!cb.disabled){cb.checked=true;estadoCanais[c.id].plataformas[p]=true;marcados++;}});});setMsg(marcados>0?"Todas as plataformas conectadas foram selecionadas!":"Nenhuma plataforma conectada para selecionar.");}
