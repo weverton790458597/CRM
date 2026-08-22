@@ -1,0 +1,128 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Entrar — Evrix Social</title>
+  <link rel="icon" type="image/png" href="../1.png" />
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800&display=swap" rel="stylesheet" />
+  <link rel="stylesheet" href="auth-style.css" />
+</head>
+<body>
+  <main class="auth-page" role="main">
+    <div class="auth-card">
+
+      <div class="login-logo">
+        <img src="../1.png" alt="Ícone Evrix Social" onerror="this.style.display='none'" />
+        <span class="login-logo-text">Evrix Social</span>
+      </div>
+
+      <h1 class="login-title">Acesse seu painel</h1>
+      <p class="login-subtitle">Entre com suas credenciais para continuar</p>
+
+      <form id="form-login" novalidate>
+        <div class="field">
+          <label for="email">E-mail</label>
+          <div class="field-wrap">
+            <input type="email" id="email" name="email" placeholder="seu@email.com" autocomplete="email" required />
+          </div>
+        </div>
+
+        <div class="field">
+          <label for="senha">Senha</label>
+          <div class="field-wrap">
+            <input type="password" id="senha" name="password" placeholder="••••••••" autocomplete="current-password" required />
+            <span class="field-icon" id="toggleSenha" role="button" tabindex="0" aria-label="Mostrar ou ocultar senha">
+              <svg id="icon-eye" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6">
+                <path d="M1 12s4-7 11-7 11 7 11 7-4 7-11 7-11-7-11-7z"/>
+                <circle cx="12" cy="12" r="3"/>
+              </svg>
+            </span>
+          </div>
+        </div>
+
+        <button class="btn-primary" id="entrar" type="submit">Entrar na plataforma</button>
+        <p class="msg-erro" id="msg-erro" role="alert" aria-live="polite"></p>
+        <p class="msg-ok" id="msg-ok" role="status" aria-live="polite"></p>
+      </form>
+
+      <div class="auth-footer">
+        <a href="recuperar-senha.html">Esqueci minha senha</a>
+        <span class="muted">Ainda não tem conta? <a href="planos.html">Criar conta</a></span>
+      </div>
+
+    </div>
+  </main>
+
+  <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+  <script src="auth-client.js"></script>
+  <script>
+    (() => {
+      const form       = document.getElementById('form-login');
+      const emailInput = document.getElementById('email');
+      const senhaInput = document.getElementById('senha');
+      const entrarBtn  = document.getElementById('entrar');
+      const erroEl     = document.getElementById('msg-erro');
+      const okEl       = document.getElementById('msg-ok');
+      const toggleSenha = document.getElementById('toggleSenha');
+
+      // Se a pessoa acabou de confirmar o e-mail de cadastro, mostramos um aviso
+      const params = new URLSearchParams(window.location.search);
+      if (params.get('confirmado') === '1') {
+        okEl.textContent = 'E-mail confirmado! Já pode entrar com sua senha.';
+      }
+
+      function togglePasswordVisibility() {
+        const isPassword = senhaInput.type === 'password';
+        senhaInput.type = isPassword ? 'text' : 'password';
+        const iconEl = document.getElementById('icon-eye');
+        iconEl.innerHTML = isPassword
+          ? `<path d="M17.94 17.94A10.07 10.07 0 0 1 12 20c-7 0-11-8-11-8a18.45 18.45 0 0 1 5.06-5.94"/><path d="M9.9 4.24A9.12 9.12 0 0 1 12 4c7 0 11 8 11 8a18.5 18.5 0 0 1-2.16 3.19"/><line x1="1" y1="1" x2="23" y2="23"/>`
+          : `<path d="M1 12s4-7 11-7 11 7 11 7-4 7-11 7-11-7-11-7z"/><circle cx="12" cy="12" r="3"/>`;
+      }
+      toggleSenha.addEventListener('click', togglePasswordVisibility);
+      toggleSenha.addEventListener('keydown', e => { if (e.key === 'Enter' || e.key === ' ') togglePasswordVisibility(); });
+
+      async function validarLogin(e) {
+        e.preventDefault();
+        erroEl.textContent = '';
+        okEl.textContent = '';
+
+        const email = emailInput.value.trim();
+        const senha = senhaInput.value;
+
+        if (!email || !senha) {
+          erroEl.textContent = 'Preencha todos os campos.';
+          return;
+        }
+
+        entrarBtn.textContent = 'Entrando…';
+        entrarBtn.disabled = true;
+
+        try {
+          const { data, error } = await window.supabaseClient.auth.signInWithPassword({
+            email,
+            password: senha
+          });
+
+          if (error) throw error;
+
+          if (data?.session) {
+            window.location.href = '../menu/index.html';
+          }
+        } catch (err) {
+          console.error('❌ Erro no login:', err);
+          erroEl.textContent = window.traduzirErroAuth(err.message || '');
+        } finally {
+          entrarBtn.textContent = 'Entrar na plataforma';
+          entrarBtn.disabled = false;
+        }
+      }
+
+      form.addEventListener('submit', validarLogin);
+    })();
+  </script>
+</body>
+</html>
