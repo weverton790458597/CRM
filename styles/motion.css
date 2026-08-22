@@ -1,0 +1,104 @@
+/* ============================================================
+   Evrix — Microinterações, Scroll, Parallax & Glassmorphism
+   ============================================================ */
+
+/* Reveal ao rolar (IntersectionObserver) */
+.reveal {
+  opacity: 0;
+  transform: translateY(42px);
+  transition:
+    opacity 0.85s cubic-bezier(0.16, 1, 0.3, 1),
+    transform 0.85s cubic-bezier(0.16, 1, 0.3, 1);
+}
+.reveal.visible {
+  opacity: 1;
+  transform: translateY(0);
+}
+.reveal-delay-1 { transition-delay: 0.1s; }
+.reveal-delay-2 { transition-delay: 0.2s; }
+.reveal-delay-3 { transition-delay: 0.3s; }
+
+/* Glassmorphism reutilizável */
+.glass {
+  background: var(--color-surface);
+  backdrop-filter: blur(18px) saturate(160%);
+  -webkit-backdrop-filter: blur(18px) saturate(160%);
+  border: 1px solid var(--color-border);
+}
+
+/* Parallax (controlado via JS) */
+.parallax {
+  will-change: transform;
+}
+
+/* Gradientes animados */
+.gradient-animated {
+  background: var(--gradient-animated);
+  background-size: 300% 300%;
+  animation: gradientShift 8s ease infinite;
+}
+
+/* Borda com gradiente interativa */
+.gradient-border {
+  position: relative;
+}
+.gradient-border::after {
+  content: "";
+  position: absolute;
+  inset: 0;
+  border-radius: inherit;
+  padding: 1px;
+  background: linear-gradient(120deg, #8b5cf6, #22d3ee, #f472b6, #8b5cf6);
+  background-size: 300% 100%;
+  -webkit-mask: linear-gradient(#000 0 0) content-box, linear-gradient(#000 0 0);
+  -webkit-mask-composite: xor;
+  mask-composite: exclude;
+  animation: borderGlow 4s linear infinite;
+  pointer-events: none;
+  opacity: 0.6;
+}
+
+/* Anel pulsante em torno do CTA */
+.cta-pulse {
+  position: relative;
+}
+.cta-pulse::before {
+  content: "";
+  position: absolute;
+  inset: -1px;
+  border-radius: inherit;
+  border: 1px solid var(--neon-cyan);
+  animation: pulseRing 2.8s ease-out infinite;
+  pointer-events: none;
+}
+
+/* Glow estático decorativo nos cards de rede */
+.glow-anim {
+  animation: glowPulse 4s ease-in-out infinite;
+}
+
+/* Anéis giratórios decorativos */
+.spin-slow {
+  animation: spinSlow 18s linear infinite;
+}
+
+/* Twinkle dos "pixels" de fundo (opcional) */
+.twinkle {
+  animation: twinkle 3s ease-in-out infinite;
+}
+
+/* Respeita usuários que preferem menos movimento */
+@media (prefers-reduced-motion: reduce) {
+  *,
+  *::before,
+  *::after {
+    animation-duration: 0.001ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.001ms !important;
+    scroll-behavior: auto !important;
+  }
+  .reveal {
+    opacity: 1;
+    transform: none;
+  }
+}

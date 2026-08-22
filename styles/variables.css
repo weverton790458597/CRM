@@ -1,0 +1,70 @@
+/* ============================================================
+   Evrix — Design Tokens / Variáveis
+   ============================================================ */
+:root {
+  /* Cores de fundo (Dark Mode Premium) */
+  --color-bg: #070a12;
+  --color-bg-elevated: #0c111d;
+  --color-surface: rgba(18, 24, 41, 0.55);
+  --color-surface-solid: #121829;
+
+  /* Bordas */
+  --color-border: rgba(255, 255, 255, 0.08);
+  --color-border-strong: rgba(255, 255, 255, 0.16);
+
+  /* Texto */
+  --text-primary: #f5f7ff;
+  --text-secondary: #9aa4bf;
+  --text-muted: #6b7493;
+
+  /* Cores neon das redes / marca */
+  --neon-purple: #8b5cf6;
+  --neon-cyan: #22d3ee;
+  --neon-pink: #f472b6;
+  --neon-blue: #3b82f6;
+
+  /* Cores das marcas suportadas */
+  --tiktok: #25f4ee;
+  --tiktok-2: #fe2c55;
+  --youtube: #ff0033;
+  --instagram-1: #feda75;
+  --instagram-2: #d62976;
+  --instagram-3: #962fbf;
+
+  /* Gradientes */
+  --gradient-brand: linear-gradient(135deg, #8b5cf6 0%, #22d3ee 50%, #f472b6 100%);
+  --gradient-purple-cyan: linear-gradient(135deg, #8b5cf6 0%, #22d3ee 100%);
+  --gradient-pink-purple: linear-gradient(135deg, #f472b6 0%, #8b5cf6 100%);
+  --gradient-animated: linear-gradient(135deg, #8b5cf6, #22d3ee, #f472b6, #8b5cf6);
+
+  /* Glows */
+  --glow-purple: 0 0 30px rgba(139, 92, 246, 0.5);
+  --glow-cyan: 0 0 30px rgba(34, 211, 238, 0.5);
+  --glow-pink: 0 0 30px rgba(244, 114, 182, 0.5);
+  --glow-soft: 0 8px 40px rgba(0, 0, 0, 0.45);
+
+  /* Raios */
+  --radius-sm: 8px;
+  --radius-md: 14px;
+  --radius-lg: 22px;
+  --radius-xl: 32px;
+
+  /* Tipografia */
+  --font-sans: "Inter", -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+  --font-display: "Space Grotesk", "Inter", sans-serif;
+
+  /* Espaçamento */
+  --space-xs: 8px;
+  --space-sm: 16px;
+  --space-md: 32px;
+  --space-lg: 64px;
+  --space-xl: 120px;
+
+  /* Transições */
+  --transition-fast: 0.2s cubic-bezier(0.4, 0, 0.2, 1);
+  --transition-base: 0.4s cubic-bezier(0.4, 0, 0.2, 1);
+  --transition-slow: 0.8s cubic-bezier(0.16, 1, 0.3, 1);
+
+  /* Layout */
+  --max-width: 1240px;
+}

@@ -1,0 +1,165 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Home Care WR</title>
+    <link rel="icon" href="data:,">
+   <link rel="icon" type="image/png" href="1.png">
+
+    <!-- Tabler Icons (ícones ti ti-*) -->
+    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/@tabler/icons-webfont@latest/dist/tabler-icons.min.css">
+
+    <!-- Fonte Inter -->
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
+
+    <!-- Supabase JS Client -->
+    <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2/dist/umd/supabase.min.js"></script>
+
+<style>
+*{box-sizing:border-box;margin:0;padding:0}
+body{background:#020617;color:#f1f5f9;font-family:'Inter',system-ui,sans-serif;-webkit-font-smoothing:antialiased}
+:root{--slate-950:#020617;--slate-900:#0f172a;--slate-800:#1e293b;--slate-700:#334155;--slate-600:#475569;--slate-400:#94a3b8;--slate-300:#cbd5e1;--slate-200:#e2e8f0;--em600:#059669;--em500:#10b981;--am600:#d97706;--am400:#f59e0b;--re600:#dc2626;--re500:#ef4444}
+.app{display:flex;flex-direction:column;min-height:600px;background:var(--slate-950);max-width:420px;margin:0 auto;position:relative;border-radius:var(--border-radius-xl,16px);overflow:hidden;border:0.5px solid #1e293b}
+.header{background:var(--slate-900);border-bottom:0.5px solid var(--slate-800);padding:14px 16px 12px;position:sticky;top:0;z-index:20}
+.header-top{display:flex;align-items:center;justify-content:space-between;margin-bottom:10px}
+.header-brand{font-size:11px;font-weight:500;letter-spacing:.1em;color:var(--slate-600);text-transform:uppercase}
+.header-title{font-size:18px;font-weight:500;color:#f8fafc;letter-spacing:-.01em}
+.status-pill{display:flex;align-items:center;gap:6px;background:#052e16;border:0.5px solid #166534;border-radius:99px;padding:4px 10px;font-size:11px;font-weight:500;color:#4ade80}
+.status-dot{width:6px;height:6px;border-radius:50%;background:#4ade80}
+.progress-bar-wrap{background:var(--slate-800);border-radius:99px;height:4px;overflow:hidden}
+.progress-bar-fill{height:100%;background:var(--em600);border-radius:99px;transition:width .4s ease}
+.progress-label{display:flex;justify-content:space-between;align-items:center;margin-bottom:6px}
+.progress-label span{font-size:11px;color:var(--slate-400)}
+.progress-label strong{font-size:11px;font-weight:500;color:var(--em500)}
+.content{flex:1;overflow-y:auto;padding:14px 14px 80px}
+.section-title{font-size:11px;font-weight:500;letter-spacing:.08em;color:var(--slate-600);text-transform:uppercase;margin-bottom:10px}
+.timer-card{background:var(--slate-900);border:0.5px solid var(--slate-800);border-radius:var(--border-radius-lg,12px);padding:14px;display:flex;align-items:center;justify-content:space-between;gap:12px;margin-bottom:14px}
+.timer-card.urgent{background:#1c1a07;border-color:#78350f}
+.timer-card.overdue{background:#1c0707;border-color:#7f1d1d}
+.timer-icon{width:40px;height:40px;border-radius:10px;background:var(--slate-800);display:flex;align-items:center;justify-content:center;flex-shrink:0;font-size:20px}
+.timer-card.urgent .timer-icon{background:#2d1a02}
+.timer-card.overdue .timer-icon{background:#2d0202}
+.timer-label{font-size:11px;color:var(--slate-400);margin-bottom:2px}
+.timer-value{font-size:26px;font-weight:500;font-variant-numeric:tabular-nums;color:#f8fafc;letter-spacing:-.01em}
+.timer-card.urgent .timer-value{color:var(--am400)}
+.timer-card.overdue .timer-value{color:#f87171}
+.btn-register{background:#f1f5f9;color:#0f172a;font-size:13px;font-weight:500;border:none;border-radius:10px;padding:9px 16px;cursor:pointer;flex-shrink:0;transition:background .15s}
+.btn-register:hover{background:#fff}
+.task-card{background:var(--slate-900);border:0.5px solid var(--slate-800);border-radius:var(--border-radius-lg,12px);padding:14px;margin-bottom:10px;display:flex;flex-direction:column;gap:10px}
+.task-card.done{background:#0c1a12;border-color:#14532d}
+.task-row{display:flex;align-items:flex-start;gap:12px}
+.task-icon{flex-shrink:0;font-size:22px;margin-top:1px}
+.task-name{font-size:14px;font-weight:500;color:#f8fafc;line-height:1.4}
+.task-card.done .task-name{color:var(--slate-600);text-decoration:line-through}
+.task-time{font-size:11px;color:var(--slate-400);margin-top:2px}
+.btn-complete{width:100%;background:var(--em600);color:#fff;font-size:13px;font-weight:500;border:none;border-radius:8px;padding:11px;cursor:pointer;display:flex;align-items:center;justify-content:center;gap:7px;transition:background .15s}
+.btn-complete:hover{background:var(--em500)}
+.btn-complete:disabled{background:var(--slate-800);color:var(--slate-600);cursor:default}
+.btn-complete.done-state{background:transparent;border:0.5px solid #166534;color:#4ade80;cursor:default}
+.badge-done{display:inline-flex;align-items:center;gap:4px;background:#052e16;border:0.5px solid #166534;color:#4ade80;font-size:11px;font-weight:500;border-radius:99px;padding:3px 10px}
+.occurrence-card{background:var(--slate-900);border:0.5px solid var(--slate-800);border-radius:var(--border-radius-lg,12px);padding:14px;margin-bottom:10px;display:flex;gap:12px}
+.occurrence-icon{flex-shrink:0;width:36px;height:36px;border-radius:8px;background:#2d0202;display:flex;align-items:center;justify-content:center;font-size:18px}
+.occurrence-desc{font-size:13px;color:var(--slate-300);line-height:1.5;margin-bottom:4px}
+.occurrence-time{font-size:11px;color:var(--slate-600)}
+.empty-state{border:0.5px dashed var(--slate-700);border-radius:var(--border-radius-lg,12px);padding:28px 16px;text-align:center;color:var(--slate-600);font-size:13px}
+.fab{position:absolute;right:14px;bottom:70px;width:52px;height:52px;background:var(--re600);border-radius:50%;border:none;color:#fff;font-size:24px;cursor:pointer;display:flex;align-items:center;justify-content:center;box-shadow:0 4px 16px rgba(220,38,38,.4);transition:background .15s;z-index:15}
+.fab:hover{background:var(--re500)}
+.bottom-nav{position:absolute;bottom:0;left:0;right:0;background:var(--slate-900);border-top:0.5px solid var(--slate-800);display:grid;grid-template-columns:1fr 1fr;z-index:20}
+.nav-btn{background:none;border:none;padding:12px 8px 14px;cursor:pointer;display:flex;flex-direction:column;align-items:center;gap:4px;font-size:11px;font-weight:500;color:var(--slate-600);transition:color .15s;position:relative}
+.nav-btn.active{color:var(--em500)}
+.nav-btn.active-red{color:#f87171}
+.nav-badge{position:absolute;top:8px;right:calc(50% - 16px);background:var(--em500);color:#052e16;font-size:9px;font-weight:700;width:16px;height:16px;border-radius:50%;display:flex;align-items:center;justify-content:center}
+.nav-badge.red{background:var(--re500);color:#fff}
+.nav-icon{font-size:22px;line-height:1}
+.section-header{display:flex;align-items:center;justify-content:space-between;margin-bottom:10px}
+.btn-new{background:var(--re600);color:#fff;font-size:12px;font-weight:500;border:none;border-radius:8px;padding:7px 13px;cursor:pointer;display:flex;align-items:center;gap:5px;transition:background .15s}
+.btn-new:hover{background:var(--re500)}
+.modal-overlay{position:absolute;inset:0;background:rgba(0,0,0,.75);display:flex;align-items:flex-end;z-index:30;backdrop-filter:blur(2px)}
+.modal{background:var(--slate-900);border:0.5px solid var(--slate-700);border-radius:16px 16px 0 0;padding:20px;width:100%}
+.modal-header{display:flex;align-items:center;justify-content:space-between;margin-bottom:8px}
+.modal-title{display:flex;align-items:center;gap:8px;font-size:16px;font-weight:500;color:#f8fafc}
+.modal-close{background:none;border:none;color:var(--slate-600);cursor:pointer;font-size:20px;padding:2px;line-height:1}
+.modal-hint{font-size:12px;color:var(--slate-400);margin-bottom:12px;line-height:1.5}
+.modal-textarea{width:100%;background:var(--slate-800);border:0.5px solid var(--slate-700);border-radius:10px;color:#f8fafc;font-size:14px;padding:12px;resize:none;font-family:inherit;line-height:1.5;outline:none}
+.modal-textarea:focus{border-color:#991b1b;box-shadow:0 0 0 2px rgba(220,38,38,.2)}
+.modal-textarea::placeholder{color:var(--slate-600)}
+.btn-submit{width:100%;margin-top:12px;background:var(--re600);color:#fff;font-size:14px;font-weight:500;border:none;border-radius:10px;padding:14px;cursor:pointer;display:flex;align-items:center;justify-content:center;gap:8px;transition:background .15s}
+.btn-submit:hover:not(:disabled){background:var(--re500)}
+.btn-submit:disabled{background:var(--slate-800);color:var(--slate-600);cursor:default}
+.toast{position:absolute;top:72px;left:14px;right:14px;z-index:40;padding:12px 16px;border-radius:10px;font-size:13px;font-weight:500;color:#fff;animation:fadeInSlide .2s ease}
+.toast.ok{background:var(--em600)}
+.toast.error{background:var(--re600)}
+@keyframes fadeInSlide{from{opacity:0;transform:translateY(-8px)}to{opacity:1;transform:translateY(0)}}
+.divider-label{font-size:10px;text-transform:uppercase;letter-spacing:.08em;color:var(--slate-700);margin:12px 0 8px;font-weight:500}
+</style>
+
+
+<div class="app" id="app">
+
+  <div class="header">
+    <div class="header-top">
+      <div>
+        <div class="header-brand">Home Care WR</div>
+        <div class="header-title" id="patientNameDisplay">Carregando...</div>
+      </div>
+      <div class="status-pill">
+        <span class="status-dot"></span>
+        Estável
+      </div>
+    </div>
+    <div class="progress-label">
+      <span id="progressLabel">Tarefas do turno</span>
+      <strong id="progressCount">0/0 concluídas</strong>
+    </div>
+    <div class="progress-bar-wrap">
+      <div class="progress-bar-fill" id="progressFill" style="width:0%"></div>
+    </div>
+  </div>
+
+  <div class="content" id="mainContent"></div>
+
+  <button class="fab" id="fabBtn" aria-label="Registrar intercorrência" style="display:none">
+    <i class="ti ti-alert-triangle" aria-hidden="true"></i>
+  </button>
+
+  <nav class="bottom-nav">
+    <button class="nav-btn active" id="navTasks" onclick="switchTab('tasks')">
+      <span class="nav-icon"><i class="ti ti-clipboard-list" aria-hidden="true"></i></span>
+      <span id="navBadgeTasks"></span>
+      Tarefas
+    </button>
+    <button class="nav-btn" id="navOccurrences" onclick="switchTab('intercurrences')">
+      <span class="nav-icon"><i class="ti ti-alert-triangle" aria-hidden="true"></i></span>
+      <span id="navBadgeOcc"></span>
+      Intercorrências
+    </button>
+  </nav>
+
+  <div class="modal-overlay" id="modalOverlay" style="display:none" onclick="closeModal(event)">
+    <div class="modal">
+      <div class="modal-header">
+        <div class="modal-title">
+          <i class="ti ti-alert-triangle" style="color:#f87171" aria-hidden="true"></i>
+          Nova intercorrência
+        </div>
+        <button class="modal-close" onclick="setModalOpen(false)" aria-label="Fechar"><i class="ti ti-x" aria-hidden="true"></i></button>
+      </div>
+      <p class="modal-hint">Descreva o que aconteceu. Esse registro é enviado imediatamente para a equipe responsável.</p>
+      <textarea class="modal-textarea" id="occTextarea" rows="5" placeholder="Ex.: paciente apresentou queda de saturação, dificuldade respiratória..."></textarea>
+      <button class="btn-submit" id="btnSubmitOcc" onclick="submitOccurrence()">
+        <i class="ti ti-alert-triangle" aria-hidden="true"></i>
+        Enviar alerta
+      </button>
+    </div>
+  </div>
+
+<div id="toastEl" style="display:none" class="toast"></div>
+</div>
+
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2/dist/umd/supabase.min.js"></script>
+<script src="main.js"></script>
+</body>
+</html>
