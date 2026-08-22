@@ -1841,7 +1841,10 @@ body::before {
 </div>
 
     <!-- Scripts -->
-    <script src="https://unpkg.com/@supabase/supabase-js@2"></script>
+    <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+<!-- ↓ essas duas linhas são as novas, o resto do HTML e o app.js continuam intactos -->
+<script src="/auth/auth-client.js"></script>
+<script src="/auth/auth-guard.js" data-login-url="/auth/login.html"></script>
     <script src="instagram.js"></script>
 </body>
 </html>
