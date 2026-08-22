@@ -1,6 +1,7 @@
 /**
  * TradeWR Social - TikTok Only
  * Versão corrigida, blindada e otimizada
+ * (fix: apikey nos fetches diretos ao Storage/proxy do Supabase — avatares paravam de aparecer em outros dispositivos)
  */
 
 // ==========================================
@@ -1101,7 +1102,12 @@ const DataService = {
                 try {
                     console.log('🔄 Clonando avatar do TikTok para o Supabase Storage...');
                     const proxyUrl = `${CONFIG.SUPABASE_URL}/functions/v1/smart-responder?proxy_url=${encodeURIComponent(data.user.avatar_url)}`;
-                    const imageRes = await fetch(proxyUrl, { headers: { Authorization: `Bearer ${CONFIG.SUPABASE_KEY}` } });
+                    const imageRes = await fetch(proxyUrl, {
+                        headers: {
+                            Authorization: `Bearer ${CONFIG.SUPABASE_KEY}`,
+                            apikey: CONFIG.SUPABASE_KEY
+                        }
+                    });
 
                     if (imageRes.ok) {
                         const blob = await imageRes.blob();
@@ -1112,6 +1118,7 @@ const DataService = {
                             method: 'POST',
                             headers: {
                                 'Authorization': `Bearer ${CONFIG.SUPABASE_KEY}`,
+                                'apikey': CONFIG.SUPABASE_KEY,
                                 'x-upsert': 'true' 
                             },
                             body: blob
@@ -1122,10 +1129,15 @@ const DataService = {
                             console.log('✅ Avatar saved to Supabase:', permanentUrl);
                             data.user.avatar_url = permanentUrl;
                             data.avatar_permanente = permanentUrl;
+                        } else {
+                            console.error('❌ Upload de avatar falhou:', uploadRes.status, await uploadRes.text());
                         }
                     }
                 } catch (storageErr) {
-                    console.error('❌ Erro na rotina de salvamento do avatar:', storageErr);
+                    console.error(
+                        '❌ Erro na rotina de salvamento do avatar:',
+                        storageErr
+                    );
                 }
             }
             return data;
@@ -1157,7 +1169,7 @@ const DataService = {
 
             const tokenData = await response.json();
             if (!response.ok || !tokenData?.access_token) {
-                console.error('❌ Falha no refresh do TikTok via Edge Function');
+                console.error('❌ Falha no refresh do TikTok via Edge Function:', tokenData);
                 return null;
             }
 
@@ -1257,20 +1269,33 @@ const DataService = {
                     const userId = perfil.open_id || Date.now();
                     const fileName = `${userId}.jpg`;
                     const proxyUrl = `${CONFIG.SUPABASE_URL}/functions/v1/smart-responder?proxy_url=${encodeURIComponent(perfil.avatar_url)}`;
-                    
-                    const imageRes = await fetch(proxyUrl, { headers: { Authorization: `Bearer ${CONFIG.SUPABASE_KEY}` } });
+
+                    const imageRes = await fetch(proxyUrl, {
+                        headers: {
+                            Authorization: `Bearer ${CONFIG.SUPABASE_KEY}`,
+                            apikey: CONFIG.SUPABASE_KEY
+                        }
+                    });
                     if (imageRes.ok) {
                         const blob = await imageRes.blob();
                         const uploadRes = await fetch(`${CONFIG.SUPABASE_URL}/storage/v1/object/avatars/${fileName}`, {
                             method: 'POST',
-                            headers: { 'Authorization': `Bearer ${CONFIG.SUPABASE_KEY}`, 'x-upsert': 'true' },
+                            headers: {
+                                'Authorization': `Bearer ${CONFIG.SUPABASE_KEY}`,
+                                'apikey': CONFIG.SUPABASE_KEY,
+                                'x-upsert': 'true'
+                            },
                             body: blob
                         });
                         if (uploadRes.ok) {
                             fotoDefinitiva = `${CONFIG.SUPABASE_URL}/storage/v1/object/public/avatars/${fileName}`;
+                        } else {
+                            console.error('❌ Upload de avatar falhou:', uploadRes.status, await uploadRes.text());
                         }
                     }
-                } catch (err) { }
+                } catch (err) {
+                    console.error('❌ Erro clonando avatar em salvarCanalTikTok:', err);
+                }
             }
 
             if (!fotoDefinitiva) fotoDefinitiva = perfil.avatar_url;
