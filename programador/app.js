@@ -278,6 +278,32 @@ function aplicarStatusConexao(canalId,platform,conectado){
   }
 }
 
+function aplicarRedesATodos(){
+  const estadoGlobal={};
+  PLATAFORMAS.forEach((p)=>{
+    const el=document.getElementById(`redeGlobal-${p}`);
+    estadoGlobal[p]=!!(el&&el.checked);
+  });
+
+  let aplicados=0,ignorados=0;
+  CANAIS_DINAMICOS.forEach((c)=>{
+    PLATAFORMAS.forEach((p)=>{
+      const cb=document.getElementById(`chk-${p}-${c.id}`);
+      if(!cb)return;
+      if(cb.disabled){
+        // Canal não conectado nessa rede: não dá pra marcar, mesmo que o global peça
+        if(estadoGlobal[p])ignorados++;
+        return;
+      }
+      cb.checked=estadoGlobal[p];
+      if(estadoCanais[c.id])estadoCanais[c.id].plataformas[p]=estadoGlobal[p];
+      aplicados++;
+    });
+  });
+
+  setMsg(ignorados>0?`Redes aplicadas a todos os canais! (${ignorados} rede(s) ignorada(s) por falta de conexão)`:"Redes aplicadas a todos os canais!");
+}
+
 function selecionarTudoGlobal(){let marcados=0;CANAIS_DINAMICOS.forEach((c)=>{PLATAFORMAS.forEach((p)=>{const cb=document.getElementById(`chk-${p}-${c.id}`);if(cb&&!cb.disabled){cb.checked=true;estadoCanais[c.id].plataformas[p]=true;marcados++;}});});setMsg(marcados>0?"Todas as plataformas conectadas foram selecionadas!":"Nenhuma plataforma conectada para selecionar.");}
 
 // Teste de Conexão resiliente: conserta dados NULL tratando respostas ausentes ou com colunas variadas
