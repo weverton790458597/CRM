@@ -433,6 +433,7 @@ background:currentColor;
 .status span.ok { color:var(--accent-success); background:var(--accent-success-soft); border-color:rgba(52,211,153,.3); }
 .status span.err { color:var(--text-low); background:rgba(255,255,255,.02); border-color:var(--border-hair); }
 .plataformas-select { display:flex; gap:8px; margin-bottom:2px; }
+.plataformas-select-global { margin-bottom:0; margin-right:4px; }
 .chk-plataforma {
 display:flex;
 align-items:center;
