@@ -1,16 +1,18 @@
 if(window.opener&&new URLSearchParams(window.location.search).has("auth")){try{const params=new URLSearchParams(window.location.search);const authType=params.get("auth");if(authType==="instagram_pending_map"){window.opener.postMessage({type:"instagram_pending_map",search:window.location.search},"*");}else if(typeof window.opener.testarConexaoSupabase==="function"){window.opener.testarConexaoSupabase();}else{window.opener.location.reload();}}catch(_){}window.close();}
 
-// Lista de canais dinâmicos vinda da tabela conexoes_canais (Supabase)
 let CANAIS_DINAMICOS = [];
 
 const PLATAFORMAS=["youtube","instagram","tiktok"];
 const estadoCanais={};
-const processandoAgendamento={}; // Trava anti-duplo clique por canal
-const processandoExclusao={}; // Trava anti-duplo clique por canal (apagar)
-let processandoDisparoGlobal=false; // Trava anti-duplo clique no disparo geral
+const processandoAgendamento={};
+const processandoExclusao={};
+let processandoDisparoGlobal=false;
+let draggingCanalId=null;
+const INICIO_FAIXA={manha:"11:00",noite:"18:00"};
+const INTERVALO_MINUTOS=20;
 
 const CORES={info:"#22d3ee",ok:"#34d399",erro:"#fb7185",aviso:"#fbbf24"};
-const ICONS={rocket:'<svg class="icon" viewBox="0 0 24 24"><path d="M12 2.5c2.6 2 4.2 5.1 4.2 8.6 0 2-.6 3.9-1.7 5.5l-2.5 3-2.5-3a9.4 9.4 0 0 1-1.7-5.5c0-3.5 1.6-6.6 4.2-8.6z"/><circle cx="12" cy="10.5" r="1.7"/><path d="M8.7 16.3L6 18l.6-3"/><path d="M15.3 16.3L18 18l-.6-3"/></svg>',camera:'<svg class="icon" viewBox="0 0 24 24"><path d="M4 8h3.2l1.8-2h6l1.8 2H20v11H4z"/><circle cx="12" cy="13.5" r="3.3"/></svg>',save:'<svg class="icon" viewBox="0 0 24 24"><path d="M4 4h12l4 4v12H4z"/><path d="M8 4v5h7V4"/><path d="M7 20v-7h10v7"/></svg>',film:'<svg class="icon icon-sm" viewBox="0 0 24 24"><rect x="3" y="4" width="18" height="16" rx="2"/><line x1="7" y1="4" x2="7" y2="20"/><line x1="17" y1="4" x2="17" y2="20"/><line x1="3" y1="9" x2="7" y2="9"/><line x1="3" y1="15" x2="7" y2="15"/><line x1="17" y1="9" x2="21" y2="9"/><line x1="17" y1="15" x2="21" y2="15"/></svg>',link:'<svg class="icon icon-sm" viewBox="0 0 24 24"><path d="M9.5 14.5l5-5"/><path d="M8 11.5l-2 2a3 3 0 0 0 4.2 4.2l2-2"/><path d="M16 12.5l2-2a3 3 0 0 0-4.2-4.2l-2 2"/></svg>',paperclip:'<svg class="icon icon-lg icon-default" viewBox="0 0 24 24"><path d="M17.5 9L10 16.5a2.8 2.8 0 0 1-4-4L13.5 5a4.2 4.2 0 1 1 6 6L11 19.5a5.6 5.6 0 1 1-8-8"/></svg>',check:'<svg class="icon icon-lg icon-success" viewBox="0 0 24 24"><polyline points="4 12.5 9 17.5 20 6"/></svg>',checkCircle:'<svg class="icon" viewBox="0 0 24 24"><circle cx="12" cy="12" r="9"/><polyline points="8 12.5 11 15.5 16 9.5"/></svg>',xCircle:'<svg class="icon" viewBox="0 0 24 24"><circle cx="12" cy="12" r="9"/><line x1="9" y1="9" x2="15" y2="15"/><line x1="15" y1="9" x2="9" y2="15"/></svg>',alert:'<svg class="icon" viewBox="0 0 24 24"><path d="M12 3.5l9.5 16.5H2.5z"/><line x1="12" y1="9.5" x2="12" y2="14"/><circle cx="12" cy="16.8" r=".6" fill="currentColor" stroke="none"/></svg>',loader:'<svg class="icon icon-spin" viewBox="0 0 24 24"><circle cx="12" cy="12" r="9" stroke-dasharray="40 16"/></svg>'};
+const ICONS={rocket:'<svg class="icon" viewBox="0 0 24 24"><path d="M12 2.5c2.6 2 4.2 5.1 4.2 8.6 0 2-.6 3.9-1.7 5.5l-2.5 3-2.5-3a9.4 9.4 0 0 1-1.7-5.5c0-3.5 1.6-6.6 4.2-8.6z"/><circle cx="12" cy="10.5" r="1.7"/><path d="M8.7 16.3L6 18l.6-3"/><path d="M15.3 16.3L18 18l-.6-3"/></svg>',camera:'<svg class="icon" viewBox="0 0 24 24"><path d="M4 8h3.2l1.8-2h6l1.8 2H20v11H4z"/><circle cx="12" cy="13.5" r="3.3"/></svg>',save:'<svg class="icon" viewBox="0 0 24 24"><path d="M4 4h12l4 4v12H4z"/><path d="M8 4v5h7V4"/><path d="M7 20v-7h10v7"/></svg>',film:'<svg class="icon icon-sm" viewBox="0 0 24 24"><rect x="3" y="4" width="18" height="16" rx="2"/><line x1="7" y1="4" x2="7" y2="20"/><line x1="17" y1="4" x2="17" y2="20"/><line x1="3" y1="9" x2="7" y2="9"/><line x1="3" y1="15" x2="7" y2="15"/><line x1="17" y1="9" x2="21" y2="9"/><line x1="17" y1="15" x2="21" y2="15"/></svg>',link:'<svg class="icon icon-sm" viewBox="0 0 24 24"><path d="M9.5 14.5l5-5"/><path d="M8 11.5l-2 2a3 3 0 0 0 4.2 4.2l2-2"/><path d="M16 12.5l2-2a3 3 0 0 0-4.2-4.2l-2 2"/></svg>',paperclip:'<svg class="icon icon-lg icon-default" viewBox="0 0 24 24"><path d="M17.5 9L10 16.5a2.8 2.8 0 0 1-4-4L13.5 5a4.2 4.2 0 1 1 6 6L11 19.5a5.6 5.6 0 1 1-8-8"/></svg>',check:'<svg class="icon icon-lg icon-success" viewBox="0 0 24 24"><polyline points="4 12.5 9 17.5 20 6"/></svg>',checkCircle:'<svg class="icon" viewBox="0 0 24 24"><circle cx="12" cy="12" r="9"/><polyline points="8 12.5 11 15.5 16 9.5"/></svg>',xCircle:'<svg class="icon" viewBox="0 0 24 24"><circle cx="12" cy="12" r="9"/><line x1="9" y1="9" x2="15" y2="15"/><line x1="15" y1="9" x2="9" y2="15"/></svg>',alert:'<svg class="icon" viewBox="0 0 24 24"><path d="M12 3.5l9.5 16.5H2.5z"/><line x1="12" y1="9.5" x2="12" y2="14"/><circle cx="12" cy="16.8" r=".6" fill="currentColor" stroke="none"/></svg>',loader:'<svg class="icon icon-spin" viewBox="0 0 24 24"><circle cx="12" cy="12" r="9" stroke-dasharray="40 16"/></svg>',grip:'<svg class="icon icon-sm" viewBox="0 0 24 24" fill="currentColor" stroke="none"><circle cx="8" cy="6" r="1.6"/><circle cx="16" cy="6" r="1.6"/><circle cx="8" cy="12" r="1.6"/><circle cx="16" cy="12" r="1.6"/><circle cx="8" cy="18" r="1.6"/><circle cx="16" cy="18" r="1.6"/></svg>'};
 const ICONE_TIPO={info:ICONS.loader,ok:ICONS.checkCircle,erro:ICONS.xCircle,aviso:ICONS.alert};
 
 function setMsg(text,isError=false){const el=document.getElementById("msg");if(!el)return;el.innerHTML=`${isError?ICONE_TIPO.erro:ICONE_TIPO.info}<span>${text}</span>`;el.style.color=isError?CORES.erro:CORES.info;}
@@ -18,8 +20,8 @@ function setCardStatus(canalId,text,tipo="info"){const el=document.getElementByI
 function getCreds(){return{url:localStorage.getItem("supa_url")||"",key:localStorage.getItem("supa_key")||"",admin:localStorage.getItem("admin_secret")||""};}
 function obterDataPadrao(){const d=new Date();d.setDate(d.getDate()+1);const ano=d.getFullYear();const mes=String(d.getMonth()+1).padStart(2,"0");const dia=String(d.getDate()).padStart(2,"0");return `${ano}-${mes}-${dia}`;}
 function iniciarRelogio(){const el=document.getElementById("liveClock");if(!el)return;const tick=()=>{el.textContent=new Date().toLocaleTimeString("pt-BR",{hour12:false});};tick();setInterval(tick,1000);}
+function somarMinutos(hhmm,minutos){const[h,m]=hhmm.split(":").map(Number);let total=h*60+m+minutos;total=((total%1440)+1440)%1440;const H=String(Math.floor(total/60)).padStart(2,"0");const M=String(total%60).padStart(2,"0");return `${H}:${M}`;}
 
-// Lê os canais dinamicamente da lista CANAIS_DINAMICOS
 function renderizarTrilho(faixa,containerId){
   const el=document.getElementById(containerId);
   if(!el)return;
@@ -27,7 +29,6 @@ function renderizarTrilho(faixa,containerId){
   el.innerHTML=canaisDaFaixa.map((c)=>`<div class="launch-beacon" title="${c.nome} agenda-se às ${c.horario}"><span class="beacon-time">${c.horario}</span><span class="beacon-dot"></span><span class="beacon-name">${c.nome}</span></div>`).join("");
 }
 
-// Atualiza os rótulos de faixa com base nos canais carregados
 function atualizarFaixasRange(){
   const calc=(faixa,elId)=>{
     const el=document.getElementById(elId);
@@ -43,9 +44,10 @@ function gerarHTMLCard(c, dataPadrao) {
   const faixaTexto = c.faixa ? c.faixa.toUpperCase() : "SEM FAIXA";
   const horarioTexto = c.horario || "--:--";
 
-  return `<div class="card" id="card-${c.id}">
+  return `<div class="card" id="card-${c.id}" ondragover="handleDragOver(event,'${c.id}')" ondragleave="handleDragLeave(event,'${c.id}')" ondrop="handleDropCard(event,'${c.id}')">
     <div>
       <div class="card-header">
+        <span class="drag-handle" draggable="true" title="Arraste para reordenar" ondragstart="handleDragStart(event,'${c.id}')" ondragend="handleDragEnd()">${ICONS.grip}</span>
         <span class="canal-titulo">${c.nome}</span>
         <div class="canal-badge-container">
           <span class="canal-faixa-badge">${faixaTexto}</span>
@@ -84,7 +86,6 @@ function gerarHTMLCard(c, dataPadrao) {
       <input type="text" class="input-titulo" id="titulo-tiktok-${c.id}" placeholder="Título TikTok" oninput="atualizarTitulo('${c.id}','tiktok',this.value)">
     </div>
 
-    <!-- Container do Rodapé: Lixeira no Canto Esquerdo + Botão de Agendar -->
     <div style="display:flex; gap:8px; align-items:center;">
       <button id="btn-apagar-${c.id}" onclick="apagarCanalIndividual('${c.id}')" title="Excluir canal" aria-label="Excluir canal" style="background:transparent; border:none; color:#64748b; cursor:pointer; padding:8px; display:flex; align-items:center; justify-content:center; transition:color 0.2s;" onmouseover="this.style.color='#f87171'" onmouseout="this.style.color='#64748b'">
         <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M3 6h18"></path><path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"></path></svg>
@@ -96,10 +97,6 @@ function gerarHTMLCard(c, dataPadrao) {
   </div>`;
 }
 
-// Busca os registros do Supabase extraindo os campos 'faixa' e 'horario'
-// AJUSTE: agora mescla todas as linhas do mesmo canal_id e usa o primeiro valor
-// VÁLIDO encontrado (não sobrescreve um dado bom com um NULL de uma linha órfã,
-// por exemplo a linha criada quando você conecta uma plataforma).
 async function carregarCanaisDoSupabase(){
   const{url,key}=getCreds();
   const gridManha=document.getElementById("grid-manha");
@@ -136,7 +133,6 @@ async function carregarCanaisDoSupabase(){
 
       const nomeExibicao = (r.nome_canal || r.nome || r.title || slugCanal).toString().trim();
 
-      // Mapeamento resiliente para ler 'faixa' e 'horario' mesmo se nulos ou com nomenclaturas variadas
       let faixaCanal = (r.faixa || r.faixa_horario || "").toString().trim().toLowerCase();
       let horarioCanal = (r.horario || r.hora || r.horario_postagem || "").toString().trim();
 
@@ -156,7 +152,6 @@ async function carregarCanaisDoSupabase(){
         };
       } else {
         const alvo = mapaCanais[slugCanal];
-        // Se ainda não temos faixa/horario "de verdade" registrados, e esta linha tem, usa esta
         if (!alvo._faixaValida && faixaValida) {
           alvo.faixa = faixaCanal;
           alvo._faixaValida = true;
@@ -165,7 +160,6 @@ async function carregarCanaisDoSupabase(){
           alvo.horario = horarioCanal;
           alvo._horarioValida = true;
         }
-        // Preenche nome caso a primeira linha não tivesse um nome melhor
         if ((!alvo.nome || alvo.nome === slugCanal) && nomeExibicao && nomeExibicao !== slugCanal) {
           alvo.nome = nomeExibicao;
         }
@@ -177,6 +171,7 @@ async function carregarCanaisDoSupabase(){
     });
 
     CANAIS_DINAMICOS = Object.values(mapaCanais);
+    CANAIS_DINAMICOS.forEach(c=>{c._syncedFaixa=c.faixa;c._syncedHorario=c.horario;});
 
     if(gridManha)gridManha.innerHTML="";
     if(gridNoite)gridNoite.innerHTML="";
@@ -223,6 +218,156 @@ async function carregarCanaisDoSupabase(){
   }
 }
 
+function rerenderizarGrids(){
+  const gridManha=document.getElementById("grid-manha");
+  const gridNoite=document.getElementById("grid-noite");
+  if(!gridManha||!gridNoite)return;
+  CANAIS_DINAMICOS.forEach(c=>{
+    const cardEl=document.getElementById(`card-${c.id}`);
+    if(!cardEl)return;
+    const destino=c.faixa==="manha"?gridManha:gridNoite;
+    destino.appendChild(cardEl);
+    const faixaBadge=cardEl.querySelector(".canal-faixa-badge");
+    const slotBadge=cardEl.querySelector(".canal-slot");
+    if(faixaBadge)faixaBadge.textContent=c.faixa.toUpperCase();
+    if(slotBadge)slotBadge.textContent=c.horario||"--:--";
+    const horaEl=document.getElementById(`hora-${c.id}`);
+    if(horaEl){horaEl.value=c.horario&&c.horario!=="--:--"?c.horario:"00:00";atualizarAgendamento(c.id);}
+  });
+  renderizarTrilho("manha","rail-manha");
+  renderizarTrilho("noite","rail-noite");
+  atualizarFaixasRange();
+}
+
+function recalcularHorariosEmMemoria(){
+  ["manha","noite"].forEach(faixa=>{
+    const base=INICIO_FAIXA[faixa];
+    CANAIS_DINAMICOS.filter(c=>c.faixa===faixa).forEach((c,i)=>{
+      c.horario=somarMinutos(base,i*INTERVALO_MINUTOS);
+      c._horarioValida=true;
+    });
+  });
+}
+
+async function atualizarFaixaHorarioCanal(canalId,faixa,horario){
+  const{url,key}=getCreds();
+  const res=await fetch(`${url.replace(/\/$/,"")}/rest/v1/conexoes_canais?canal_id=eq.${encodeURIComponent(canalId)}`,{
+    method:"PATCH",
+    headers:{"Content-Type":"application/json","apikey":key,"Authorization":`Bearer ${key}`,"Prefer":"return=minimal"},
+    body:JSON.stringify({faixa,horario})
+  });
+  if(!res.ok){const t=await res.text();throw new Error(`HTTP ${res.status}: ${t}`);}
+}
+
+async function persistirCanaisAlterados(){
+  const alterados=CANAIS_DINAMICOS.filter(c=>c.faixa!==c._syncedFaixa||c.horario!==c._syncedHorario);
+  if(alterados.length===0)return{ok:0,falhas:0,total:0};
+  let ok=0,falhas=0;
+  for(const c of alterados){
+    try{
+      await atualizarFaixaHorarioCanal(c.id,c.faixa,c.horario);
+      c._syncedFaixa=c.faixa;
+      c._syncedHorario=c.horario;
+      ok++;
+    }catch(e){
+      falhas++;
+      console.error(`Erro ao sincronizar ${c.id}:`,e.message);
+    }
+  }
+  return{ok,falhas,total:alterados.length};
+}
+
+async function aplicarReordenacao(){
+  recalcularHorariosEmMemoria();
+  rerenderizarGrids();
+  setMsg("Sincronizando novos horários com o Supabase...");
+  const r=await persistirCanaisAlterados();
+  if(r.total===0){setMsg("Nenhuma mudança de horário detectada.");return;}
+  setMsg(r.falhas===0?`Horários atualizados! ${r.ok} canal(is) sincronizado(s) com o Supabase.`:`Sincronizado parcialmente: ${r.ok} ok, ${r.falhas} com erro.`,r.falhas>0);
+}
+
+function handleDragStart(event,canalId){
+  draggingCanalId=canalId;
+  event.dataTransfer.effectAllowed="move";
+  event.dataTransfer.setData("text/plain",canalId);
+  const cardEl=document.getElementById(`card-${canalId}`);
+  if(cardEl){
+    cardEl.classList.add("dragging");
+    try{event.dataTransfer.setDragImage(cardEl,cardEl.offsetWidth/2,20);}catch(_){}
+  }
+}
+
+function handleDragEnd(){
+  if(draggingCanalId){
+    const cardEl=document.getElementById(`card-${draggingCanalId}`);
+    if(cardEl)cardEl.classList.remove("dragging");
+  }
+  document.querySelectorAll(".card.drag-over-before,.card.drag-over-after").forEach(el=>el.classList.remove("drag-over-before","drag-over-after"));
+  draggingCanalId=null;
+}
+
+function handleDragOver(event,targetId){
+  if(!draggingCanalId||draggingCanalId===targetId)return;
+  event.preventDefault();
+  event.dataTransfer.dropEffect="move";
+  const cardEl=document.getElementById(`card-${targetId}`);
+  if(!cardEl)return;
+  const rect=cardEl.getBoundingClientRect();
+  const antes=(event.clientX-rect.left)<rect.width/2;
+  cardEl.classList.toggle("drag-over-before",antes);
+  cardEl.classList.toggle("drag-over-after",!antes);
+}
+
+function handleDragLeave(event,targetId){
+  const cardEl=document.getElementById(`card-${targetId}`);
+  if(cardEl&&!cardEl.contains(event.relatedTarget))cardEl.classList.remove("drag-over-before","drag-over-after");
+}
+
+async function handleDropCard(event,targetId){
+  event.preventDefault();
+  event.stopPropagation();
+  const draggedId=event.dataTransfer.getData("text/plain")||draggingCanalId;
+  const cardEl=document.getElementById(`card-${targetId}`);
+  if(cardEl)cardEl.classList.remove("drag-over-before","drag-over-after");
+  if(!draggedId||draggedId===targetId)return;
+  const draggedCanal=CANAIS_DINAMICOS.find(c=>c.id===draggedId);
+  const targetCanal=CANAIS_DINAMICOS.find(c=>c.id===targetId);
+  if(!draggedCanal||!targetCanal)return;
+  const rect=cardEl?cardEl.getBoundingClientRect():null;
+  const inserirAntes=rect?(event.clientX-rect.left)<rect.width/2:true;
+  const idxAtual=CANAIS_DINAMICOS.indexOf(draggedCanal);
+  CANAIS_DINAMICOS.splice(idxAtual,1);
+  let idxAlvo=CANAIS_DINAMICOS.indexOf(targetCanal);
+  idxAlvo=inserirAntes?idxAlvo:idxAlvo+1;
+  draggedCanal.faixa=targetCanal.faixa;
+  CANAIS_DINAMICOS.splice(idxAlvo,0,draggedCanal);
+  await aplicarReordenacao();
+}
+
+function attachGridDropHandlers(){
+  ["grid-manha","grid-noite"].forEach(gridId=>{
+    const el=document.getElementById(gridId);
+    if(!el)return;
+    el.addEventListener("dragover",(e)=>{
+      if(!draggingCanalId||e.target!==el)return;
+      e.preventDefault();
+      e.dataTransfer.dropEffect="move";
+    });
+    el.addEventListener("drop",async(e)=>{
+      if(!draggingCanalId||e.target!==el)return;
+      e.preventDefault();
+      const faixaAlvo=gridId==="grid-manha"?"manha":"noite";
+      const draggedCanal=CANAIS_DINAMICOS.find(c=>c.id===draggingCanalId);
+      if(!draggedCanal)return;
+      const idxAtual=CANAIS_DINAMICOS.indexOf(draggedCanal);
+      CANAIS_DINAMICOS.splice(idxAtual,1);
+      draggedCanal.faixa=faixaAlvo;
+      CANAIS_DINAMICOS.push(draggedCanal);
+      await aplicarReordenacao();
+    });
+  });
+}
+
 function montarInterface(){
   const{url,key,admin}=getCreds();
   if(document.getElementById("supaUrl"))document.getElementById("supaUrl").value=url;
@@ -236,6 +381,7 @@ function montarInterface(){
 
   iniciarRelogio();
   inicializarGlobalDropzone();
+  attachGridDropHandlers();
 
   carregarCanaisDoSupabase();
 }
@@ -291,7 +437,6 @@ function aplicarRedesATodos(){
       const cb=document.getElementById(`chk-${p}-${c.id}`);
       if(!cb)return;
       if(cb.disabled){
-        // Canal não conectado nessa rede: não dá pra marcar, mesmo que o global peça
         if(estadoGlobal[p])ignorados++;
         return;
       }
@@ -306,7 +451,6 @@ function aplicarRedesATodos(){
 
 function selecionarTudoGlobal(){let marcados=0;CANAIS_DINAMICOS.forEach((c)=>{PLATAFORMAS.forEach((p)=>{const cb=document.getElementById(`chk-${p}-${c.id}`);if(cb&&!cb.disabled){cb.checked=true;estadoCanais[c.id].plataformas[p]=true;marcados++;}});});setMsg(marcados>0?"Todas as plataformas conectadas foram selecionadas!":"Nenhuma plataforma conectada para selecionar.");}
 
-// Teste de Conexão resiliente: conserta dados NULL tratando respostas ausentes ou com colunas variadas
 async function testarConexaoSupabase(){
   const{url,key}=getCreds();
   if(!url||!key){setMsg("Configure URL e Key do Supabase primeiro!",true);return;}
@@ -362,12 +506,6 @@ async function testarConexaoSupabase(){
   }
 }
 
-// AJUSTE PRINCIPAL: agora localizamos o canal em CANAIS_DINAMICOS e enviamos
-// faixa/horario junto no body da requisição para a Edge Function auth-{plataforma}.
-// Isso permite que a function grave esses campos na linha criada/atualizada
-// durante o fluxo OAuth, em vez de deixar faixa/horario como NULL.
-// IMPORTANTE: a Edge Function no Supabase também precisa ler `faixa` e `horario`
-// do body e usá-los no insert/upsert em conexoes_canais para o fix funcionar de ponta a ponta.
 async function conectarPlataforma(canalId,plataforma){
   const{url,key,admin}=getCreds();
   if(!url||!key||!admin){setMsg("Configure URL, Key e Admin Secret antes de conectar.",true);return;}
@@ -396,8 +534,6 @@ async function conectarPlataforma(canalId,plataforma){
         try{
           if(!popup||popup.closed){
             clearInterval(timer);
-            // Recarrega os canais do banco (não só o status) para refletir
-            // qualquer faixa/horario gravado pela Edge Function na volta do OAuth.
             carregarCanaisDoSupabase();
           }
         }catch(_){}
@@ -410,11 +546,9 @@ async function conectarPlataforma(canalId,plataforma){
   }
 }
 
-// --------- MODAL DE CADASTRO DE NOVO CANAL ---------
 function abrirModalCanal(){const m=document.getElementById("modal-canal");if(m)m.style.display="flex";}
 function fecharModalCanal(){const m=document.getElementById("modal-canal");if(m)m.style.display="none";}
 
-// Salva o registro diretamente na tabela 'conexoes_canais' do Supabase enviando faixa e horario
 async function salvarNovoCanal(){
   const nome=document.getElementById("nc-nome").value.trim();
   const id=document.getElementById("nc-id").value.trim().toLowerCase();
@@ -662,10 +796,6 @@ async function agendarCanalIndividual(canalId){
   }
 }
 
-// Apaga um canal por completo: remove todas as linhas de conexão dele em
-// conexoes_canais (YouTube, Instagram, TikTok e a linha "base" sem provider,
-// se existir) e também os agendamentos pendentes dele em posts_agendados,
-// pra não sobrar lixo órfão no banco. Pede confirmação antes de executar.
 async function apagarCanalIndividual(canalId){
   if(processandoExclusao[canalId])return;
 
@@ -683,7 +813,6 @@ async function apagarCanalIndividual(canalId){
   setMsg(`Apagando canal "${nomeCanal}"...`);
 
   try{
-    // Remove todas as linhas de conexão desse canal (todos os providers)
     const resConexoes=await fetch(`${url.replace(/\/$/,"")}/rest/v1/conexoes_canais?canal_id=eq.${encodeURIComponent(canalId)}`,{
       method:"DELETE",
       headers:{
@@ -697,7 +826,6 @@ async function apagarCanalIndividual(canalId){
       throw new Error(`Falha ao remover conexões: HTTP ${resConexoes.status}: ${errTxt}`);
     }
 
-    // Remove agendamentos pendentes desse canal (não deixa lixo órfão)
     const resAgendamentos=await fetch(`${url.replace(/\/$/,"")}/rest/v1/posts_agendados?canal_id=eq.${encodeURIComponent(canalId)}`,{
       method:"DELETE",
       headers:{
@@ -707,11 +835,9 @@ async function apagarCanalIndividual(canalId){
       }
     });
     if(!resAgendamentos.ok){
-      // Não interrompe o fluxo por causa disso, só avisa no console/log
       console.warn(`Aviso: falha ao remover agendamentos pendentes de ${canalId}: HTTP ${resAgendamentos.status}`);
     }
 
-    // Limpa estado local e remove o card da tela sem precisar recarregar tudo
     delete estadoCanais[canalId];
     delete processandoAgendamento[canalId];
     CANAIS_DINAMICOS=CANAIS_DINAMICOS.filter((c)=>c.id!==canalId);
