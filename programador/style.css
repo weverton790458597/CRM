@@ -351,7 +351,7 @@ flex-direction:column;
 justify-content:space-between;
 gap:10px;
 box-shadow:var(--shadow-card);
-transition:border-color .2s var(--ease),transform .2s var(--ease),box-shadow .2s var(--ease);
+transition:border-color .2s var(--ease),transform .2s var(--ease),box-shadow .2s var(--ease),opacity .2s var(--ease);
 animation:card-in .4s var(--ease) both;
 }
 .card:hover {
@@ -359,6 +359,9 @@ border-color:rgba(99,102,241,.4);
 transform:translateY(-2px);
 box-shadow:var(--shadow-card),0 0 0 1px rgba(99,102,241,.15);
 }
+.card.dragging { opacity:.4; border-style:dashed; }
+.card.drag-over-before { box-shadow:var(--shadow-card),inset 3px 0 0 0 var(--accent-cyan); }
+.card.drag-over-after { box-shadow:var(--shadow-card),inset -3px 0 0 0 var(--accent-cyan); }
 @keyframes card-in {
 from { opacity:0; transform:translateY(8px); }
 to { opacity:1; transform:translateY(0); }
@@ -367,11 +370,48 @@ to { opacity:1; transform:translateY(0); }
 display:flex;
 justify-content:space-between;
 align-items:center;
+gap:8px;
 font-family:var(--font-display);
 font-weight:600;
 font-size:14px;
 color:var(--text-hi);
 margin-bottom:2px;
+}
+.drag-handle {
+cursor:grab;
+display:flex;
+align-items:center;
+justify-content:center;
+color:var(--text-low);
+padding:2px 4px;
+border-radius:6px;
+flex-shrink:0;
+transition:color .15s var(--ease),background .15s var(--ease);
+}
+.drag-handle:hover { color:var(--text-hi); background:var(--accent-indigo-soft); }
+.drag-handle:active { cursor:grabbing; }
+.canal-titulo {
+flex:1;
+overflow:hidden;
+text-overflow:ellipsis;
+white-space:nowrap;
+}
+.canal-badge-container {
+display:flex;
+align-items:center;
+gap:6px;
+flex-shrink:0;
+}
+.canal-faixa-badge {
+font-family:var(--font-mono);
+font-size:9px;
+font-weight:700;
+color:var(--accent-violet);
+background:rgba(167,139,250,.12);
+border:1px solid rgba(167,139,250,.3);
+border-radius:5px;
+padding:2px 6px;
+letter-spacing:.05em;
 }
 .card-header .canal-slot {
 font-family:var(--font-mono);
@@ -718,7 +758,6 @@ background:var(--accent-success-soft);
 }
 .drop-target-canal.linked .slot-status { color:var(--accent-success); font-weight:700; }
 
-/* ===== Modal de cadastro de canal (novo) ===== */
 .modal-canal-overlay { display:none; }
 .modal-canal-box { width:560px; max-width:100%; }
 .modal-canal-body { padding:22px; }
@@ -776,7 +815,6 @@ opacity:.85;
 }
 .nc-time::-webkit-calendar-picker-indicator:hover { opacity:1; }
 
-/* ===== Estado vazio / dica de carregamento ===== */
 .empty-hint {
 grid-column:1/-1;
 padding:26px;
@@ -803,8 +841,8 @@ font-family:var(--font-mono);
 }
 
 .brand-logo {
-  height: 38px;       /* Altura ideal para encaixar bem no seu header */
-  width: auto;        /* Mém-se na proporção original */
+  height: 38px;
+  width: auto;
   object-fit: contain;
   display: block;
 }
