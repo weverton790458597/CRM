@@ -78,17 +78,95 @@
     };
     reader.readAsText(file);
   }
+
+  // --- Indicador visual opcional enquanto arrasta sobre a página ---
+  let overlayEl = null;
+  function mostrarOverlay() {
+    if (overlayEl) return;
+    overlayEl = document.createElement("div");
+    overlayEl.id = "drop-overlay-horarios-extras";
+    overlayEl.style.cssText = [
+      "position:fixed", "inset:0", "z-index:999999",
+      "background:rgba(0,0,0,0.35)",
+      "border:3px dashed #4da3ff",
+      "display:flex", "align-items:center", "justify-content:center",
+      "color:#fff", "font:600 20px/1.4 sans-serif",
+      "pointer-events:none",
+    ].join(";");
+    overlayEl.textContent = "Solte o arquivo JSON para aplicar os horários extras";
+    document.body.appendChild(overlayEl);
+  }
+  function esconderOverlay() {
+    if (overlayEl && overlayEl.parentNode) overlayEl.parentNode.removeChild(overlayEl);
+    overlayEl = null;
+  }
+
+  function temArquivo(e) {
+    const tipos = e.dataTransfer && e.dataTransfer.types;
+    return !!(tipos && Array.from(tipos).includes("Files"));
+  }
+
+  let dragCounter = 0;
+
+  function onDragEnter(e) {
+    if (!temArquivo(e)) return;
+    e.preventDefault();
+    dragCounter++;
+    mostrarOverlay();
+  }
+
+  function onDragOver(e) {
+    // ESSENCIAL: sem isto, o navegador nunca permite soltar
+    // fora de uma dropzone específica — ele assume a ação padrão
+    // (abrir/baixar o arquivo) em vez de disparar o "drop".
+    if (!temArquivo(e)) return;
+    e.preventDefault();
+    e.dataTransfer.dropEffect = "copy";
+  }
+
+  function onDragLeave(e) {
+    if (!temArquivo(e)) return;
+    dragCounter = Math.max(0, dragCounter - 1);
+    if (dragCounter === 0) esconderOverlay();
+  }
+
   function onDrop(e) {
-    const files = Array.from((e.dataTransfer && e.dataTransfer.files) || []);
+    if (!temArquivo(e)) return;
+    // Impede a ação padrão do navegador (abrir o arquivo)
+    // em qualquer ponto da página, não só numa área específica.
+    e.preventDefault();
+    e.stopPropagation();
+    dragCounter = 0;
+    esconderOverlay();
+
+    const files = Array.from(e.dataTransfer.files || []);
     const jsonFile = files.find((f) => f.name.toLowerCase().endsWith(".json"));
-    if (!jsonFile) return;
-    lerArquivoSeForHorariosExtras(jsonFile, null);
+    if (!jsonFile) {
+      if (typeof window.setMsg === "function") {
+        window.setMsg("Arquivo solto não é um .json válido.", true);
+      }
+      return;
+    }
+    lerArquivoSeForHorariosExtras(jsonFile, () => {
+      if (typeof window.setMsg === "function") {
+        window.setMsg("O JSON solto não corresponde ao formato de horários extras.", true);
+      }
+    });
   }
+
   function iniciar() {
+    // captura=true para pegar o evento antes de qualquer outra dropzone
+    // específica que já exista na página, permitindo soltar em qualquer lugar.
+    document.addEventListener("dragenter", onDragEnter, true);
+    document.addEventListener("dragover", onDragOver, true);
+    document.addEventListener("dragleave", onDragLeave, true);
     document.addEventListener("drop", onDrop, true);
+    window.addEventListener("blur", () => { dragCounter = 0; esconderOverlay(); });
   }
+
   if (document.readyState === "loading") document.addEventListener("DOMContentLoaded", iniciar);
   else iniciar();
+
   window.processarJsonHorariosExtras = processarJsonHorariosExtras;
   window.ehJsonDeHorariosExtras = ehJsonDeHorariosExtras;
 })();
