@@ -35,12 +35,30 @@
       .toLowerCase();
   }
 
+  function obterListaCanais() {
+    try {
+      // Scripts clássicos (não-módulo) compartilham o mesmo escopo léxico global,
+      // então "CANAIS_DINAMICOS" (declarado com let no app.js) é visível aqui como
+      // identificador direto — mas NÃO existe como propriedade de window.
+      // eslint-disable-next-line no-undef
+      if (typeof CANAIS_DINAMICOS !== "undefined" && Array.isArray(CANAIS_DINAMICOS)) {
+        // eslint-disable-next-line no-undef
+        return CANAIS_DINAMICOS;
+      }
+    } catch (_) {
+      /* ignora e tenta fallback abaixo */
+    }
+    if (Array.isArray(window.CANAIS_DINAMICOS)) return window.CANAIS_DINAMICOS;
+    return null;
+  }
+
   function localizarCanalPorNome(nomeCanal) {
     const alvo = normalizarNome(nomeCanal);
-    if (!alvo || !Array.isArray(window.CANAIS_DINAMICOS)) return null;
+    const lista = obterListaCanais();
+    if (!alvo || !lista) return null;
     return (
-      window.CANAIS_DINAMICOS.find((c) => normalizarNome(c.nome) === alvo) ||
-      window.CANAIS_DINAMICOS.find((c) => normalizarNome(c.id) === alvo) ||
+      lista.find((c) => normalizarNome(c.nome) === alvo) ||
+      lista.find((c) => normalizarNome(c.id) === alvo) ||
       null
     );
   }
