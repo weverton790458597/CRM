@@ -1,17 +1,15 @@
 /**
- * Recalibrador Dinâmico de Horários para o Pipeline
- * Ajusta os horários dos cards caso a execução comece após o horário padrão.
+ * Recalibrador Dinâmico Multi-Vídeos (Suporte a Campanhas de 1 até 8 vídeos por canal)
+ * Adapta-se automaticamente a novos canais e ativa as faixas horárias conforme a quantidade de vídeos.
  */
 
 (function () {
-  // Função auxiliar para converter "HH:MM" em minutos totais desde a meia-noite
   function hhmmParaMinutos(hhmm) {
     if (!hhmm || hhmm === "--:--") return 0;
     const [h, m] = hhmm.split(":").map(Number);
     return h * 60 + m;
   }
 
-  // Função auxiliar para converter minutos totais de volta para "HH:MM"
   function minutosParaHHMM(totalMinutos) {
     let total = ((totalMinutos % 1440) + 1440) % 1440;
     const H = String(Math.floor(total / 60)).padStart(2, "0");
@@ -19,69 +17,158 @@
     return `${H}:${M}`;
   }
 
+  /**
+   * Tabela base de horários iniciais para cada slot de vídeo (de 1 a 8)
+   * Baseado nas suas regras de campanha.
+   */
+  const HORARIOS_BASE_SLOTS = {
+    1: { manha: "11:00", noite: "18:00", inicioAbsoluto: "05:00" },
+    2: { inicioAbsoluto: "07:00" },
+    3: { inicioAbsoluto: "09:00" },
+    4: { inicioAbsoluto: "11:00" },
+    5: { inicioAbsoluto: "13:00" },
+    6: { inicioAbsoluto: "15:00" },
+    7: { inicioAbsoluto: "17:00" },
+    8: { inicioAbsoluto: "19:00" }
+  };
+
+  /**
+   * Distribui os vídeos dinamicamente na interface e gerencia os slots (de 1 a 8)
+   * com base na quantidade de vídeos jogados por canal.
+   */
+  async function distribuirMultiplosVideosDinamicos(videos) {
+    if (typeof CANAIS_DINAMICOS === "undefined" || !CANAIS_DINAMICOS.length) return;
+    if (!videos || !videos.length) return;
+
+    // Ordena os canais dinâmicos para garantir consistência na distribuição
+    const canaisOrdenados = [...CANAIS_DINAMICOS].sort((a, b) => a.id.localeCompare(b.id));
+    const videosPorCanal = {};
+    canaisOrdenados.forEach(c => { videosPorCanal[c.id] = []; });
+    const naoAlocados = [];
+
+    // Agrupa os arquivos arrastados/selecionados por canal
+    videos.forEach(video => {
+      const nomeLow = video.name.toLowerCase();
+      let canalEncontrado = canaisOrdenados.find(c => 
+        nomeLow.includes(c.id.toLowerCase()) || nomeLow.includes(c.nome.toLowerCase())
+      );
+
+      if (canalEncontrado) {
+        videosPorCanal[canalEncontrado.id].push(video);
+      } else {
+        naoAlocados.push(video);
+      }
+    });
+
+    // Se houver vídeos sem nome explícito, distribui sequencialmente nos canais que têm menos vídeos
+    if (naoAlocados.length > 0) {
+      for (const video of naoAlocados) {
+        let canalLivre = canaisOrdenados.find(c => videosPorCanal[c.id].length < 8);
+        if (canalLivre) {
+          videosPorCanal[canalLivre.id].push(video);
+        }
+      }
+    }
+
+    let totalDistribuidos = 0;
+
+    // Processa a alocação para cada canal
+    for (const canalId of Object.keys(videosPorCanal)) {
+      const listaVideosCanal = videosPorCanal[canalId];
+      if (listaVideosCanal.length === 0) continue;
+
+      // O 1º vídeo vai para o slot principal do card
+      if (typeof processarArquivo === "function" && listaVideosCanal[0]) {
+        await processarArquivo(canalId, listaVideosCanal[0]);
+        totalDistribuidos++;
+      }
+
+      // Se houver de 2 até 8 vídeos, armazenamos nos metadados de vídeos extras do canal
+      if (listaVideosCanal.length > 1) {
+        if (typeof estadoCanais !== "undefined" && estadoCanais[canalId]) {
+          // Armazena do 2º vídeo em diante (índice 1 até o fim)
+          estadoCanais[canalId].videosExtras = listaVideosCanal.slice(1);
+        }
+      }
+    }
+
+    // Dispara a recalibragem para ajustar os horários dinamicamente com base no maior número de vídeos inseridos
+    recalibrarHorariosDinamicos();
+
+    if (typeof setMsg === "function") {
+      setMsg(`${totalDistribuidos} vídeo(s) alocados com suporte a campanhas dinâmicas!`);
+    }
+  }
+
+  /**
+   * Recalibra os horários de forma totalmente dinâmica para todos os slots ativos,
+   * adaptando-se automaticamente se você adicionar novos canais.
+   */
   function recalibrarHorariosDinamicos() {
-    // Certifica-se de que os canais globais já foram carregados
     if (typeof CANAIS_DINAMICOS === "undefined" || !CANAIS_DINAMICOS.length) {
       return;
     }
 
-    const agora = new Date();
-    const minutosAtuais = agora.getHours() * 60 + agora.getMinutes();
-
-    // Faixas e seus horários base originais definidos no app.js
-    const basesFaixas = {
-      manha: "11:00",
-      noite: "18:00"
-    };
-
-    const intervaloMinutos = 20; // 20 minutos de diferença entre os cards
+    const canaisOrdenados = [...CANAIS_DINAMICOS].sort((a, b) => a.id.localeCompare(b.id));
+    const intervaloMinutos = 20;
     let houveAlteracao = false;
 
-    ["manha", "noite"].forEach((faixa) => {
-      const baseOriginalStr = basesFaixas[faixa];
-      let baseMinutos = hhmmParaMinutos(baseOriginalStr);
-
-      // Filtra os canais desta faixa específica
-      const canaisDaFaixa = CANAIS_DINAMICOS.filter((c) => c.faixa === faixa);
-
-      canaisDaFaixa.forEach((c, index) => {
-        // Horário original calculado para este card na sequência
-        let horarioIdealMinutos = baseMinutos + (index * intervaloMinutos);
-
-        // Se o horário ideal já passou e estamos no mesmo dia, ajustamos o ponto de partida
-        // O primeiro card que ainda estiver no futuro (ou com margem de segurança) assume o novo corte,
-        // e os seguintes respeitam o intervalo de 20 minutos em relação a ele.
-        if (index === 0 && minutosAtuais > horarioIdealMinutos) {
-          // Adiciona uma folga de 20 minutos a partir de agora para o primeiro card atrasado,
-          // ou arredonda para o próximo slot se preferir. Aqui ajustamos para: agora + 20 min (ou o próximo múltiplo).
-          let proximoSlot = minutosAtuais + 20;
-          baseMinutos = proximoSlot;
-          horarioIdealMinutos = baseMinutos;
-        } else if (index > 0) {
-          horarioIdealMinutos = baseMinutos + (index * intervaloMinutos);
+    // Descobre qual é o teto máximo de vídeos extras presentes em algum canal na tela (entre 1 e 8)
+    let maxVideosNoCanal = 1;
+    if (typeof estadoCanais !== "undefined") {
+      Object.values(estadoCanais).forEach(estado => {
+        if (estado && estado.videosExtras && estado.videosExtras.length > 0) {
+          const qtdTotal = estado.videosExtras.length + 1;
+          if (qtdTotal > maxVideosNoCanal) maxVideosNoCanal = qtdTotal;
         }
+      });
+    }
 
+    // Se a campanha for padrão (até 3 vídeos), mantém o comportamento original por faixa (manha/noite)
+    if (maxVideosNoCanal <= 3) {
+      const basesFaixas = { manha: "11:00", noite: "18:00" };
+      ["manha", "noite"].forEach((faixa) => {
+        let baseMinutos = hhmmParaMinutos(basesFaixas[faixa]);
+        const canaisDaFaixa = canaisOrdenados.filter((c) => c.faixa === faixa);
+
+        canaisDaFaixa.forEach((c, index) => {
+          let horarioIdealMinutos = baseMinutos + (index * intervaloMinutos);
+          const novoHorarioStr = minutosParaHHMM(horarioIdealMinutos);
+          if (c.horario !== novoHorarioStr) {
+            c.horario = novoHorarioStr;
+            c._horarioValida = true;
+            houveAlteracao = true;
+          }
+        });
+      });
+    } else {
+      // Campanhas estendidas (de 4 a 8 vídeos): distribui sequencialmente por índice de canal
+      canaisOrdenados.forEach((c, index) => {
+        // Pega o horário inicial absoluto do primeiro canal para a faixa expandida (ex: começa às 05:00)
+        let baseMinutos = hhmmParaMinutos(HORARIOS_BASE_SLOTS[1].inicioAbsoluto);
+        let horarioIdealMinutos = baseMinutos + (index * intervaloMinutos);
         const novoHorarioStr = minutosParaHHMM(horarioIdealMinutos);
 
         if (c.horario !== novoHorarioStr) {
           c.horario = novoHorarioStr;
+          c._horarioValida = true;
           houveAlteracao = true;
         }
       });
-    });
+    }
 
-    // Se houve alteração de horários, atualiza os elementos visuais na tela
     if (houveAlteracao && typeof rerenderizarGrids === "function") {
       rerenderizarGrids();
-      console.log("[Recalibrador] Horários dos cards recalibrados dinamicamente com base no horário atual.");
+      console.log(`[Recalibrador Dinâmico] Grade recalculada para campanha de até ${maxVideosNoCanal} vídeos.`);
     }
   }
 
-  // Executa assim que o script for injetado (dando um pequeno delay para garantir o carregamento dos canais do Supabase)
   window.addEventListener("DOMContentLoaded", () => {
-    setTimeout(recalibrarHorariosDinamicos, 1500);
+    setTimeout(() => {
+      recalibrarHorariosDinamicos();
+    }, 1800);
   });
 
-  // Exporta caso queira chamar manualmente via botão
   window.recalibrarHorariosDinamicos = recalibrarHorariosDinamicos;
+  window.distribuirMultiplosVideosDinamicos = distribuirMultiplosVideosDinamicos;
 })();
