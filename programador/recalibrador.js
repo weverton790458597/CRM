@@ -1,6 +1,7 @@
 /**
- * Recalibrador Dinâmico Multi-Vídeos (Suporte a Campanhas de 1 até 8 vídeos por canal)
- * Adapta-se automaticamente a novos canais e ativa as faixas horárias conforme a quantidade de vídeos.
+ * Recalibrador Dinâmico Inteligente (Padrão vs. Campanhas Estendidas)
+ * - 1 a 3 vídeos: Ativa a grade padrão.
+ * - 4 a 8 vídeos: Ativa os horários de campanha estendidos dinamicamente para qualquer canal.
  */
 
 (function () {
@@ -18,115 +19,97 @@
   }
 
   /**
-   * Tabela base de horários iniciais para cada slot de vídeo (de 1 a 8)
-   * Baseado nas suas regras de campanha.
+   * Horários iniciais absolutos de cada slot (Vídeo 1 ao 8) para campanhas estendidas.
+   * O sistema calcula a progressão de 20 em 20 minutos dinamicamente para cada canal cadastrado.
    */
-  const HORARIOS_BASE_SLOTS = {
-    1: { manha: "11:00", noite: "18:00", inicioAbsoluto: "05:00" },
-    2: { inicioAbsoluto: "07:00" },
-    3: { inicioAbsoluto: "09:00" },
-    4: { inicioAbsoluto: "11:00" },
-    5: { inicioAbsoluto: "13:00" },
-    6: { inicioAbsoluto: "15:00" },
-    7: { inicioAbsoluto: "17:00" },
-    8: { inicioAbsoluto: "19:00" }
+  const INICIOS_SLOTS_CAMPANHA = {
+    1: "05:00",
+    2: "07:00",
+    3: "09:00",
+    4: "11:00",
+    5: "13:00",
+    6: "15:00",
+    7: "17:00",
+    8: "19:00"
   };
 
   /**
-   * Distribui os vídeos dinamicamente na interface e gerencia os slots (de 1 a 8)
-   * com base na quantidade de vídeos jogados por canal.
+   * Agrupa os vídeos arrastados para a interface direcionando-os ao canal correto.
    */
   async function distribuirMultiplosVideosDinamicos(videos) {
     if (typeof CANAIS_DINAMICOS === "undefined" || !CANAIS_DINAMICOS.length) return;
     if (!videos || !videos.length) return;
 
-    // Ordena os canais dinâmicos para garantir consistência na distribuição
-    const canaisOrdenados = [...CANAIS_DINAMICOS].sort((a, b) => a.id.localeCompare(b.id));
     const videosPorCanal = {};
-    canaisOrdenados.forEach(c => { videosPorCanal[c.id] = []; });
-    const naoAlocados = [];
+    CANAIS_DINAMICOS.forEach(c => { videosPorCanal[c.id] = []; });
 
-    // Agrupa os arquivos arrastados/selecionados por canal
     videos.forEach(video => {
       const nomeLow = video.name.toLowerCase();
-      let canalEncontrado = canaisOrdenados.find(c => 
+      let canalEncontrado = CANAIS_DINAMICOS.find(c => 
         nomeLow.includes(c.id.toLowerCase()) || nomeLow.includes(c.nome.toLowerCase())
       );
 
       if (canalEncontrado) {
         videosPorCanal[canalEncontrado.id].push(video);
-      } else {
-        naoAlocados.push(video);
       }
     });
 
-    // Se houver vídeos sem nome explícito, distribui sequencialmente nos canais que têm menos vídeos
-    if (naoAlocados.length > 0) {
-      for (const video of naoAlocados) {
-        let canalLivre = canaisOrdenados.find(c => videosPorCanal[c.id].length < 8);
-        if (canalLivre) {
-          videosPorCanal[canalLivre.id].push(video);
-        }
-      }
-    }
+    let totalProcessados = 0;
 
-    let totalDistribuidos = 0;
-
-    // Processa a alocação para cada canal
     for (const canalId of Object.keys(videosPorCanal)) {
-      const listaVideosCanal = videosPorCanal[canalId];
-      if (listaVideosCanal.length === 0) continue;
+      const listaVideos = videosPorCanal[canalId];
+      if (listaVideos.length === 0) continue;
 
-      // O 1º vídeo vai para o slot principal do card
-      if (typeof processarArquivo === "function" && listaVideosCanal[0]) {
-        await processarArquivo(canalId, listaVideosCanal[0]);
-        totalDistribuidos++;
+      // O 1º vídeo vai para o card principal
+      if (typeof processarArquivo === "function" && listaVideos[0]) {
+        await processarArquivo(canalId, listaVideos[0]);
+        totalProcessados++;
       }
 
-      // Se houver de 2 até 8 vídeos, armazenamos nos metadados de vídeos extras do canal
-      if (listaVideosCanal.length > 1) {
+      // Demais vídeos vão para os slots extras do estado do canal
+      if (listaVideos.length > 1) {
         if (typeof estadoCanais !== "undefined" && estadoCanais[canalId]) {
-          // Armazena do 2º vídeo em diante (índice 1 até o fim)
-          estadoCanais[canalId].videosExtras = listaVideosCanal.slice(1);
+          estadoCanais[canalId].videosExtras = listaVideos.slice(1);
+          totalProcessados += listaVideos.length - 1;
         }
       }
     }
 
-    // Dispara a recalibragem para ajustar os horários dinamicamente com base no maior número de vídeos inseridos
     recalibrarHorariosDinamicos();
 
     if (typeof setMsg === "function") {
-      setMsg(`${totalDistribuidos} vídeo(s) alocados com suporte a campanhas dinâmicas!`);
+      setMsg(`${totalProcessados} vídeo(s) alocados e horários calibrados com sucesso!`);
     }
   }
 
   /**
-   * Recalibra os horários de forma totalmente dinâmica para todos os slots ativos,
-   * adaptando-se automaticamente se você adicionar novos canais.
+   * Recalibra os horários de forma dinâmica e escalável:
+   * - Identifica se a campanha é padrão (<= 3 vídeos) ou estendida (4 a 8 vídeos).
+   * - Aplica o cálculo proporcional para qualquer quantidade de canais vindos do Supabase.
    */
   function recalibrarHorariosDinamicos() {
-    if (typeof CANAIS_DINAMICOS === "undefined" || !CANAIS_DINAMICOS.length) {
-      return;
-    }
+    if (typeof CANAIS_DINAMICOS === "undefined" || !CANAIS_DINAMICOS.length) return;
 
+    // Ordena os canais de forma consistente por ID
     const canaisOrdenados = [...CANAIS_DINAMICOS].sort((a, b) => a.id.localeCompare(b.id));
     const intervaloMinutos = 20;
     let houveAlteracao = false;
 
-    // Descobre qual é o teto máximo de vídeos extras presentes em algum canal na tela (entre 1 e 8)
+    // Descobre o maior número de vídeos em um único canal na tela para definir o modo
     let maxVideosNoCanal = 1;
     if (typeof estadoCanais !== "undefined") {
-      Object.values(estadoCanais).forEach(estado => {
-        if (estado && estado.videosExtras && estado.videosExtras.length > 0) {
-          const qtdTotal = estado.videosExtras.length + 1;
-          if (qtdTotal > maxVideosNoCanal) maxVideosNoCanal = qtdTotal;
+      Object.entries(estadoCanais).forEach(([idCanal, estado]) => {
+        if (estado && estado.videosExtras) {
+          const total = estado.videosExtras.length + 1;
+          if (total > maxVideosNoCanal) maxVideosNoCanal = total;
         }
       });
     }
 
-    // Se a campanha for padrão (até 3 vídeos), mantém o comportamento original por faixa (manha/noite)
     if (maxVideosNoCanal <= 3) {
+      // MODO PADRÃO (Até 3 vídeos): Usa a grade padrão por faixa (manhã / noite)
       const basesFaixas = { manha: "11:00", noite: "18:00" };
+      
       ["manha", "noite"].forEach((faixa) => {
         let baseMinutos = hhmmParaMinutos(basesFaixas[faixa]);
         const canaisDaFaixa = canaisOrdenados.filter((c) => c.faixa === faixa);
@@ -134,6 +117,7 @@
         canaisDaFaixa.forEach((c, index) => {
           let horarioIdealMinutos = baseMinutos + (index * intervaloMinutos);
           const novoHorarioStr = minutosParaHHMM(horarioIdealMinutos);
+
           if (c.horario !== novoHorarioStr) {
             c.horario = novoHorarioStr;
             c._horarioValida = true;
@@ -142,10 +126,12 @@
         });
       });
     } else {
-      // Campanhas estendidas (de 4 a 8 vídeos): distribui sequencialmente por índice de canal
+      // MODO CAMPANHA ESTENDIDA (4 a 8 vídeos): Dinâmico e proporcional para novos canais
+      // Usa como base o slot 1 (ex: começa às 05:00 para o primeiro canal e espaça 20 min para os próximos)
+      let horarioBaseStr = INICIOS_SLOTS_CAMPANHA[1] || "05:00";
+      let baseMinutos = hhmmParaMinutos(horarioBaseStr);
+
       canaisOrdenados.forEach((c, index) => {
-        // Pega o horário inicial absoluto do primeiro canal para a faixa expandida (ex: começa às 05:00)
-        let baseMinutos = hhmmParaMinutos(HORARIOS_BASE_SLOTS[1].inicioAbsoluto);
         let horarioIdealMinutos = baseMinutos + (index * intervaloMinutos);
         const novoHorarioStr = minutosParaHHMM(horarioIdealMinutos);
 
@@ -159,7 +145,7 @@
 
     if (houveAlteracao && typeof rerenderizarGrids === "function") {
       rerenderizarGrids();
-      console.log(`[Recalibrador Dinâmico] Grade recalculada para campanha de até ${maxVideosNoCanal} vídeos.`);
+      console.log(`[Recalibrador Dinâmico] Grade ajustada para campanha de ${maxVideosNoCanal} vídeo(s) por canal.`);
     }
   }
 
