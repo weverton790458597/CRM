@@ -1,295 +1,726 @@
 <!DOCTYPE html>
-<html lang="pt-BR">
+<html lang="pt-BR" class="scroll-smooth">
 <head>
-  <meta charset="UTF-8" />
-  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-  <title>Evrix — Analytics, Agendamento & Finanças para Criadores</title>
-  <meta name="description" content="Plataforma completa de analytics, agendamento e gestão financeira para criadores de conteúdo e agências que gerenciam múltiplos canais no TikTok, YouTube e Instagram." />
-  <link rel="preconnect" href="https://fonts.googleapis.com" />
-  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
-  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=Space+Grotesk:wght@500;600;700&display=swap" rel="stylesheet" />
-  <link rel="stylesheet" href="styles/variables.css" />
-  <link rel="stylesheet" href="styles/global.css" />
-  <link rel="stylesheet" href="styles/components.css" />
-  <link rel="stylesheet" href="styles/animations.css" />
-  <link rel="stylesheet" href="styles/motion.css" />
-  <link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 32 32'><rect width='32' height='32' rx='8' fill='%238b5cf6'/></svg>" />
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Evrix Social — Agendamento de Vídeos para YouTube, Instagram e TikTok</title>
+    <meta name="description" content="O Evrix Social agenda e publica seus vídeos no YouTube, Instagram e TikTok a partir de um único painel minimalista com precisão máxima.">
+    <meta name="theme-color" content="#030305">
+    
+    <link rel="canonical" href="https://www.evrix.shop/">
+    <link rel="icon" href="/favicon.ico" sizes="any">
+    <link rel="icon" type="image/png" href="/favicon.png">
+    <link rel="apple-touch-icon" href="/apple-touch-icon.png">
+
+    <!-- Open Graph -->
+    <meta property="og:title" content="Evrix Social — Cada vídeo no canal certo, na hora certa.">
+    <meta property="og:description" content="YouTube, Instagram e TikTok em um só painel inteligente. Agendamento simplificado e seguro.">
+    <meta property="og:image" content="https://www.evrix.shop/icon.png">
+    <meta property="og:url" content="https://www.evrix.shop/">
+
+    <!-- Google Fonts: Plus Jakarta Sans + JetBrains Mono -->
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@400;500;600&family=Plus+Jakarta+Sans:wght@300;400;500;600;700;800&display=swap" rel="stylesheet">
+
+    <script src="https://cdn.tailwindcss.com"></script>
+    <script>
+        tailwind.config = {
+            darkMode: 'class',
+            theme: {
+                extend: {
+                    colors: {
+                        dark: {
+                            bg: '#030305',
+                            surface: '#0a0a0f',
+                            card: '#0d0d14',
+                            border: 'rgba(255, 255, 255, 0.08)',
+                            borderHover: 'rgba(255, 255, 255, 0.2)',
+                            muted: '#8b8d9b',
+                        },
+                        platform: {
+                            yt: '#ff0033',
+                            igStart: '#f09433',
+                            igEnd: '#bc1888',
+                            tk: '#00f2fe'
+                        }
+                    },
+                    fontFamily: {
+                        sans: ['"Plus Jakarta Sans"', '-apple-system', 'sans-serif'],
+                        mono: ['"JetBrains Mono"', 'monospace'],
+                    }
+                }
+            }
+        }
+    </script>
+
+    <style>
+        body {
+            background-color: #030305;
+            color: #f1f3f9;
+            font-family: 'Plus Jakarta Sans', sans-serif;
+            overflow-x: hidden;
+            letter-spacing: -0.015em;
+        }
+
+        /* Subtle Ambient Glows (Vercel/Apple Dark Style) */
+        .ambient-glow {
+            position: absolute;
+            width: 700px;
+            height: 400px;
+            background: radial-gradient(ellipse at center, rgba(120, 119, 198, 0.12) 0%, rgba(255, 255, 255, 0) 70%);
+            top: -100px;
+            left: 50%;
+            transform: translateX(-50%);
+            pointer-events: none;
+            z-index: 0;
+            filter: blur(80px);
+        }
+
+        /* Glassmorphism Panels & Cards */
+        .glass-panel {
+            background: rgba(13, 13, 20, 0.7);
+            backdrop-filter: blur(20px);
+            -webkit-backdrop-filter: blur(20px);
+            border: 1px solid rgba(255, 255, 255, 0.08);
+            box-shadow: inset 0 1px 0 0 rgba(255, 255, 255, 0.08);
+        }
+
+        .glass-card {
+            background: rgba(13, 13, 20, 0.6);
+            backdrop-filter: blur(12px);
+            border: 1px solid rgba(255, 255, 255, 0.07);
+            box-shadow: inset 0 1px 0 0 rgba(255, 255, 255, 0.05);
+            transition: all 0.25s cubic-bezier(0.16, 1, 0.3, 1);
+        }
+
+        .glass-card:hover {
+            border-color: rgba(255, 255, 255, 0.18);
+            transform: translateY(-2px);
+            box-shadow: inset 0 1px 0 0 rgba(255, 255, 255, 0.1), 0 12px 30px -10px rgba(0, 0, 0, 0.5);
+        }
+
+        /* Typography Text Gradients */
+        .gradient-text {
+            background: linear-gradient(180deg, #FFFFFF 0%, #A1A1AA 100%);
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
+        }
+
+        /* Custom Scrollbar */
+        ::-webkit-scrollbar {
+            width: 6px;
+        }
+        ::-webkit-scrollbar-track {
+            background: #030305;
+        }
+        ::-webkit-scrollbar-thumb {
+            background: rgba(255, 255, 255, 0.12);
+            border-radius: 999px;
+        }
+        ::-webkit-scrollbar-thumb:hover {
+            background: rgba(255, 255, 255, 0.25);
+        }
+    </style>
 </head>
-<body>
+<body class="relative min-h-screen selection:bg-white/20 selection:text-white">
 
-  <!-- ===================== HEADER / NAVBAR ===================== -->
-  <header class="navbar" id="navbar">
-    <div class="container nav-inner">
-      <a href="#" class="logo" aria-label="Evrix">
-        <span class="logo-mark" aria-hidden="true">
-          <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="#fff" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round">
-            <path d="M3 12c0-4.97 4.03-9 9-9s9 4.03 9 9-4.03 9-9 9" />
-            <path d="M3 12c0 4.97 4.03 9 9 9 3.5 0 6.5-2 7.8-4.9" />
-            <circle cx="12" cy="12" r="2.4" fill="#fff" stroke="none" />
-          </svg>
-        </span>
-        <span class="logo-text">Evrix</span>
-      </a>
+    <!-- Ambient Glow Background -->
+    <div class="ambient-glow"></div>
 
-      <nav class="nav-links" id="navLinks">
-        <a href="#features">Recursos</a>
-        <a href="#networks">Analytics</a>
-        <a href="#features">Agendamento</a>
-        <a href="#metrics">Finanças</a>
-        <a href="#cta">Preços</a>
-      </nav>
+    <header class="fixed top-0 left-0 right-0 z-50 pt-4 px-4 sm:px-6">
+        <div class="max-w-5xl mx-auto">
+            <div class="glass-panel rounded-2xl px-4 sm:px-6 py-3 flex items-center justify-between">
+                
+                <!-- Brand Identity with Inline SVG -->
+                <a href="/" class="flex items-center gap-3 group focus:outline-none">
+                    <div class="w-8 h-8 rounded-lg bg-white/10 border border-white/15 flex items-center justify-center transition-transform duration-300 group-hover:scale-105">
+                        <svg class="w-4 h-4 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24" stroke-width="2">
+                            <rect x="3" y="4" width="18" height="18" rx="2" ry="2"></rect>
+                            <line x1="16" y1="2" x2="16" y2="6"></line>
+                            <line x1="8" y1="2" x2="8" y2="6"></line>
+                            <line x1="3" y1="10" x2="21" y2="10"></line>
+                        </svg>
+                    </div>
+                    <div class="flex items-center gap-2">
+                        <span class="font-bold text-sm tracking-tight text-white">Evrix Social</span>
+                        <span class="inline-flex items-center gap-1.5 px-2 py-0.5 rounded-full bg-emerald-500/10 border border-emerald-500/20 text-[10px] font-mono text-emerald-400">
+                            <span class="w-1.5 h-1.5 rounded-full bg-emerald-400 animate-pulse"></span>
+                            v2.4
+                        </span>
+                    </div>
+                </a>
 
-      <div class="nav-actions">
-        <a href="auth/login.html" class="btn btn-ghost">Entrar</a>
-        <a href="auth/planos.html" class="btn btn-primary btn-shimmer">Começar Agora</a>
-        <button class="nav-toggle" id="navToggle" aria-label="Abrir menu">
-          <span></span><span></span><span></span>
-        </button>
-      </div>
-    </div>
-  </header>
+                <!-- Nav Links -->
+                <nav class="hidden md:flex items-center gap-8 text-xs font-medium text-slate-400" aria-label="Navegação Principal">
+                    <a href="#como-funciona" class="hover:text-white transition-colors">Como Funciona</a>
+                    <a href="#plataformas" class="hover:text-white transition-colors">Plataformas</a>
+                    <a href="#seguranca" class="hover:text-white transition-colors">Segurança</a>
+                    <a href="#faq" class="hover:text-white transition-colors">FAQ</a>
+                </nav>
 
-  <!-- ===================== HERO ===================== -->
-  <section class="hero section" id="hero">
-    <div class="container hero-grid">
-      <div class="hero-copy">
-        <span class="hero-badge"><span class="dot"></span> Multi-canal em tempo real</span>
-        <h1>Domine o caos de <span class="text-gradient">todas as suas redes</span> em um só painel.</h1>
-        <p class="hero-sub">
-          Pare de gerenciar dezenas de abas e contas sem controle. O Evrix unifica analytics,
-          agendamento e finanças do seu TikTok, YouTube e Instagram em uma plataforma só.
-        </p>
-        <div class="hero-cta">
-          <a href="auth/planos.html" class="btn btn-primary btn-shimmer">Começar</a>
-          <a href="#features" class="btn btn-ghost">Ver Recursos</a>
-        </div>
-      </div>
+                <!-- CTA Button -->
+                <a href="/programador/" class="inline-flex items-center gap-2 px-4 py-2 rounded-xl bg-white text-black text-xs font-semibold hover:bg-slate-200 transition-all shadow-lg shadow-white/5 active:scale-95">
+                    <span>Entrar no painel</span>
+                    <svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24" stroke-width="2.5">
+                        <line x1="5" y1="12" x2="19" y2="12"></line>
+                        <polyline points="12 5 19 12 12 19"></polyline>
+                    </svg>
+                </a>
 
-      <!-- Mockup Dashboard Interativo -->
-      <div class="hero-visual parallax" data-speed="0.06">
-        <div class="mockup gradient-border">
-          <div class="mockup-header">
-            <div class="mockup-dots"><span></span><span></span><span></span></div>
-            <div class="mockup-title">
-              <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M3 3v18h18"/><path d="m19 9-5 5-4-4-3 3"/></svg>
-              Evrix Analytics
             </div>
-          </div>
-          <div class="mockup-channels">
-            <span class="chan-pill">
-              <svg width="13" height="13" viewBox="0 0 24 24" fill="#25f4ee"><path d="M16.6 5.8a4.9 4.9 0 0 1 4.6 4.9v6.6a4.9 4.9 0 0 1-4.9 4.9H7.4A4.9 4.9 0 0 1 2.5 17.3V10.7A4.9 4.9 0 0 1 7.4 5.8h9.2Zm-7.7 3.1v6.2l5.4-3.1-5.4-3.1Z"/></svg>
-              TikTok
-            </span>
-            <span class="chan-pill">
-              <svg width="13" height="13" viewBox="0 0 24 24" fill="#ff0033"><path d="M23 7.5a3 3 0 0 0-2.1-2.1C19 5 12 5 12 5s-7 0-8.9.4A3 3 0 0 0 1 7.5 31 31 0 0 0 .6 12 31 31 0 0 0 1 16.5a3 3 0 0 0 2.1 2.1C5 19 12 19 12 19s7 0 8.9-.4a3 3 0 0 0 2.1-2.1A31 31 0 0 0 23.4 12 31 31 0 0 0 23 7.5ZM9.8 15.3V8.7l5.7 3.3-5.7 3.3Z"/></svg>
-              YouTube
-            </span>
-            <span class="chan-pill">
-              <svg width="13" height="13" viewBox="0 0 24 24" fill="#d62976"><path d="M12 2.2c3.2 0 3.6 0 4.9.1 1.2.1 1.8.3 2.2.4.6.2 1 .5 1.4.9.4.4.7.8.9 1.4.2.4.4 1 .4 2.2.1 1.3.1 1.7.1 4.9s0 3.6-.1 4.9c-.1 1.2-.3 1.8-.4 2.2-.2.6-.5 1-.9 1.4-.4.4-.8.7-1.4.9-.4.2-1 .4-2.2.4-1.3.1-1.7.1-4.9.1s-3.6 0-4.9-.1c-1.2-.1-1.8-.3-2.2-.4a3.8 3.8 0 0 1-1.4-.9 3.8 3.8 0 0 1-.9-1.4c-.2-.4-.4-1-.4-2.2C2.2 15.6 2.2 15.2 2.2 12s0-3.6.1-4.9c.1-1.2.3-1.8.4-2.2.2-.6.5-1 .9-1.4.4-.4.8-.7 1.4-.9.4-.2 1-.4 2.2-.4C8.4 2.2 8.8 2.2 12 2.2Zm0 1.8c-3.1 0-3.5 0-4.7.1-1.1 0-1.7.2-2.1.4-.5.2-.9.4-1.3.8-.4.4-.6.8-.8 1.3-.2.4-.3 1-.4 2.1C2.6 9.9 2.6 10.3 2.6 12s0 2.1.1 3.3c0 1.1.2 1.7.4 2.1.2.5.4.9.8 1.3.4.4.8.6 1.3.8.4.2 1 .3 2.1.4 1.2.1 1.6.1 4.7.1s3.5 0 4.7-.1c1.1 0 1.7-.2 2.1-.4.5-.2.9-.4 1.3-.8.4-.4.6-.8.8-1.3.2-.4.3-1 .4-2.1.1-1.2.1-1.6.1-3.3s0-2.1-.1-3.3c0-1.1-.2-1.7-.4-2.1a3.5 3.5 0 0 0-.8-1.3 3.5 3.5 0 0 0-1.3-.8c-.4-.2-1-.3-2.1-.4-1.2-.1-1.6-.1-4.7-.1Zm0 3.1a4.9 4.9 0 1 1 0 9.8 4.9 4.9 0 0 1 0-9.8Zm0 8.1a3.2 3.2 0 1 0 0-6.4 3.2 3.2 0 0 0 0 6.4Zm6.2-8.3a1.1 1.1 0 1 1-2.3 0 1.1 1.1 0 0 1 2.3 0Z"/></svg>
-              Instagram
-            </span>
-          </div>
+        </div>
+    </header>
 
-          <div class="chart" id="heroChart" aria-label="Gráfico de analytics"></div>
+    <main class="relative z-10 pt-28 sm:pt-36">
 
-          <div class="mockup-stats">
-            <div class="mock-stat">
-              <div class="label">Alcance 7d</div>
-              <div class="value up">8.4M</div>
+        <section class="max-w-5xl mx-auto px-4 sm:px-6 text-center space-y-6 pb-16">
+            
+            <div class="inline-flex items-center gap-2 px-3 py-1.5 rounded-full glass-panel border border-white/10 text-xs font-medium text-slate-300">
+                <svg class="w-3.5 h-3.5 text-amber-400 fill-amber-400/20" fill="currentColor" stroke="currentColor" viewBox="0 0 24 24" stroke-width="2">
+                    <polygon points="13 2 3 14 12 14 11 22 21 10 12 10 13 2"></polygon>
+                </svg>
+                <span>Agendamento Multiplataforma Inteligente</span>
             </div>
-            <div class="mock-stat">
-              <div class="label">Engajamento</div>
-              <div class="value up">+23%</div>
+
+            <h1 class="text-4xl sm:text-6xl lg:text-7xl font-extrabold tracking-tight gradient-text max-w-4xl mx-auto leading-[1.08]">
+                Cada vídeo no canal certo, na hora certa.
+            </h1>
+
+            <p class="text-slate-400 text-base sm:text-lg max-w-2xl mx-auto font-normal leading-relaxed">
+                O <strong class="text-slate-200 font-semibold">Evrix Social</strong> agenda e publica seus vídeos no YouTube, Instagram e TikTok a partir de um único painel, com um horário para cada canal.
+            </p>
+
+            <div class="pt-2 flex flex-col sm:flex-row items-center justify-center gap-3">
+                <a href="/programador/" class="w-full sm:w-auto px-6 py-3.5 rounded-xl bg-white text-black font-semibold text-sm hover:bg-slate-200 transition-all flex items-center justify-center gap-2 shadow-xl shadow-white/5 active:scale-95">
+                    <span>Entrar no painel</span>
+                    <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24" stroke-width="2.5">
+                        <line x1="5" y1="12" x2="19" y2="12"></line>
+                        <polyline points="12 5 19 12 12 19"></polyline>
+                    </svg>
+                </a>
+                <a href="#como-funciona" class="w-full sm:w-auto px-6 py-3.5 rounded-xl glass-panel text-slate-300 font-medium text-sm hover:text-white hover:bg-white/5 transition-all flex items-center justify-center gap-2">
+                    <span>Ver como funciona</span>
+                    <svg class="w-4 h-4 text-slate-400" fill="none" stroke="currentColor" viewBox="0 0 24 24" stroke-width="2">
+                        <polyline points="6 9 12 15 18 9"></polyline>
+                    </svg>
+                </a>
             </div>
-            <div class="mock-stat">
-              <div class="label">Receita</div>
-              <div class="value">R$ 142k</div>
+
+            <div class="pt-8 grid grid-cols-3 max-w-xl mx-auto border-t border-white/10 text-center">
+                <div class="px-2">
+                    <div class="text-lg sm:text-2xl font-bold font-mono text-white">99.9%</div>
+                    <div class="text-[11px] text-slate-500 uppercase tracking-wider mt-0.5">Precisão de envio</div>
+                </div>
+                <div class="px-2 border-x border-white/10">
+                    <div class="text-lg sm:text-2xl font-bold font-mono text-white">3 Redes</div>
+                    <div class="text-[11px] text-slate-500 uppercase tracking-wider mt-0.5">Simultâneas</div>
+                </div>
+                <div class="px-2">
+                    <div class="text-lg sm:text-2xl font-bold font-mono text-white">0ms</div>
+                    <div class="text-[11px] text-slate-500 uppercase tracking-wider mt-0.5">Atraso de disparo</div>
+                </div>
             </div>
-          </div>
+
+        </section>
+
+        <section class="max-w-5xl mx-auto px-4 sm:px-6 pb-24">
+            <div class="glass-panel rounded-3xl p-3 border border-white/10 shadow-2xl relative overflow-hidden">
+                
+                <div class="bg-[#08080d] rounded-2xl border border-white/5 overflow-hidden">
+                    
+                    <div class="px-5 py-3.5 bg-white/[0.02] border-b border-white/5 flex flex-wrap items-center justify-between gap-3">
+                        <div class="flex items-center gap-3">
+                            <div class="flex items-center gap-1.5">
+                                <span class="w-3 h-3 rounded-full bg-[#ff5f56] inline-block"></span>
+                                <span class="w-3 h-3 rounded-full bg-[#ffbd2e] inline-block"></span>
+                                <span class="w-3 h-3 rounded-full bg-[#27c93f] inline-block"></span>
+                            </div>
+                            <span class="text-xs font-mono text-slate-400 border-l border-white/10 pl-3">evrix.shop/programador</span>
+                        </div>
+
+                        <div class="flex items-center bg-black/40 p-1 rounded-lg border border-white/5 text-xs">
+                            <button onclick="switchBoardTab('hoje')" id="tab-btn-hoje" class="px-3 py-1 rounded-md bg-white/10 text-white font-medium transition-all">
+                                Programação de Hoje
+                            </button>
+                            <button onclick="switchBoardTab('fila')" id="tab-btn-fila" class="px-3 py-1 rounded-md text-slate-400 hover:text-white transition-all">
+                                Fila de Envio
+                            </button>
+                            <button onclick="switchBoardTab('desempenho')" id="tab-btn-desempenho" class="px-3 py-1 rounded-md text-slate-400 hover:text-white transition-all">
+                                Desempenho
+                            </button>
+                        </div>
+                    </div>
+
+                    <div class="p-6">
+                        
+                        <!-- TAB 1: Programação de Hoje -->
+                        <div id="tab-hoje" class="space-y-4">
+                            <div class="flex items-center justify-between text-xs font-mono text-slate-400 pb-2 border-b border-white/5">
+                                <span>HORÁRIO LOCAL</span>
+                                <span>CANAL / CONTEÚDO</span>
+                                <span class="hidden sm:inline">PLATAFORMAS DESTINO</span>
+                            </div>
+
+                            <!-- Post Item 1 -->
+                            <div class="p-4 rounded-xl glass-card flex flex-col sm:flex-row sm:items-center justify-between gap-4 cursor-pointer group">
+                                <div class="flex items-center gap-4">
+                                    <span class="font-mono text-lg font-bold text-white group-hover:text-emerald-400 transition-colors">11:00</span>
+                                    <span class="w-2 h-2 rounded-full bg-emerald-400 shadow-[0_0_8px_#34d399]"></span>
+                                    <div>
+                                        <div class="font-semibold text-sm text-white flex items-center gap-2">
+                                            Canal de Receitas Rápidas
+                                            <span class="text-[10px] font-mono font-normal text-slate-500 bg-white/5 px-2 py-0.5 rounded">#092</span>
+                                        </div>
+                                        <div class="text-xs text-slate-400 mt-0.5">Bolo de Cenoura em 1 Minuto</div>
+                                    </div>
+                                </div>
+                                <div class="flex items-center gap-2">
+                                    <span class="px-2.5 py-1 rounded-md bg-red-500/10 text-red-400 border border-red-500/20 text-xs font-mono font-medium">YouTube</span>
+                                    <span class="px-2.5 py-1 rounded-md bg-pink-500/10 text-pink-400 border border-pink-500/20 text-xs font-mono font-medium">Instagram</span>
+                                    <span class="px-2.5 py-1 rounded-md bg-cyan-500/10 text-cyan-400 border border-cyan-500/20 text-xs font-mono font-medium">TikTok</span>
+                                </div>
+                            </div>
+
+                            <!-- Post Item 2 -->
+                            <div class="p-4 rounded-xl glass-card border-rose-500/30 bg-rose-500/[0.03] flex flex-col sm:flex-row sm:items-center justify-between gap-4 cursor-pointer group">
+                                <div class="flex items-center gap-4">
+                                    <span class="font-mono text-lg font-bold text-rose-400">11:20</span>
+                                    <span class="w-2 h-2 rounded-full bg-rose-500 animate-pulse shadow-[0_0_10px_#f43f5e]"></span>
+                                    <div>
+                                        <div class="font-semibold text-sm text-white flex items-center gap-2">
+                                            Canal de Games & Tech
+                                            <span class="text-[10px] font-mono font-normal text-rose-400 bg-rose-500/10 px-2 py-0.5 rounded border border-rose-500/20">Próximo Disparo</span>
+                                        </div>
+                                        <div class="text-xs text-slate-400 mt-0.5">Setup Gamer dos Sonhos 2026</div>
+                                    </div>
+                                </div>
+                                <div class="flex items-center gap-2">
+                                    <span class="px-2.5 py-1 rounded-md bg-red-500/10 text-red-400 border border-red-500/20 text-xs font-mono font-medium">YouTube</span>
+                                    <span class="px-2.5 py-1 rounded-md bg-cyan-500/10 text-cyan-400 border border-cyan-500/20 text-xs font-mono font-medium">TikTok</span>
+                                </div>
+                            </div>
+
+                            <!-- Post Item 3 -->
+                            <div class="p-4 rounded-xl glass-card flex flex-col sm:flex-row sm:items-center justify-between gap-4 cursor-pointer group">
+                                <div class="flex items-center gap-4">
+                                    <span class="font-mono text-lg font-bold text-slate-400 group-hover:text-white transition-colors">11:40</span>
+                                    <span class="w-2 h-2 rounded-full bg-slate-600"></span>
+                                    <div>
+                                        <div class="font-semibold text-sm text-white">Canal de Notícias Express</div>
+                                        <div class="text-xs text-slate-400 mt-0.5">Resumo diário do mercado</div>
+                                    </div>
+                                </div>
+                                <div class="flex items-center gap-2">
+                                    <span class="px-2.5 py-1 rounded-md bg-red-500/10 text-red-400 border border-red-500/20 text-xs font-mono font-medium">YouTube</span>
+                                    <span class="px-2.5 py-1 rounded-md bg-pink-500/10 text-pink-400 border border-pink-500/20 text-xs font-mono font-medium">Instagram</span>
+                                </div>
+                            </div>
+
+                            <!-- Post Item 4 -->
+                            <div class="p-4 rounded-xl glass-card flex flex-col sm:flex-row sm:items-center justify-between gap-4 cursor-pointer group">
+                                <div class="flex items-center gap-4">
+                                    <span class="font-mono text-lg font-bold text-slate-400 group-hover:text-white transition-colors">18:00</span>
+                                    <span class="w-2 h-2 rounded-full bg-slate-600"></span>
+                                    <div>
+                                        <div class="font-semibold text-sm text-white">Canal de Treinos</div>
+                                        <div class="text-xs text-slate-400 mt-0.5">Treino em casa de 15 minutos</div>
+                                    </div>
+                                </div>
+                                <div class="flex items-center gap-2">
+                                    <span class="px-2.5 py-1 rounded-md bg-pink-500/10 text-pink-400 border border-pink-500/20 text-xs font-mono font-medium">Instagram</span>
+                                    <span class="px-2.5 py-1 rounded-md bg-cyan-500/10 text-cyan-400 border border-cyan-500/20 text-xs font-mono font-medium">TikTok</span>
+                                </div>
+                            </div>
+                        </div>
+
+                        <!-- TAB 2: Fila de Envio -->
+                        <div id="tab-fila" class="hidden space-y-3">
+                            <div class="p-4 rounded-xl bg-white/[0.02] border border-white/5 text-xs font-mono text-slate-400 flex justify-between items-center">
+                                <span>HOJE // 11:20</span>
+                                <span class="text-white font-semibold">2 canais pendentes</span>
+                                <span class="text-amber-400">PRONTO PARA DISPARO</span>
+                            </div>
+                            <div class="p-4 rounded-xl bg-white/[0.02] border border-white/5 text-xs font-mono text-slate-400 flex justify-between items-center">
+                                <span>AMANHÃ // 10:00</span>
+                                <span class="text-white font-semibold">4 vídeos agendados</span>
+                                <span class="text-emerald-400">VALIDADO ✓</span>
+                            </div>
+                        </div>
+
+                        <!-- TAB 3: Desempenho -->
+                        <div id="tab-desempenho" class="hidden space-y-3 text-center py-8">
+                            <div class="text-2xl font-bold text-white font-mono">100% Taxa de Entrega</div>
+                            <p class="text-xs text-slate-400 max-w-sm mx-auto">
+                                Todos os vídeos das últimas 24 horas foram publicados com sucesso dentro do horário programado.
+                            </p>
+                        </div>
+
+                    </div>
+
+                </div>
+
+            </div>
+        </section>
+
+        <section id="como-funciona" class="py-20 border-t border-white/10">
+            <div class="max-w-5xl mx-auto px-4 sm:px-6">
+                
+                <div class="text-center max-w-2xl mx-auto mb-16 space-y-3">
+                    <span class="text-xs font-mono uppercase tracking-widest text-slate-400">// FLUXO SIMPLIFICADO</span>
+                    <h2 class="text-3xl sm:text-4xl font-extrabold text-white tracking-tight">
+                        Do arquivo de vídeo à publicação, em três passos
+                    </h2>
+                </div>
+
+                <div class="grid grid-cols-1 md:grid-cols-3 gap-6">
+                    
+                    <!-- Step 1 -->
+                    <div class="glass-card p-8 rounded-2xl relative flex flex-col justify-between">
+                        <div>
+                            <div class="text-xs font-mono text-slate-500 mb-4">01 // AUTENTICAÇÃO</div>
+                            <h3 class="text-lg font-bold text-white mb-2">Conecte suas contas</h3>
+                            <p class="text-slate-400 text-xs leading-relaxed">
+                                Você autoriza o Evrix Social em cada rede pelo login oficial da plataforma (OAuth 2.0). Sua senha nunca passa por aqui.
+                            </p>
+                        </div>
+                        <div class="mt-8 pt-4 border-t border-white/5 flex items-center gap-2 text-xs font-mono text-emerald-400">
+                            <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24" stroke-width="2">
+                                <path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z"></path>
+                                <path d="m9 12 2 2 4-4"></path>
+                            </svg>
+                            <span>Acesso Seguro Garantido</span>
+                        </div>
+                    </div>
+
+                    <!-- Step 2 -->
+                    <div class="glass-card p-8 rounded-2xl relative flex flex-col justify-between border-rose-500/20">
+                        <div>
+                            <div class="text-xs font-mono text-rose-400 mb-4">02 // AGENDAMENTO</div>
+                            <h3 class="text-lg font-bold text-white mb-2">Envie e programe</h3>
+                            <p class="text-slate-400 text-xs leading-relaxed">
+                                Anexe o vídeo, escreva o título e escolha data, horário e redes de cada canal. Dá para organizar vários canais de uma vez.
+                            </p>
+                        </div>
+                        <div class="mt-8 pt-4 border-t border-white/5 flex items-center gap-2 text-xs font-mono text-rose-400">
+                            <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24" stroke-width="2">
+                                <circle cx="12" cy="12" r="10"></circle>
+                                <polyline points="12 6 12 12 16 14"></polyline>
+                            </svg>
+                            <span>Precisão por Canal</span>
+                        </div>
+                    </div>
+
+                    <!-- Step 3 -->
+                    <div class="glass-card p-8 rounded-2xl relative flex flex-col justify-between">
+                        <div>
+                            <div class="text-xs font-mono text-slate-500 mb-4">03 // AUTOMAÇÃO</div>
+                            <h3 class="text-lg font-bold text-white mb-2">Publique no horário</h3>
+                            <p class="text-slate-400 text-xs leading-relaxed">
+                                Na hora marcada, o vídeo é publicado nas contas autorizadas. Você acompanha o que foi agendado em tempo real no painel.
+                            </p>
+                        </div>
+                        <div class="mt-8 pt-4 border-t border-white/5 flex items-center gap-2 text-xs font-mono text-cyan-400">
+                            <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24" stroke-width="2">
+                                <path d="M22 11.08V12a10 10 0 1 1-5.93-9.14"></path>
+                                <polyline points="22 4 12 14.01 9 11.01"></polyline>
+                            </svg>
+                            <span>Disparo Sem Falhas</span>
+                        </div>
+                    </div>
+
+                </div>
+
+            </div>
+        </section>
+
+        <section id="plataformas" class="py-20 border-t border-white/10 bg-white/[0.01]">
+            <div class="max-w-5xl mx-auto px-4 sm:px-6">
+                
+                <div class="text-center max-w-2xl mx-auto mb-16 space-y-3">
+                    <span class="text-xs font-mono uppercase tracking-widest text-slate-400">// INTEGRATION MATRIX</span>
+                    <h2 class="text-3xl sm:text-4xl font-extrabold text-white tracking-tight">
+                        Publica apenas onde você autorizar
+                    </h2>
+                </div>
+
+                <div class="grid grid-cols-1 md:grid-cols-3 gap-6">
+                    
+                    <!-- YouTube Card -->
+                    <div class="glass-card p-6 rounded-2xl space-y-4">
+                        <div class="flex items-center justify-between">
+                            <div class="flex items-center gap-2.5">
+                                <div class="w-8 h-8 rounded-lg bg-red-500/10 border border-red-500/20 flex items-center justify-center text-red-500">
+                                    <svg class="w-4 h-4 fill-current" viewBox="0 0 24 24">
+                                        <path d="M23.498 6.186a3.016 3.016 0 0 0-2.122-2.136C19.505 3.545 12 3.545 12 3.545s-7.505 0-9.377.505A3.017 3.017 0 0 0 .502 6.186C0 8.07 0 12 0 12s0 3.93.502 5.814a3.016 3.016 0 0 0 2.122 2.136c1.871.505 9.376.505 9.376.505s7.505 0 9.377-.505a3.015 3.015 0 0 0 2.122-2.136C24 15.93 24 12 24 12s0-3.93-.502-5.814zM9.545 15.568V8.432L15.818 12l-6.273 3.568z"/>
+                                    </svg>
+                                </div>
+                                <span class="font-bold text-white text-base">YouTube</span>
+                            </div>
+                            <span class="text-[10px] font-mono px-2 py-0.5 rounded bg-white/5 text-slate-400">Shorts / Videos</span>
+                        </div>
+                        <p class="text-xs text-slate-400 leading-relaxed">
+                            Publica vídeos no canal que você conectou, aplicando título, descrição e horário configurado.
+                        </p>
+                        <div class="pt-2 text-[11px] font-mono text-slate-500 flex items-center gap-1.5">
+                            <svg class="w-3.5 h-3.5 text-emerald-400" fill="none" stroke="currentColor" viewBox="0 0 24 24" stroke-width="2.5">
+                                <polyline points="20 6 9 17 4 12"></polyline>
+                            </svg>
+                            <span>API Oficial do YouTube Data</span>
+                        </div>
+                    </div>
+
+                    <!-- Instagram Card -->
+                    <div class="glass-card p-6 rounded-2xl space-y-4">
+                        <div class="flex items-center justify-between">
+                            <div class="flex items-center gap-2.5">
+                                <div class="w-8 h-8 rounded-lg bg-pink-500/10 border border-pink-500/20 flex items-center justify-center text-pink-400">
+                                    <svg class="w-4 h-4 fill-current" viewBox="0 0 24 24">
+                                        <path d="M12 2.163c3.204 0 3.584.012 4.85.07 3.252.148 4.771 1.691 4.919 4.919.058 1.265.069 1.645.069 4.849 0 3.205-.012 3.584-.069 4.849-.149 3.225-1.664 4.771-4.919 4.919-1.266.058-1.644.07-4.85.07-3.204 0-3.584-.012-4.849-.07-3.26-.149-4.771-1.699-4.919-4.92-.058-1.265-.07-1.644-.07-4.849 0-3.204.013-3.583.07-4.849.149-3.227 1.664-4.771 4.919-4.919 1.266-.057 1.645-.069 4.849-.069zm0-2.163c-3.259 0-3.667.014-4.947.072-4.358.2-6.78 2.618-6.98 6.98-.059 1.281-.073 1.689-.073 4.948 0 3.259.014 3.668.072 4.948.2 4.358 2.618 6.78 6.98 6.98 1.281.058 1.689.072 4.948.072 3.259 0 3.668-.014 4.948-.072 4.354-.2 6.782-2.618 6.979-6.98.059-1.28.073-1.689.073-4.948 0-3.259-.014-3.667-.072-4.947-.196-4.354-2.617-6.78-6.979-6.98-1.281-.059-1.69-.073-4.949-.073zm0 5.838c-3.403 0-6.162 2.759-6.162 6.162s2.759 6.163 6.162 6.163 6.162-2.759 6.162-6.163c0-3.403-2.759-6.162-6.162-6.162zm0 10.162c-2.209 0-4-1.79-4-4 0-2.209 1.791-4 4-4s4 1.791 4 4c0 2.21-1.791 4-4 4zm6.406-11.845c-.796 0-1.441.645-1.441 1.44s.645 1.44 1.441 1.44c.795 0 1.439-.645 1.439-1.44s-.644-1.44-1.439-1.44z"/>
+                                    </svg>
+                                </div>
+                                <span class="font-bold text-white text-base">Instagram</span>
+                            </div>
+                            <span class="text-[10px] font-mono px-2 py-0.5 rounded bg-white/5 text-slate-400">Reels</span>
+                        </div>
+                        <p class="text-xs text-slate-400 leading-relaxed">
+                            Publica na conta profissional que você conectou, diretamente no Reels no horário agendado.
+                        </p>
+                        <div class="pt-2 text-[11px] font-mono text-slate-500 flex items-center gap-1.5">
+                            <svg class="w-3.5 h-3.5 text-emerald-400" fill="none" stroke="currentColor" viewBox="0 0 24 24" stroke-width="2.5">
+                                <polyline points="20 6 9 17 4 12"></polyline>
+                            </svg>
+                            <span>Instagram Graph API</span>
+                        </div>
+                    </div>
+
+                    <!-- TikTok Card -->
+                    <div class="glass-card p-6 rounded-2xl space-y-4">
+                        <div class="flex items-center justify-between">
+                            <div class="flex items-center gap-2.5">
+                                <div class="w-8 h-8 rounded-lg bg-cyan-500/10 border border-cyan-500/20 flex items-center justify-center text-cyan-400">
+                                    <svg class="w-4 h-4 fill-current" viewBox="0 0 24 24">
+                                        <path d="M12.525.02c1.31-.02 2.61-.01 3.91-.02.08 1.53.63 3.09 1.75 4.17 1.12 1.11 2.7 1.62 4.24 1.79v4.03c-1.44-.05-2.89-.35-4.2-.97-.57-.26-1.1-.59-1.62-.93-.01 2.92.01 5.84-.02 8.75-.08 1.4-.54 2.79-1.35 3.94-1.31 1.92-3.58 3.17-5.91 3.21-1.43.08-2.86-.31-4.08-1.03-2.02-1.19-3.44-3.37-3.65-5.71-.02-.5-.03-1-.01-1.49.18-1.9 1.12-3.72 2.58-4.96 1.66-1.44 3.98-2.13 6.15-1.72.02 1.48-.04 2.96-.04 4.44-.99-.32-2.15-.23-3.02.37-.82.56-1.33 1.52-1.38 2.51-.08 1.05.35 2.13 1.14 2.81.82.72 2.02.95 3.06.6 1.08-.34 1.92-1.28 2.12-2.39.11-1.47.05-2.95.06-4.42V.02z"/>
+                                    </svg>
+                                </div>
+                                <span class="font-bold text-white text-base">TikTok</span>
+                            </div>
+                            <span class="text-[10px] font-mono px-2 py-0.5 rounded bg-white/5 text-slate-400">Vídeos</span>
+                        </div>
+                        <p class="text-xs text-slate-400 leading-relaxed">
+                            Publica no seu perfil os vídeos agendados, somente com sua autorização prévia. Revogue quando quiser.
+                        </p>
+                        <div class="pt-2 text-[11px] font-mono text-slate-500 flex items-center gap-1.5">
+                            <svg class="w-3.5 h-3.5 text-emerald-400" fill="none" stroke="currentColor" viewBox="0 0 24 24" stroke-width="2.5">
+                                <polyline points="20 6 9 17 4 12"></polyline>
+                            </svg>
+                            <span>TikTok Content Posting API</span>
+                        </div>
+                    </div>
+
+                </div>
+
+            </div>
+        </section>
+
+        <section id="seguranca" class="py-20 border-t border-white/10">
+            <div class="max-w-5xl mx-auto px-4 sm:px-6">
+                
+                <div class="glass-panel p-8 sm:p-12 rounded-3xl relative overflow-hidden">
+                    <div class="grid grid-cols-1 md:grid-cols-2 gap-8 items-center">
+                        <div class="space-y-4">
+                            <span class="text-xs font-mono uppercase tracking-widest text-emerald-400 flex items-center gap-2">
+                                <svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24" stroke-width="2">
+                                    <rect x="3" y="11" width="18" height="11" rx="2" ry="2"></rect>
+                                    <path d="M7 11V7a5 5 0 0 1 10 0v4"></path>
+                                </svg>
+                                PRIVACIDADE DE DADOS
+                            </span>
+                            <h2 class="text-2xl sm:text-3xl font-bold text-white tracking-tight">
+                                Seus dados pertencem a você. Ponto final.
+                            </h2>
+                            <p class="text-slate-400 text-xs sm:text-sm leading-relaxed">
+                                Não vendemos dados e não publicamos nada sem uma ação sua. Você pode revogar o acesso a qualquer momento através das configurações oficiais das redes.
+                            </p>
+                            <div class="pt-2 flex flex-wrap gap-4 text-xs font-medium">
+                                <a href="/politica-privacidade/" class="text-slate-300 hover:text-white underline">Política de Privacidade</a>
+                                <a href="/termos-de-uso-app/" class="text-slate-300 hover:text-white underline">Termos de Uso</a>
+                            </div>
+                        </div>
+
+                        <div class="space-y-3 font-mono text-xs">
+                            <div class="p-3.5 rounded-xl bg-black/40 border border-white/5 flex items-center justify-between">
+                                <span class="text-slate-400">Armazenamento de Senhas</span>
+                                <span class="text-emerald-400 font-semibold">0% (OAuth Direct)</span>
+                            </div>
+                            <div class="p-3.5 rounded-xl bg-black/40 border border-white/5 flex items-center justify-between">
+                                <span class="text-slate-400">Revogação Instantânea</span>
+                                <span class="text-emerald-400 font-semibold">Disponível</span>
+                            </div>
+                            <div class="p-3.5 rounded-xl bg-black/40 border border-white/5 flex items-center justify-between">
+                                <span class="text-slate-400">Conexão Criptografada</span>
+                                <span class="text-emerald-400 font-semibold">TLS 1.3 / SSL</span>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+            </div>
+        </section>
+
+        <section id="faq" class="py-20 border-t border-white/10">
+            <div class="max-w-3xl mx-auto px-4 sm:px-6">
+                
+                <div class="text-center mb-12 space-y-2">
+                    <span class="text-xs font-mono uppercase tracking-widest text-slate-400">// DÚVIDAS COMUNS</span>
+                    <h2 class="text-2xl sm:text-3xl font-bold text-white">Perguntas Frequentes</h2>
+                </div>
+
+                <div class="space-y-3">
+                    
+                    <!-- Question 1 -->
+                    <div class="glass-card rounded-xl overflow-hidden">
+                        <button onclick="toggleFaq(1)" class="w-full p-5 text-left flex items-center justify-between font-semibold text-sm text-white focus:outline-none">
+                            <span>Como funciona o agendamento em horários diferentes para cada rede?</span>
+                            <svg id="faq-icon-1" class="w-4 h-4 text-slate-400 transition-transform duration-200" fill="none" stroke="currentColor" viewBox="0 0 24 24" stroke-width="2">
+                                <polyline points="6 9 12 15 18 9"></polyline>
+                            </svg>
+                        </button>
+                        <div id="faq-ans-1" class="hidden px-5 pb-5 text-xs text-slate-400 leading-relaxed border-t border-white/5 pt-3">
+                            No Evrix Social, ao enviar um vídeo, você pode definir individualmente a data e horário exatos em que ele será publicado no YouTube, Instagram e TikTok. O sistema gerencia as filas de disparo de forma totalmente independente.
+                        </div>
+                    </div>
+
+                    <!-- Question 2 -->
+                    <div class="glass-card rounded-xl overflow-hidden">
+                        <button onclick="toggleFaq(2)" class="w-full p-5 text-left flex items-center justify-between font-semibold text-sm text-white focus:outline-none">
+                            <span>Preciso fornecer minha senha das redes sociais?</span>
+                            <svg id="faq-icon-2" class="w-4 h-4 text-slate-400 transition-transform duration-200" fill="none" stroke="currentColor" viewBox="0 0 24 24" stroke-width="2">
+                                <polyline points="6 9 12 15 18 9"></polyline>
+                            </svg>
+                        </button>
+                        <div id="faq-ans-2" class="hidden px-5 pb-5 text-xs text-slate-400 leading-relaxed border-t border-white/5 pt-3">
+                            Nunca. A autenticação é feita via protocolo OAuth 2.0 oficial das próprias plataformas. Você autoriza o aplicativo diretamente no site do YouTube, Facebook/Instagram ou TikTok sem compartilhar suas credenciais conosco.
+                        </div>
+                    </div>
+
+                    <!-- Question 3 -->
+                    <div class="glass-card rounded-xl overflow-hidden">
+                        <button onclick="toggleFaq(3)" class="w-full p-5 text-left flex items-center justify-between font-semibold text-sm text-white focus:outline-none">
+                            <span>Posso cancelar uma postagem antes do horário programado?</span>
+                            <svg id="faq-icon-3" class="w-4 h-4 text-slate-400 transition-transform duration-200" fill="none" stroke="currentColor" viewBox="0 0 24 24" stroke-width="2">
+                                <polyline points="6 9 12 15 18 9"></polyline>
+                            </svg>
+                        </button>
+                        <div id="faq-ans-3" class="hidden px-5 pb-5 text-xs text-slate-400 leading-relaxed border-t border-white/5 pt-3">
+                            Sim. Pelo painel de agendamentos do Evrix Social você pode remover, editar ou reagendar qualquer vídeo que ainda não tenha sido disparado.
+                        </div>
+                    </div>
+
+                </div>
+
+            </div>
+        </section>
+
+        <section class="py-20 border-t border-white/10">
+            <div class="max-w-4xl mx-auto px-4 sm:px-6">
+                <div class="glass-panel rounded-3xl p-10 sm:p-14 text-center space-y-6 relative overflow-hidden">
+                    <div class="relative z-10">
+                        <h2 class="text-3xl sm:text-4xl font-extrabold text-white tracking-tight">
+                            Pronto para organizar seus canais?
+                        </h2>
+                        <p class="text-slate-400 text-sm max-w-md mx-auto mt-2">
+                            Acesse o painel agora e programe seus primeiros vídeos em minutos.
+                        </p>
+                        <div class="pt-6">
+                            <a href="/programador/" class="inline-flex items-center gap-2 px-8 py-4 rounded-xl bg-white text-black font-semibold text-sm hover:bg-slate-200 transition-all shadow-xl shadow-white/5 active:scale-95">
+                                <span>Entrar no painel</span>
+                                <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24" stroke-width="2.5">
+                                    <line x1="5" y1="12" x2="19" y2="12"></line>
+                                    <polyline points="12 5 19 12 12 19"></polyline>
+                                </svg>
+                            </a>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </section>
+
+    </main>
+
+    <footer class="border-t border-white/10 bg-[#020204] py-10 text-xs text-slate-500 font-mono">
+        <div class="max-w-5xl mx-auto px-4 sm:px-6 flex flex-col sm:flex-row items-center justify-between gap-4">
+            
+            <a href="/" class="flex items-center gap-2 text-slate-300 font-semibold font-sans">
+                <div class="w-5 h-5 rounded bg-white/10 flex items-center justify-center">
+                    <svg class="w-3 h-3 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24" stroke-width="2">
+                        <rect x="3" y="4" width="18" height="18" rx="2" ry="2"></rect>
+                        <line x1="16" y1="2" x2="16" y2="6"></line>
+                        <line x1="8" y1="2" x2="8" y2="6"></line>
+                        <line x1="3" y1="10" x2="21" y2="10"></line>
+                    </svg>
+                </div>
+                <span>Evrix Social</span>
+            </a>
+
+            <div class="flex items-center gap-6">
+                <a href="/politica-privacidade/" class="hover:text-slate-300 transition-colors">Política de Privacidade</a>
+                <a href="/termos-de-uso-app/" class="hover:text-slate-300 transition-colors">Termos de Uso</a>
+            </div>
+
+            <div>
+                © 2026 Evrix Social. Todos os direitos reservados.
+            </div>
+
         </div>
-      </div>
-    </div>
-  </section>
+    </footer>
 
-  <!-- ===================== FEATURES ===================== -->
-  <section class="section" id="features">
-    <div class="container">
-      <div class="section-head reveal">
-        <span class="eyebrow">Recursos Core</span>
-        <h2>Tudo que você precisa para escalar conteúdo</h2>
-        <p>Três pilares poderosos que transformam o caos multi-canal em crescimento previsível.</p>
-      </div>
+    <script>
+        // Switch Mock Board Tabs
+        function switchBoardTab(tabKey) {
+            const btnHoje = document.getElementById('tab-btn-hoje');
+            const btnFila = document.getElementById('tab-btn-fila');
+            const btnDesempenho = document.getElementById('tab-btn-desempenho');
 
-      <div class="features-grid">
-        <!-- Card 1: Analytics -->
-        <article class="feature-card reveal reveal-delay-1">
-          <span class="feature-tag">Tempo real</span>
-          <div class="feature-icon">
-            <svg width="28" height="28" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
-              <path d="M3 3v18h18"/><path d="m19 9-5 5-4-4-3 3"/>
-            </svg>
-          </div>
-          <h3>Multi-channel Analytics</h3>
-          <p>Métricas unificadas em tempo real de TikTok, YouTube e Instagram em um único painel inteligente. Veja alcance, retenção e conversão lado a lado.</p>
-        </article>
+            const tabHoje = document.getElementById('tab-hoje');
+            const tabFila = document.getElementById('tab-fila');
+            const tabDesempenho = document.getElementById('tab-desempenho');
 
-        <!-- Card 2: Scheduler -->
-        <article class="feature-card reveal reveal-delay-2">
-          <span class="feature-tag">Automação</span>
-          <div class="feature-icon">
-            <svg width="28" height="28" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
-              <rect x="3" y="4" width="18" height="18" rx="2"/><path d="M16 2v4M8 2v4M3 10h18"/><path d="m9 16 2 2 4-4"/>
-            </svg>
-          </div>
-          <h3>Cross-Platform Scheduler</h3>
-          <p>Agendamento automático e otimizado de vídeos para as 3 redes. O Evrix sugere os melhores horários com base no comportamento da sua audiência.</p>
-        </article>
+            // Reset buttons
+            [btnHoje, btnFila, btnDesempenho].forEach(btn => {
+                btn.className = "px-3 py-1 rounded-md text-slate-400 hover:text-white transition-all";
+            });
 
-        <!-- Card 3: Finance -->
-        <article class="feature-card reveal reveal-delay-3">
-          <span class="feature-tag">Controle</span>
-          <div class="feature-icon">
-            <svg width="28" height="28" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
-              <path d="M3 3v18h18"/><rect x="6" y="11" width="3" height="7"/><rect x="11" y="7" width="3" height="11"/><rect x="16" y="13" width="3" height="5"/>
-            </svg>
-          </div>
-          <h3>Social Finance Manager</h3>
-          <p>Gestão e controle financeiro detalhado de faturamento por rede social e por canal individual. Relatórios prontos para o seu contador.</p>
-        </article>
-      </div>
-    </div>
-  </section>
+            // Hide tabs
+            tabHoje.classList.add('hidden');
+            tabFila.classList.add('hidden');
+            tabDesempenho.classList.add('hidden');
 
-  <!-- ===================== REDES SUPORTADAS ===================== -->
-  <section class="section" id="networks">
-    <div class="container">
-      <div class="section-head reveal">
-        <span class="eyebrow">Integrações</span>
-        <h2>Conectado às redes que importam</h2>
-        <p>Sincronize suas contas em segundos e gerencie tudo a partir de um único lugar.</p>
-      </div>
+            if (tabKey === 'hoje') {
+                btnHoje.className = "px-3 py-1 rounded-md bg-white/10 text-white font-medium transition-all";
+                tabHoje.classList.remove('hidden');
+            } else if (tabKey === 'fila') {
+                btnFila.className = "px-3 py-1 rounded-md bg-white/10 text-white font-medium transition-all";
+                tabFila.classList.remove('hidden');
+            } else if (tabKey === 'desempenho') {
+                btnDesempenho.className = "px-3 py-1 rounded-md bg-white/10 text-white font-medium transition-all";
+                tabDesempenho.classList.remove('hidden');
+            }
+        }
 
-      <div class="networks">
-        <div class="network-card reveal reveal-delay-1">
-          <span class="network-logo" style="color:#25f4ee">
-            <svg width="66" height="66" viewBox="0 0 24 24" fill="#25f4ee"><path d="M16.6 5.8a4.9 4.9 0 0 1 4.6 4.9v6.6a4.9 4.9 0 0 1-4.9 4.9H7.4A4.9 4.9 0 0 1 2.5 17.3V10.7A4.9 4.9 0 0 1 7.4 5.8h9.2Zm-7.7 3.1v6.2l5.4-3.1-5.4-3.1Z"/></svg>
-          </span>
-          <h3>TikTok</h3>
-          <p>Acompanhe vídeos virais, crescimento de seguidores e monetização em tempo real.</p>
-        </div>
+        // Toggle FAQ Accordion
+        function toggleFaq(index) {
+            const ans = document.getElementById(`faq-ans-${index}`);
+            const icon = document.getElementById(`faq-icon-${index}`);
 
-        <div class="network-card reveal reveal-delay-2">
-          <span class="network-logo" style="color:#ff0033">
-            <svg width="66" height="66" viewBox="0 0 24 24" fill="#ff0033"><path d="M23 7.5a3 3 0 0 0-2.1-2.1C19 5 12 5 12 5s-7 0-8.9.4A3 3 0 0 0 1 7.5 31 31 0 0 0 .6 12 31 31 0 0 0 1 16.5a3 3 0 0 0 2.1 2.1C5 19 12 19 12 19s7 0 8.9-.4a3 3 0 0 0 2.1-2.1A31 31 0 0 0 23.4 12 31 31 0 0 0 23 7.5ZM9.8 15.3V8.7l5.7 3.3-5.7 3.3Z"/></svg>
-          </span>
-          <h3>YouTube</h3>
-          <p>Analise watch time, CTR e receita de AdSense com dashboards dedicados.</p>
-        </div>
-
-        <div class="network-card reveal reveal-delay-3">
-          <span class="network-logo" style="color:#d62976">
-            <svg width="66" height="66" viewBox="0 0 24 24" fill="#d62976"><path d="M12 2.2c3.2 0 3.6 0 4.9.1 1.2.1 1.8.3 2.2.4.6.2 1 .5 1.4.9.4.4.7.8.9 1.4.2.4.4 1 .4 2.2.1 1.3.1 1.7.1 4.9s0 3.6-.1 4.9c-.1 1.2-.3 1.8-.4 2.2-.2.6-.5 1-.9 1.4-.4.4-.8.7-1.4.9-.4.2-1 .4-2.2.4-1.3.1-1.7.1-4.9.1s-3.6 0-4.9-.1c-1.2-.1-1.8-.3-2.2-.4a3.8 3.8 0 0 1-1.4-.9 3.8 3.8 0 0 1-.9-1.4c-.2-.4-.4-1-.4-2.2C2.2 15.6 2.2 15.2 2.2 12s0-3.6.1-4.9c.1-1.2.3-1.8.4-2.2.2-.6.5-1 .9-1.4.4-.4.8-.7 1.4-.9.4-.2 1-.4 2.2-.4C8.4 2.2 8.8 2.2 12 2.2Zm0 1.8c-3.1 0-3.5 0-4.7.1-1.1 0-1.7.2-2.1.4-.5.2-.9.4-1.3.8-.4.4-.6.8-.8 1.3-.2.4-.3 1-.4 2.1C2.6 9.9 2.6 10.3 2.6 12s0 2.1.1 3.3c0 1.1.2 1.7.4 2.1.2.5.4.9.8 1.3.4.4.8.6 1.3.8.4.2 1 .3 2.1.4 1.2.1 1.6.1 4.7.1s3.5 0 4.7-.1c1.1 0 1.7-.2 2.1-.4.5-.2.9-.4 1.3-.8.4-.4.6-.8.8-1.3.2-.4.3-1 .4-2.1.1-1.2.1-1.6.1-3.3s0-2.1-.1-3.3c0-1.1-.2-1.7-.4-2.1a3.5 3.5 0 0 0-.8-1.3 3.5 3.5 0 0 0-1.3-.8c-.4-.2-1-.3-2.1-.4-1.2-.1-1.6-.1-4.7-.1Zm0 3.1a4.9 4.9 0 1 1 0 9.8 4.9 4.9 0 0 1 0-9.8Zm0 8.1a3.2 3.2 0 1 0 0-6.4 3.2 3.2 0 0 0 0 6.4Zm6.2-8.3a1.1 1.1 0 1 1-2.3 0 1.1 1.1 0 0 1 2.3 0Z"/></svg>
-          </span>
-          <h3>Instagram</h3>
-          <p>Métricas de Reels, Stories e engajamento consolidadas para decisões rápidas.</p>
-        </div>
-      </div>
-    </div>
-  </section>
-
-  <!-- ===================== MÉTRICAS / PROVA SOCIAL ===================== -->
-  <section class="section" id="metrics">
-    <div class="container">
-      <div class="section-head reveal">
-        <span class="eyebrow">Impacto em números</span>
-        <h2>Resultados que falam por si</h2>
-        <p>Criadores e agências que migraram para o Evrix não voltam atrás.</p>
-      </div>
-
-      <div class="metrics-grid">
-        <div class="metric-card reveal reveal-delay-1">
-          <div class="metric-value" data-count="12800" data-suffix="+">0</div>
-          <div class="metric-label">Canais gerenciados</div>
-        </div>
-        <div class="metric-card reveal reveal-delay-2">
-          <div class="metric-value" data-count="920000" data-suffix="+">0</div>
-          <div class="metric-label">Posts agendados</div>
-        </div>
-        <div class="metric-card reveal reveal-delay-3">
-          <div class="metric-value" data-count="48" data-prefix="R$ " data-suffix="M">0</div>
-          <div class="metric-label">Faturamento rastreado</div>
-        </div>
-      </div>
-    </div>
-  </section>
-
-  <!-- ===================== CTA FINAL ===================== -->
-  <section class="cta" id="cta">
-    <div class="container">
-      <div class="cta-card gradient-border cta-pulse reveal">
-        <h2>Pronto para assumir o controle das suas redes?</h2>
-        <p>Comece grátis em menos de 2 minutos. Conecte suas contas e veja o poder do multi-canal unificado.</p>
-        <div class="hero-cta">
-          <a href="auth/planos.html" class="btn btn-primary btn-shimmer">Criar Conta</a>
-        </div>
-      </div>
-    </div>
-  </section>
-
-  <!-- ===================== FOOTER ===================== -->
-  <footer class="footer">
-    <div class="container">
-      <div class="footer-grid">
-        <div class="footer-brand">
-          <a href="#" class="logo">
-            <span class="logo-mark" aria-hidden="true">
-              <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="#fff" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round">
-                <path d="M3 12c0-4.97 4.03-9 9-9s9 4.03 9 9-4.03 9-9 9" />
-                <path d="M3 12c0 4.97 4.03 9 9 9 3.5 0 6.5-2 7.8-4.9" />
-                <circle cx="12" cy="12" r="2.4" fill="#fff" stroke="none" />
-              </svg>
-            </span>
-            <span class="logo-text">Evrix</span>
-          </a>
-          <p>A plataforma completa de analytics, agendamento e gestão financeira para criadores e agências multi-canal.</p>
-        </div>
-
-        <div class="footer-col">
-          <h4>Produto</h4>
-          <a href="#features">Analytics</a>
-          <a href="#features">Agendamento</a>
-          <a href="#features">Finanças</a>
-          <a href="#cta">Preços</a>
-        </div>
-
-        <div class="footer-col">
-          <h4>Empresa</h4>
-          <a href="#">Sobre</a>
-          <a href="#">Blog</a>
-          <a href="#">Carreiras</a>
-          <a href="#">Contato</a>
-        </div>
-
-        <div class="footer-col">
-          <h4>Legal</h4>
-          <a href="#">Privacidade</a>
-          <a href="#">Termos</a>
-          <a href="#">Cookies</a>
-          <a href="#">Status</a>
-        </div>
-      </div>
-
-      <div class="footer-bottom">
-        <span>&copy; 2026 Evrix. Todos os direitos reservados.</span>
-        <div class="footer-social">
-          <a href="#" aria-label="TikTok"><svg width="18" height="18" viewBox="0 0 24 24" fill="currentColor"><path d="M16.6 5.8a4.9 4.9 0 0 1 4.6 4.9v6.6a4.9 4.9 0 0 1-4.9 4.9H7.4A4.9 4.9 0 0 1 2.5 17.3V10.7A4.9 4.9 0 0 1 7.4 5.8h9.2Zm-7.7 3.1v6.2l5.4-3.1-5.4-3.1Z"/></svg></a>
-          <a href="#" aria-label="YouTube"><svg width="18" height="18" viewBox="0 0 24 24" fill="currentColor"><path d="M23 7.5a3 3 0 0 0-2.1-2.1C19 5 12 5 12 5s-7 0-8.9.4A3 3 0 0 0 1 7.5 31 31 0 0 0 .6 12 31 31 0 0 0 1 16.5a3 3 0 0 0 2.1 2.1C5 19 12 19 12 19s7 0 8.9-.4a3 3 0 0 0 2.1-2.1A31 31 0 0 0 23.4 12 31 31 0 0 0 23 7.5ZM9.8 15.3V8.7l5.7 3.3-5.7 3.3Z"/></svg></a>
-          <a href="#" aria-label="Instagram"><svg width="18" height="18" viewBox="0 0 24 24" fill="currentColor"><path d="M12 2.2c3.2 0 3.6 0 4.9.1 1.2.1 1.8.3 2.2.4.6.2 1 .5 1.4.9.4.4.7.8.9 1.4.2.4.4 1 .4 2.2.1 1.3.1 1.7.1 4.9s0 3.6-.1 4.9c-.1 1.2-.3 1.8-.4 2.2-.2.6-.5 1-.9 1.4-.4.4-.8.7-1.4.9-.4.2-1 .4-2.2.4-1.3.1-1.7.1-4.9.1s-3.6 0-4.9-.1c-1.2-.1-1.8-.3-2.2-.4a3.8 3.8 0 0 1-1.4-.9 3.8 3.8 0 0 1-.9-1.4c-.2-.4-.4-1-.4-2.2C2.2 15.6 2.2 15.2 2.2 12s0-3.6.1-4.9c.1-1.2.3-1.8.4-2.2.2-.6.5-1 .9-1.4.4-.4.8-.7 1.4-.9.4-.2 1-.4 2.2-.4C8.4 2.2 8.8 2.2 12 2.2Zm0 1.8c-3.1 0-3.5 0-4.7.1-1.1 0-1.7.2-2.1.4-.5.2-.9.4-1.3.8-.4.4-.6.8-.8 1.3-.2.4-.3 1-.4 2.1C2.6 9.9 2.6 10.3 2.6 12s0 2.1.1 3.3c0 1.1.2 1.7.4 2.1.2.5.4.9.8 1.3.4.4.8.6 1.3.8.4.2 1 .3 2.1.4 1.2.1 1.6.1 4.7.1s3.5 0 4.7-.1c1.1 0 1.7-.2 2.1-.4.5-.2.9-.4 1.3-.8.4-.4.6-.8.8-1.3.2-.4.3-1 .4-2.1.1-1.2.1-1.6.1-3.3s0-2.1-.1-3.3c0-1.1-.2-1.7-.4-2.1a3.5 3.5 0 0 0-.8-1.3 3.5 3.5 0 0 0-1.3-.8c-.4-.2-1-.3-2.1-.4-1.2-.1-1.6-.1-4.7-.1Zm0 3.1a4.9 4.9 0 1 1 0 9.8 4.9 4.9 0 0 1 0-9.8Zm0 8.1a3.2 3.2 0 1 0 0-6.4 3.2 3.2 0 0 0 0 6.4Zm6.2-8.3a1.1 1.1 0 1 1-2.3 0 1.1 1.1 0 0 1 2.3 0Z"/></svg></a>
-        </div>
-      </div>
-    </div>
-  </footer>
-
-  <script src="script.js"></script>
+            if (ans.classList.contains('hidden')) {
+                ans.classList.remove('hidden');
+                icon.style.transform = 'rotate(180deg)';
+            } else {
+                ans.classList.add('hidden');
+                icon.style.transform = 'rotate(0deg)';
+            }
+        }
+    </script>
 </body>
 </html>
