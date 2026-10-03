@@ -1,0 +1,113 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Planos — Evrix Social</title>
+  <link rel="icon" type="image/png" href="../1.png" />
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800&display=swap" rel="stylesheet" />
+  <link rel="stylesheet" href="auth-style.css" />
+  <style>
+    /* Ajustes específicos da página de planos (card mais largo) */
+    .auth-page.planos { max-width: 400px; }
+
+    .plano-badge {
+      display: inline-flex;
+      align-items: center;
+      gap: 6px;
+      padding: 4px 12px;
+      background: rgba(124,58,237,0.12);
+      border: 1px solid rgba(124,58,237,0.3);
+      border-radius: 100px;
+      font-size: 11px;
+      font-weight: 600;
+      color: var(--purple-light);
+      letter-spacing: 0.05em;
+      text-transform: uppercase;
+      margin-bottom: 18px;
+    }
+
+    .plano-preco {
+      display: flex;
+      align-items: baseline;
+      gap: 6px;
+      margin: 6px 0 20px;
+    }
+
+    .plano-preco .moeda { font-size: 18px; font-weight: 600; color: var(--text-2); }
+    .plano-preco .valor { font-size: 42px; font-weight: 800; letter-spacing: -0.03em; color: var(--text-1); }
+    .plano-preco .periodo { font-size: 14px; color: var(--text-3); }
+
+    .plano-lista {
+      list-style: none;
+      display: flex;
+      flex-direction: column;
+      gap: 12px;
+      margin-bottom: 26px;
+    }
+
+    .plano-lista li {
+      display: flex;
+      align-items: center;
+      gap: 10px;
+      font-size: 14px;
+      color: var(--text-2);
+    }
+
+    .plano-lista svg {
+      width: 16px;
+      height: 16px;
+      color: var(--success);
+      flex-shrink: 0;
+    }
+  </style>
+</head>
+<body>
+  <main class="auth-page planos" role="main">
+    <div class="auth-card">
+
+      <div class="login-logo">
+        <img src="../1.png" alt="Ícone Evrix Social" onerror="this.style.display='none'" />
+        <span class="login-logo-text">Evrix Social</span>
+      </div>
+
+      <span class="plano-badge">Plano Evrix</span>
+
+      <h1 class="login-title">Comece agora</h1>
+      <p class="login-subtitle">Escolha o plano para criar sua conta e gerenciar seus canais.</p>
+
+      <div class="plano-preco">
+        <span class="moeda">R$</span>
+        <span class="valor">97</span>
+        <span class="periodo">/mês</span>
+      </div>
+
+      <ul class="plano-lista">
+        <li>
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M20 6L9 17l-5-5"/></svg>
+          Gerencie YouTube, TikTok e Instagram
+        </li>
+        <li>
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M20 6L9 17l-5-5"/></svg>
+          Agendamento e publicação automática
+        </li>
+        <li>
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M20 6L9 17l-5-5"/></svg>
+          Placar e alertas de desempenho
+        </li>
+      </ul>
+
+      <a class="btn-primary" id="btn-criar-conta" href="" style="display:block; text-align:center; text-decoration:none;">
+        Criar conta
+      </a>
+
+      <div class="auth-footer">
+        <span class="muted">Já tem conta? <a href="login.html">Entrar</a></span>
+      </div>
+
+    </div>
+  </main>
+</body>
+</html>
