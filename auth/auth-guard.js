@@ -2,37 +2,43 @@
  * Evrix Social — Guard de sessão
  * Incluir nas páginas internas do painel, DEPOIS de auth-client.js.
  *
- * <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
  * <script src="/auth/auth-client.js"></script>
- * <script src="/auth/auth-guard.js" data-login-url="/login.html"></script>
+ * <script src="/auth/auth-guard.js" data-login-url="/auth/login.html"></script>
+ *
+ * Ao redirecionar para o login, guarda a página de origem em ?next=,
+ * para o login devolver a pessoa ao lugar que ela tentou abrir.
  */
 (function () {
     const scriptTag = document.currentScript;
-    const LOGIN_URL = (scriptTag && scriptTag.getAttribute('data-login-url')) || '/login.html';
+    const LOGIN_URL = (scriptTag && scriptTag.getAttribute('data-login-url')) || '/auth/login.html';
 
-    async function protegerPagina() {
-        try {
-            const { data: { session } } = await window.supabaseClient.auth.getSession();
-            if (!session) {
-                window.location.href = LOGIN_URL;
-            }
-        } catch (err) {
-            console.error('❌ Erro ao verificar sessão:', err);
+    function irParaLogin(comDestino) {
+        if (comDestino) {
+            const destino = window.location.pathname + window.location.search;
+            window.location.href = LOGIN_URL + '?next=' + encodeURIComponent(destino);
+        } else {
             window.location.href = LOGIN_URL;
         }
     }
 
-    // Verifica assim que o script carrega
+    async function protegerPagina() {
+        try {
+            const { data: { session } } = await window.supabaseClient.auth.getSession();
+            if (!session) irParaLogin(true);
+        } catch (err) {
+            console.error('❌ Erro ao verificar sessão:', err);
+            irParaLogin(true);
+        }
+    }
+
     protegerPagina();
 
-    // Se a sessão cair (token expirado / logout em outra aba), redireciona
+    // Sessão caiu (token expirado / logout em outra aba)
     window.supabaseClient.auth.onAuthStateChange((event, session) => {
-        if (event === 'SIGNED_OUT' || !session) {
-            window.location.href = LOGIN_URL;
-        }
+        if (event === 'SIGNED_OUT' || !session) irParaLogin(event !== 'SIGNED_OUT');
     });
 
-    // Função global para o botão "Sair" do painel
+    // Botão "Sair" do painel
     window.evrixLogout = async function () {
         await window.supabaseClient.auth.signOut();
         window.location.href = LOGIN_URL;
