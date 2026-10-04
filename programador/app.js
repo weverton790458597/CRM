@@ -81,7 +81,10 @@ function gerarHTMLCard(c, dataPadrao) {
       <input id="single-${c.id}" type="file" accept="video/*,.json" style="display:none" onchange="tratarSelecaoCard(this,'${c.id}')">
     </div>
     <div class="campos-texto">
-      <input type="text" class="input-titulo" id="titulo-youtube-${c.id}" placeholder="Título YouTube" oninput="atualizarTitulo('${c.id}','youtube',this.value)">
+      <div class="titulo-yt-wrap">
+        <input type="text" class="input-titulo" id="titulo-youtube-${c.id}" placeholder="Título YouTube" oninput="atualizarTitulo('${c.id}','youtube',this.value)">
+        <span class="contador-titulo-yt" id="contador-youtube-${c.id}">0/${LIMITE_TITULO_YOUTUBE}</span>
+      </div>
       <input type="text" class="input-titulo" id="titulo-instagram-${c.id}" placeholder="Título Instagram" oninput="atualizarTitulo('${c.id}','instagram',this.value)">
       <input type="text" class="input-titulo" id="titulo-tiktok-${c.id}" placeholder="Título TikTok" oninput="atualizarTitulo('${c.id}','tiktok',this.value)">
     </div>
@@ -389,7 +392,28 @@ function montarInterface(){
 function salvarSupa(){const url=document.getElementById("supaUrl").value.trim();const key=document.getElementById("supaKey").value.trim();const admin=document.getElementById("adminSecret").value.trim();localStorage.setItem("supa_url",url);localStorage.setItem("supa_key",key);localStorage.setItem("admin_secret",admin);setMsg("Credenciais salvas!");}
 function atualizarPlataforma(canalId,platform,checked){if(!estadoCanais[canalId])return;estadoCanais[canalId].plataformas[platform]=checked;}
 function atualizarTexto(canalId,campo,valor){if(!estadoCanais[canalId])return;estadoCanais[canalId][campo]=valor;}
-function atualizarTitulo(canalId,plataforma,valor){if(!estadoCanais[canalId])return;if(!estadoCanais[canalId].titulo)estadoCanais[canalId].titulo={};estadoCanais[canalId].titulo[plataforma]=String(valor||"");}
+const LIMITE_TITULO_YOUTUBE=100;
+(function injetarEstiloContador(){
+  const st=document.createElement("style");
+  st.textContent=`.titulo-yt-wrap{position:relative;display:block;width:100%}
+.titulo-yt-wrap .input-titulo{width:100%;box-sizing:border-box;padding-right:64px}
+.contador-titulo-yt{position:absolute;right:10px;top:50%;transform:translateY(-50%);font-size:11px;font-family:'JetBrains Mono',monospace;opacity:.65;pointer-events:none}
+.titulo-yt-wrap .input-titulo.titulo-excedido{border-color:#ef4444!important;background:rgba(239,68,68,.12)!important;color:#fca5a5!important;box-shadow:0 0 0 1px #ef4444}
+.titulo-yt-wrap .contador-titulo-yt.excedido{color:#f87171;opacity:1;font-weight:700}`;
+  document.head.appendChild(st);
+})();
+function atualizarContadorTituloYT(canalId){
+  const inp=document.getElementById(`titulo-youtube-${canalId}`);
+  const cont=document.getElementById(`contador-youtube-${canalId}`);
+  if(!inp||!cont)return;
+  const n=inp.value.length;
+  const excedeu=n>LIMITE_TITULO_YOUTUBE;
+  cont.textContent=excedeu?`${n}/${LIMITE_TITULO_YOUTUBE} (+${n-LIMITE_TITULO_YOUTUBE})`:`${n}/${LIMITE_TITULO_YOUTUBE}`;
+  cont.classList.toggle("excedido",excedeu);
+  inp.classList.toggle("titulo-excedido",excedeu);
+  inp.title=excedeu?`Excede o limite do YouTube em ${n-LIMITE_TITULO_YOUTUBE} caractere(s)`:"";
+}
+function atualizarTitulo(canalId,plataforma,valor){if(!estadoCanais[canalId])return;if(!estadoCanais[canalId].titulo)estadoCanais[canalId].titulo={};estadoCanais[canalId].titulo[plataforma]=String(valor||"");if(plataforma==="youtube")atualizarContadorTituloYT(canalId);}
 function temTitulo(st){if(!st||!st.titulo)return false;return PLATAFORMAS.some((p)=>typeof st.titulo[p]==="string"&&(st.titulo[p]||"").trim()!=="");}
 
 function atualizarAgendamento(canalId){
@@ -690,6 +714,7 @@ function processarArquivoJson(file){
           const inp=document.getElementById(`titulo-${p}-${c.id}`);
           if(inp)inp.value=val;
         });
+        atualizarContadorTituloYT(c.id);
         atualizarVisualContainer(c.id);
       });
       setMsg("JSON de títulos importado!");
@@ -713,6 +738,8 @@ function limparCard(canalId){
     if(inp)inp.value="";
   });
 
+  atualizarContadorTituloYT(canalId);
+
   const singleInput=document.getElementById(`single-${canalId}`);
   if(singleInput)singleInput.value="";
 
@@ -733,11 +760,12 @@ async function salvarAgendamentoNoBanco(canalId){
   const titulosLimpos={};
   PLATAFORMAS.forEach((p)=>{
     let txt=(st.titulo&&typeof st.titulo[p]==="string"&&st.titulo[p].trim()!=="")?st.titulo[p].trim():primeiroTituloDisponivel;
-    if(p==="youtube"&&txt.length>100){
-      txt=txt.substring(0,97)+"...";
-    }
     titulosLimpos[p]=txt;
   });
+
+  if(plataformasAtivas.includes("youtube")&&titulosLimpos.youtube.length>LIMITE_TITULO_YOUTUBE){
+    throw new Error(`Título do YouTube excede ${LIMITE_TITULO_YOUTUBE} caracteres (${titulosLimpos.youtube.length}). Reduza o título.`);
+  }
 
   const payload={
     canal_id:canalId,
