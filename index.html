@@ -30,11 +30,13 @@ a:focus-visible,.btn:focus-visible{outline:3px solid var(--blue);outline-offset:
 header .wrap{display:flex;align-items:center;justify-content:space-between;padding-top:18px;padding-bottom:18px;gap:16px}
 .brand{display:flex;align-items:center;gap:12px;text-decoration:none;font:800 22px "Bricolage Grotesque",sans-serif;letter-spacing:-.02em}
 .brand img{width:44px;height:44px;border-radius:11px;display:block}
-nav{display:flex;align-items:center;gap:22px}
+nav{display:flex;align-items:center;gap:16px}
 nav a{text-decoration:none;font-weight:500;color:var(--mut)}
 nav a:hover{color:var(--ink)}
 nav a.entrar{color:#fff;background:var(--navy);padding:9px 18px;border-radius:8px;font-weight:600}
 nav a.entrar:hover{background:var(--ink)}
+nav a.menu-btn{color:var(--navy);background:transparent;border:2px solid var(--navy);padding:8px 16px;border-radius:8px;font-weight:600}
+nav a.menu-btn:hover{background:var(--navy);color:#fff}
 
 .hero{padding:44px 0 72px}
 .hero .wrap{display:grid;grid-template-columns:1.05fr .95fr;gap:56px;align-items:center}
@@ -44,6 +46,8 @@ nav a.entrar:hover{background:var(--ink)}
 .btn:hover{background:var(--ink);transform:translateY(-1px)}
 .btn.ghost{background:transparent;color:var(--navy);border:2px solid var(--navy);margin-left:10px;padding:12px 24px}
 .btn.ghost:hover{background:var(--navy);color:#fff}
+.btn.menu-link{background:var(--gold);color:var(--ink);margin-left:10px}
+.btn.menu-link:hover{background:#b8992e}
 
 /* quadro de programação */
 .board{background:var(--card);border:1px solid var(--line);border-radius:18px;padding:22px 24px 14px;box-shadow:0 18px 40px -22px rgba(18,58,102,.45)}
@@ -108,6 +112,7 @@ footer .links a:hover{color:var(--ink);text-decoration:underline}
     <nav aria-label="Principal">
       <a href="#como-funciona">Como funciona</a>
       <a href="#redes">Redes</a>
+      <a class="menu-btn" href="/menu/">Ir para o Menu</a>
       <a class="entrar" href="/auth/login.html?next=/programador/">Entrar</a>
     </nav>
   </div>
@@ -119,7 +124,9 @@ footer .links a:hover{color:var(--ink);text-decoration:underline}
       <div>
         <h1>Cada vídeo no canal certo, na hora certa.</h1>
         <p class="lead">O Evrix Social agenda e publica seus vídeos no YouTube, Instagram e TikTok a partir de um único painel, com um horário para cada canal.</p>
-        <a class="btn" href="/auth/login.html?next=/programador/">Entrar no painel</a><a class="btn ghost" href="#como-funciona">Ver como funciona</a>
+        <a class="btn" href="/auth/login.html?next=/programador/">Entrar no painel</a>
+        <a class="btn menu-link" href="/menu/">Ir para o Menu</a>
+        <a class="btn ghost" href="#como-funciona">Ver como funciona</a>
       </div>
       <div class="board" role="img" aria-label="Exemplo de programação do dia com horários e redes por canal">
         <div class="board-head"><b>Programação do dia</b><span>exemplo</span></div>
@@ -159,7 +166,10 @@ footer .links a:hover{color:var(--ink);text-decoration:underline}
   <section class="cta">
     <div class="wrap">
       <h2>Pronto para organizar seus canais?</h2>
-      <a class="btn" href="/auth/login.html?next=/programador/">Entrar no painel</a>
+      <div>
+        <a class="btn" href="/auth/login.html?next=/programador/">Entrar no painel</a>
+        <a class="btn menu-link" href="/menu/">Ir para o Menu</a>
+      </div>
     </div>
   </section>
 </main>
@@ -168,11 +178,26 @@ footer .links a:hover{color:var(--ink);text-decoration:underline}
   <div class="wrap">
     <a class="brand" href="/"><img src="/icon.png" alt="" width="32" height="32">Evrix Social</a>
     <div class="links">
+      <a href="/menu/">Ir para o Menu</a>
       <a href="/politica-privacidade/">Política de Privacidade</a>
       <a href="/termos-de-uso-app/">Termos de Uso</a>
     </div>
     <span>© 2026 Evrix Social</span>
   </div>
 </footer>
+
+<!-- Script de redirecionamento automático para o menu caso já esteja logado/retornando do OAuth -->
+<script>
+window.addEventListener('DOMContentLoaded', () => {
+    const temTokenUrl = window.location.hash.includes('access_token') || window.location.search.includes('auth=youtube');
+    if (temTokenUrl) {
+        setTimeout(() => {
+            if (!window.location.pathname.startsWith('/menu')) {
+                window.location.href = '/menu/';
+            }
+        }, 500);
+    }
+});
+</script>
 </body>
 </html>
