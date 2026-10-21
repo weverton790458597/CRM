@@ -14,6 +14,32 @@ window.supabaseClient = supabase.createClient(EVRIX_SUPABASE_URL, EVRIX_SUPABASE
     }
 });
 
+// ============================================================================
+// REDIRECIONAMENTO DE AUTENTICAÇÃO (/menu/)
+// ============================================================================
+
+// 1. Escuta mudanças de estado do Supabase (Login detetado)
+window.supabaseClient.auth.onAuthStateChange((event, session) => {
+    if (event === 'SIGNED_IN' && session) {
+        if (!window.location.pathname.startsWith('/menu')) {
+            window.location.href = '/menu/';
+        }
+    }
+});
+
+// 2. Intercepta tokens no Hash/URL no momento do carregamento da página
+window.addEventListener('DOMContentLoaded', () => {
+    const temTokenUrl = window.location.hash.includes('access_token') || window.location.search.includes('auth=youtube');
+    
+    if (temTokenUrl) {
+        setTimeout(() => {
+            if (!window.location.pathname.startsWith('/menu')) {
+                window.location.href = '/menu/';
+            }
+        }, 500);
+    }
+});
+
 /**
  * Traduz os erros mais comuns do Supabase Auth para mensagens em PT-BR.
  */
