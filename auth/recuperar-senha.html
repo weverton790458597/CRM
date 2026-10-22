@@ -1,0 +1,95 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Recuperar senha — Evrix Social</title>
+  <link rel="icon" type="image/png" href="../1.png" />
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800&display=swap" rel="stylesheet" />
+  <link rel="stylesheet" href="auth-style.css" />
+</head>
+<body>
+  <main class="auth-page" role="main">
+    <div class="auth-card">
+
+      <div class="login-logo">
+        <img src="../1.png" alt="Ícone Evrix Social" onerror="this.style.display='none'" />
+        <span class="login-logo-text">Evrix Social</span>
+      </div>
+
+      <h1 class="login-title">Recuperar senha</h1>
+      <p class="login-subtitle">Digite o e-mail da sua conta. Vamos enviar um link para você criar uma nova senha.</p>
+
+      <form id="form-recuperar" novalidate>
+        <div class="field">
+          <label for="email">E-mail</label>
+          <div class="field-wrap">
+            <input type="email" id="email" name="email" placeholder="seu@email.com" autocomplete="email" required />
+          </div>
+        </div>
+
+        <button class="btn-primary" id="enviar" type="submit">Enviar link de recuperação</button>
+        <p class="msg-erro" id="msg-erro" role="alert" aria-live="polite"></p>
+        <p class="msg-ok" id="msg-ok" role="status" aria-live="polite"></p>
+      </form>
+
+      <div class="auth-footer">
+        <a href="login.html">Voltar para o login</a>
+      </div>
+
+    </div>
+  </main>
+
+  <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+  <script src="auth-client.js"></script>
+  <script>
+    (() => {
+      const form       = document.getElementById('form-recuperar');
+      const emailInput = document.getElementById('email');
+      const enviarBtn  = document.getElementById('enviar');
+      const erroEl     = document.getElementById('msg-erro');
+      const okEl       = document.getElementById('msg-ok');
+
+      // Para onde o link do e-mail deve levar a pessoa
+      const URL_REDEFINIR = window.location.origin + window.location.pathname.replace('recuperar-senha.html', 'redefinir-senha.html');
+
+      async function solicitarRecuperacao(e) {
+        e.preventDefault();
+        erroEl.textContent = '';
+        okEl.textContent = '';
+
+        const email = emailInput.value.trim();
+        if (!email) {
+          erroEl.textContent = 'Digite seu e-mail.';
+          return;
+        }
+
+        enviarBtn.textContent = 'Enviando…';
+        enviarBtn.disabled = true;
+
+        try {
+          const { error } = await window.supabaseClient.auth.resetPasswordForEmail(email, {
+            redirectTo: URL_REDEFINIR
+          });
+
+          if (error) throw error;
+
+          form.reset();
+          form.style.display = 'none';
+          okEl.textContent = `Se ${email} estiver cadastrado, você vai receber um link para redefinir a senha em instantes.`;
+        } catch (err) {
+          console.error('❌ Erro ao solicitar recuperação:', err);
+          erroEl.textContent = window.traduzirErroAuth(err.message || '');
+        } finally {
+          enviarBtn.textContent = 'Enviar link de recuperação';
+          enviarBtn.disabled = false;
+        }
+      }
+
+      form.addEventListener('submit', solicitarRecuperacao);
+    })();
+  </script>
+</body>
+</html>
