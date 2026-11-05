@@ -4,12 +4,15 @@
 // Port da lógica do compressor.py: calcula o bitrate-alvo a partir da duração,
 // reduz a resolução quando necessário e refaz com alvo menor se ainda passar do limite.
 //
+// IMPORTANTE: os arquivos do ffmpeg.wasm precisam estar no MESMO domínio do app,
+// na pasta /ffmpeg/ (ver instruções no final da resposta). Carregar o Worker de um
+// CDN via blob: URL quebra os imports internos do Worker.
+//
 // Como funciona: sobrescreve window.uploadVideo (mesma técnica do recalibrador.js).
 // Vídeos <= limite passam direto; maiores são comprimidos e só então enviados.
-// Todo o app.js (drop global, "Vídeos (Lote)", etc.) passa a usar isso sem alteração.
 //
 // Uso no index.html, DEPOIS do app.js:
-//   <script src="compressor.js?v=1"></script>
+//   <script src="compressor.js?v=2"></script>
 
 (function () {
   "use strict";
@@ -19,9 +22,58 @@
   const AUDIO_KBPS = 96;
   const MIN_VIDEO_KBPS = 150;    // abaixo disso o vídeo ficaria ilegível
   const MAX_TENTATIVAS = 3;
+  const TIMEOUT_LOAD_MS = 90000; // tempo máximo para carregar o ffmpeg.wasm
 
-  const CDN_FFMPEG = "https://cdn.jsdelivr.net/npm/@ffmpeg/ffmpeg@0.12.10/dist/umd";
-  const CDN_CORE = "https://cdn.jsdelivr.net/npm/@ffmpeg/core@0.12.6/dist/umd";
+  // Caminho LOCAL (mesma origem). Copie os arquivos para esta pasta do projeto.
+  const BASE_FFMPEG = "/ffmpeg";
+  const ARQUIVOS = {
+    ffmpegJs: `${BASE_FFMPEG}/ffmpeg.js`,
+    worker: `${BASE_FFMPEG}/814.ffmpeg.js`,
+    core: `${BASE_FFMPEG}/ffmpeg-core.js`,
+    wasm: `${BASE_FFMPEG}/ffmpeg-core.wasm`
+  };
+
+  // ---------- utilidades de erro ----------
+  // Transforma qualquer coisa lançada (Error, Event, string, objeto) em texto útil.
+  function descreverErro(e) {
+    if (!e) return "erro desconhecido";
+    if (typeof e === "string") return e;
+    if (e instanceof Error) return e.message || e.name || "erro sem mensagem";
+    if (e.message) return String(e.message);
+    if (e.error && e.error.message) return String(e.error.message);
+    if (e.type) return `evento "${e.type}" (falha de Worker/WASM)`;
+    try { return JSON.stringify(e); } catch (_) { return String(e); }
+  }
+
+  function comTimeout(promise, ms, mensagem) {
+    let timer;
+    const limite = new Promise((_, reject) => {
+      timer = setTimeout(() => reject(new Error(mensagem)), ms);
+    });
+    return Promise.race([promise, limite]).finally(() => clearTimeout(timer));
+  }
+
+  // ---------- verificação dos arquivos locais ----------
+  async function verificarArquivosFFmpeg() {
+    const faltando = [];
+    await Promise.all(
+      Object.values(ARQUIVOS).map(async (url) => {
+        try {
+          const r = await fetch(url, { method: "HEAD", cache: "no-store" });
+          if (!r.ok) faltando.push(url);
+        } catch (_) {
+          faltando.push(url);
+        }
+      })
+    );
+    if (faltando.length) {
+      throw new Error(
+        `Arquivos do ffmpeg não encontrados no servidor: ${faltando
+          .map((u) => u.split("/").pop())
+          .join(", ")}. Copie-os para a pasta ${BASE_FFMPEG}/.`
+      );
+    }
+  }
 
   // ---------- carregamento sob demanda do ffmpeg.wasm ----------
   function carregarScript(src) {
@@ -29,17 +81,9 @@
       const s = document.createElement("script");
       s.src = src;
       s.onload = resolve;
-      s.onerror = () => reject(new Error("Falha ao carregar " + src));
+      s.onerror = () => reject(new Error("Falha ao carregar script: " + src));
       document.head.appendChild(s);
     });
-  }
-
-  // Baixa o recurso e devolve uma blob: URL (evita bloqueio de Worker/WASM cross-origin).
-  async function toBlobURL(url, mime) {
-    const resp = await fetch(url);
-    if (!resp.ok) throw new Error(`HTTP ${resp.status} ao baixar ${url}`);
-    const buf = await resp.arrayBuffer();
-    return URL.createObjectURL(new Blob([buf], { type: mime }));
   }
 
   let ffmpegPromise = null;
@@ -47,26 +91,48 @@
 
   function obterFFmpeg() {
     if (ffmpegPromise) return ffmpegPromise;
+
     ffmpegPromise = (async () => {
-      if (!window.FFmpegWASM) await carregarScript(`${CDN_FFMPEG}/ffmpeg.js`);
+      await verificarArquivosFFmpeg();
+
+      if (!window.FFmpegWASM) await carregarScript(ARQUIVOS.ffmpegJs);
+      if (!window.FFmpegWASM || !window.FFmpegWASM.FFmpeg) {
+        throw new Error("Biblioteca ffmpeg não expôs window.FFmpegWASM.");
+      }
+
       const ffmpeg = new window.FFmpegWASM.FFmpeg();
+
       ffmpeg.on("progress", ({ progress }) => {
-        if (aoProgredir && isFinite(progress)) aoProgredir(Math.min(Math.max(progress, 0), 1));
+        if (aoProgredir && isFinite(progress)) {
+          aoProgredir(Math.min(Math.max(progress, 0), 1));
+        }
       });
-      await ffmpeg.load({
-        classWorkerURL: await toBlobURL(`${CDN_FFMPEG}/814.ffmpeg.js`, "text/javascript"),
-        coreURL: await toBlobURL(`${CDN_CORE}/ffmpeg-core.js`, "text/javascript"),
-        wasmURL: await toBlobURL(`${CDN_CORE}/ffmpeg-core.wasm`, "application/wasm")
+
+      ffmpeg.on("log", ({ message }) => {
+        // descomente para depurar o ffmpeg:
+        // console.debug("[ffmpeg]", message);
       });
+
+      await comTimeout(
+        ffmpeg.load({
+          classWorkerURL: ARQUIVOS.worker,
+          coreURL: ARQUIVOS.core,
+          wasmURL: ARQUIVOS.wasm
+        }),
+        TIMEOUT_LOAD_MS,
+        "Tempo esgotado ao carregar o ffmpeg.wasm (verifique a conexão e os arquivos em /ffmpeg/)."
+      );
+
       return ffmpeg;
     })().catch((e) => {
       ffmpegPromise = null; // permite tentar de novo depois
-      throw e;
+      throw new Error(descreverErro(e));
     });
+
     return ffmpegPromise;
   }
 
-  // ---------- utilidades ----------
+  // ---------- utilidades de vídeo ----------
   function sondar(file) {
     return new Promise((resolve, reject) => {
       const v = document.createElement("video");
@@ -78,11 +144,13 @@
         URL.revokeObjectURL(url);
         if (!isFinite(r.duracao) || r.duracao <= 0) {
           reject(new Error("Não foi possível descobrir a duração do vídeo."));
-        } else resolve(r);
+        } else {
+          resolve(r);
+        }
       };
       v.onerror = () => {
         URL.revokeObjectURL(url);
-        reject(new Error("Não foi possível ler o vídeo."));
+        reject(new Error("Não foi possível ler o vídeo (formato/codec não suportado pelo navegador)."));
       };
       v.src = url;
     });
@@ -103,15 +171,21 @@
       return {
         caminho: `/in/${file.name}`,
         limpar: async () => {
-          try { await ffmpeg.unmount("/in"); await ffmpeg.deleteDir("/in"); } catch (_) {}
+          try {
+            await ffmpeg.unmount("/in");
+            await ffmpeg.deleteDir("/in");
+          } catch (_) {}
         }
       };
     } catch (_) {
+      // Fallback: copia para a memória do ffmpeg (mais lento e usa mais RAM).
       const dados = new Uint8Array(await file.arrayBuffer());
       await ffmpeg.writeFile("entrada.bin", dados);
       return {
         caminho: "entrada.bin",
-        limpar: async () => { try { await ffmpeg.deleteFile("entrada.bin"); } catch (_) {} }
+        limpar: async () => {
+          try { await ffmpeg.deleteFile("entrada.bin"); } catch (_) {}
+        }
       };
     }
   }
@@ -131,6 +205,7 @@
       for (let t = 1; t <= MAX_TENTATIVAS; t++) {
         const totalKbps = (alvoBytes * 8) / duracao / 1000;
         const videoKbps = Math.floor(totalKbps - AUDIO_KBPS);
+
         if (videoKbps < MIN_VIDEO_KBPS) {
           throw new Error(
             `Vídeo longo demais (${Math.round(duracao)}s) para caber em ${LIMITE_UPLOAD_MB} MB com qualidade aceitável.`
@@ -138,14 +213,13 @@
         }
 
         const lado = Math.min(ladoCurtoAlvo(videoKbps), curto);
-        const vf = lado < curto ? ["-vf", w >= h ? `scale=-2:${lado}` : `scale=${lado}:-2`] : [];
+        const vf = lado < curto
+          ? ["-vf", w >= h ? `scale=-2:${lado}` : `scale=${lado}:-2`]
+          : [];
 
+        const sufixo = t > 1 ? ` (tentativa ${t}/${MAX_TENTATIVAS})` : "";
         aoProgredir = (p) =>
-          setCardStatus(
-            canalId,
-            `Comprimindo vídeo... ${Math.round(p * 100)}%` + (t > 1 ? ` (tentativa ${t}/${MAX_TENTATIVAS})` : ""),
-            "info"
-          );
+          setCardStatus(canalId, `Comprimindo vídeo... ${Math.round(p * 100)}%${sufixo}`, "info");
         aoProgredir(0);
 
         const codigo = await ffmpeg.exec([
@@ -153,13 +227,16 @@
           "-map", "0:v:0",
           ...vf,
           "-c:v", "libx264", "-preset", "veryfast", "-pix_fmt", "yuv420p",
-          "-b:v", `${videoKbps}k`, "-maxrate", `${Math.floor(videoKbps * 1.3)}k`,
+          "-b:v", `${videoKbps}k`,
+          "-maxrate", `${Math.floor(videoKbps * 1.3)}k`,
           "-bufsize", `${videoKbps * 2}k`,
           "-map", "0:a:0?", "-c:a", "aac", "-b:a", `${AUDIO_KBPS}k`, "-ac", "2",
           "-movflags", "+faststart",
           "-y", "saida.mp4"
         ]);
-        if (codigo !== 0) throw new Error("ffmpeg falhou ao codificar o vídeo.");
+        if (codigo !== 0) {
+          throw new Error(`ffmpeg terminou com código ${codigo} ao codificar o vídeo.`);
+        }
 
         const dados = await ffmpeg.readFile("saida.mp4");
         await ffmpeg.deleteFile("saida.mp4");
@@ -168,8 +245,10 @@
           const nome = file.name.replace(/\.[^.]+$/, "") + ".mp4";
           return new File([dados], nome, { type: "video/mp4" });
         }
+
         alvoBytes *= 0.88; // ainda passou do limite: tenta com alvo menor
       }
+
       throw new Error(`Não consegui reduzir o vídeo para menos de ${LIMITE_UPLOAD_MB} MB.`);
     } finally {
       aoProgredir = null;
@@ -203,7 +282,8 @@
     try {
       comprimido = await enfileirar(() => comprimir(file, canalId));
     } catch (e) {
-      throw new Error("Compressão falhou: " + e.message);
+      console.error("[Compressor] erro bruto:", e);
+      throw new Error("Compressão falhou: " + descreverErro(e));
     }
 
     setCardStatus(
