@@ -2,202 +2,430 @@
 <html lang="pt-BR">
 <head>
 <meta charset="UTF-8">
-<meta name="viewport" content="width=device-width, initial-scale=1">
-<title>Evrix Social - Agendamento de vídeos para YouTube, Instagram e TikTok</title>
-<meta name="description" content="O Evrix Social agenda e publica seus vídeos no YouTube, Instagram e TikTok a partir de um único painel, com um horário para cada canal.">
-<meta name="theme-color" content="#123a66">
-<link rel="canonical" href="https://www.evrix.shop/">
-<link rel="icon" href="/favicon.ico" sizes="any">
-<link rel="icon" type="image/png" href="/favicon.png">
-<link rel="apple-touch-icon" href="/apple-touch-icon.png">
-<meta property="og:title" content="Evrix Social">
-<meta property="og:description" content="Cada vídeo no canal certo, na hora certa. YouTube, Instagram e TikTok em um só painel.">
-<meta property="og:image" content="https://www.evrix.shop/icon.png">
-<meta property="og:url" content="https://www.evrix.shop/">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Evrix Social — Programador</title>
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-<link href="https://fonts.googleapis.com/css2?family=Bricolage+Grotesque:opsz,wght@12..96,600;12..96,800&family=Instrument+Sans:wght@400;500;600&display=swap" rel="stylesheet">
+<link href="https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@500;600;700&display=swap" rel="stylesheet">
 <style>
-:root{--ink:#0e2238;--navy:#123a66;--blue:#2f7fc1;--rose:#c8465f;--gold:#c9a93a;--paper:#eef2f7;--card:#fff;--line:#d3dce8;--mut:#455a73}
-*{box-sizing:border-box}
-html{scroll-behavior:smooth}
-body{margin:0;background:var(--paper);color:var(--ink);font:17px/1.6 "Instrument Sans",system-ui,-apple-system,"Segoe UI",Roboto,sans-serif}
-h1,h2,h3{font-family:"Bricolage Grotesque","Instrument Sans",system-ui,sans-serif;line-height:1.1;margin:0;letter-spacing:-.02em}
-a{color:inherit}
-.wrap{max-width:1120px;margin:0 auto;padding:0 22px}
-a:focus-visible,.btn:focus-visible{outline:3px solid var(--blue);outline-offset:3px;border-radius:6px}
-
-header .wrap{display:flex;align-items:center;justify-content:space-between;padding-top:18px;padding-bottom:18px;gap:16px}
-.brand{display:flex;align-items:center;gap:12px;text-decoration:none;font:800 22px "Bricolage Grotesque",sans-serif;letter-spacing:-.02em}
-.brand img{width:44px;height:44px;border-radius:11px;display:block}
-nav{display:flex;align-items:center;gap:16px}
-nav a{text-decoration:none;font-weight:500;color:var(--mut)}
-nav a:hover{color:var(--ink)}
-nav a.entrar{color:#fff;background:var(--navy);padding:9px 18px;border-radius:8px;font-weight:600}
-nav a.entrar:hover{background:var(--ink)}
-nav a.menu-btn{color:var(--navy);background:transparent;border:2px solid var(--navy);padding:8px 16px;border-radius:8px;font-weight:600}
-nav a.menu-btn:hover{background:var(--navy);color:#fff}
-
-.hero{padding:44px 0 72px}
-.hero .wrap{display:grid;grid-template-columns:1.05fr .95fr;gap:56px;align-items:center}
-.hero h1{font-size:clamp(38px,5.6vw,66px);font-weight:800;color:var(--ink)}
-.hero p.lead{font-size:20px;color:var(--mut);max-width:34em;margin:22px 0 30px}
-.btn{display:inline-block;text-decoration:none;font-weight:600;padding:14px 26px;border-radius:10px;background:var(--navy);color:#fff;transition:background .15s,transform .15s}
-.btn:hover{background:var(--ink);transform:translateY(-1px)}
-.btn.ghost{background:transparent;color:var(--navy);border:2px solid var(--navy);margin-left:10px;padding:12px 24px}
-.btn.ghost:hover{background:var(--navy);color:#fff}
-.btn.menu-link{background:var(--gold);color:var(--ink);margin-left:10px}
-.btn.menu-link:hover{background:#b8992e}
-
-/* quadro de programação */
-.board{background:var(--card);border:1px solid var(--line);border-radius:18px;padding:22px 24px 14px;box-shadow:0 18px 40px -22px rgba(18,58,102,.45)}
-.board-head{display:flex;justify-content:space-between;align-items:baseline;border-bottom:1px solid var(--line);padding-bottom:12px;margin-bottom:6px}
-.board-head b{font:800 20px "Bricolage Grotesque",sans-serif}
-.board-head span{font-size:14px;color:var(--mut)}
-.rail{list-style:none;margin:0;padding:0;position:relative}
-.rail::before{content:"";position:absolute;left:78px;top:26px;bottom:26px;width:2px;background:var(--line)}
-.rail li{display:grid;grid-template-columns:62px 18px 1fr;gap:12px;align-items:center;padding:12px 0}
-.rail time{font:800 22px "Bricolage Grotesque",sans-serif;font-variant-numeric:tabular-nums;text-align:right}
-.rail .dot{width:14px;height:14px;border-radius:50%;background:var(--blue);border:3px solid var(--card);box-shadow:0 0 0 2px var(--blue);justify-self:center;position:relative;z-index:1}
-.rail li.next .dot{background:var(--rose);box-shadow:0 0 0 2px var(--rose);animation:pulse 2.4s ease-out infinite}
-.rail .who b{display:block;font-weight:600;line-height:1.25}
-.pills{display:flex;gap:6px;flex-wrap:wrap;margin-top:4px}
-.pills i{font-style:normal;font-size:12.5px;font-weight:600;padding:2px 9px;border-radius:99px;background:#e4ecf6;color:var(--navy)}
-.pills i.y::before,.pills i.i::before,.pills i.t::before{content:"";display:inline-block;width:7px;height:7px;border-radius:50%;margin-right:5px}
-.pills i.y::before{background:var(--rose)}.pills i.i::before{background:var(--gold)}.pills i.t::before{background:var(--blue)}
-@keyframes pulse{0%{box-shadow:0 0 0 2px var(--rose),0 0 0 2px rgba(200,70,95,.5)}70%{box-shadow:0 0 0 2px var(--rose),0 0 0 12px rgba(200,70,95,0)}100%{box-shadow:0 0 0 2px var(--rose),0 0 0 2px rgba(200,70,95,0)}}
-@media (prefers-reduced-motion:reduce){.rail li.next .dot{animation:none}html{scroll-behavior:auto}.btn{transition:none}}
-
-section.bloco{padding:72px 0;border-top:1px solid var(--line)}
-section.bloco h2{font-size:clamp(28px,3.8vw,42px);font-weight:800;max-width:18em}
-.passos{list-style:none;counter-reset:p;margin:36px 0 0;padding:0;display:grid;grid-template-columns:repeat(3,1fr);gap:36px}
-.passos li{counter-increment:p;border-top:4px solid var(--navy);padding-top:16px}
-.passos li:nth-child(2){border-color:var(--rose)}.passos li:nth-child(3){border-color:var(--gold)}
-.passos li::before{content:counter(p);font:800 15px "Bricolage Grotesque",sans-serif;color:var(--mut)}
-.passos h3{font-size:23px;margin:6px 0 8px}
-.passos p{margin:0;color:var(--mut)}
-.redes{margin:34px 0 0;display:grid;grid-template-columns:200px 1fr;gap:0 40px;max-width:860px}
-.redes dt{font:800 22px "Bricolage Grotesque",sans-serif;padding:20px 0;border-top:1px solid var(--line)}
-.redes dd{margin:0;padding:20px 0;border-top:1px solid var(--line);color:var(--mut)}
-.nota{margin-top:26px;max-width:46em;color:var(--mut)}
-.nota a{color:var(--navy);font-weight:600}
-
-.cta{background:var(--navy);color:#fff;padding:64px 0}
-.cta .wrap{display:flex;align-items:center;justify-content:space-between;gap:28px;flex-wrap:wrap}
-.cta h2{font-size:clamp(26px,3.4vw,38px);font-weight:800;max-width:16em}
-.cta .btn{background:#fff;color:var(--navy)}
-.cta .btn:hover{background:var(--paper)}
-
-footer{padding:34px 0 40px;color:var(--mut);font-size:15px}
-footer .wrap{display:flex;justify-content:space-between;gap:18px;flex-wrap:wrap;align-items:center}
-footer .brand{font-size:18px;color:var(--ink)}
-footer .brand img{width:32px;height:32px;border-radius:8px}
-footer .links a{margin-left:22px;text-decoration:none;font-weight:500}
-footer .links a:hover{color:var(--ink);text-decoration:underline}
-
-@media (max-width:860px){
- .hero .wrap{grid-template-columns:1fr;gap:40px}
- .passos{grid-template-columns:1fr;gap:26px}
- .redes{grid-template-columns:1fr}.redes dt{padding-bottom:0;border-bottom:0}.redes dd{border-top:0;padding-top:4px}
- nav a:not(.entrar){display:none}
- .btn.ghost{margin:12px 0 0}
- footer .links a{margin:0 18px 0 0}
-}
+  :root {
+    --bg: #05030b;
+    --ember: #ff6b35;
+    --ember-2: #ffa06b;
+    --text: #f7f4f0;
+  }
+  * { box-sizing: border-box; }
+  html, body {
+    margin: 0;
+    padding: 0;
+    height: 100%;
+    background: var(--bg);
+    overflow: hidden;
+  }
+  body {
+    font-family: 'Space Grotesk', 'Inter', sans-serif;
+    color: var(--text);
+  }
+  #scene {
+    position: fixed;
+    inset: 0;
+    display: block;
+    width: 100vw;
+    height: 100vh;
+  }
+  .vignette {
+    position: fixed;
+    inset: 0;
+    pointer-events: none;
+    background: radial-gradient(115% 85% at 50% 48%, transparent 38%, rgba(3, 2, 8, .55) 76%, rgba(3, 2, 8, .92) 100%);
+  }
+  #cta {
+    position: fixed;
+    top: 24px;
+    right: 26px;
+    z-index: 10;
+    display: inline-flex;
+    align-items: center;
+    gap: 8px;
+    padding: 12px 22px;
+    border-radius: 999px;
+    font-family: inherit;
+    font-size: 12px;
+    font-weight: 600;
+    letter-spacing: .14em;
+    text-transform: uppercase;
+    text-decoration: none;
+    color: #1b0e07;
+    background: linear-gradient(140deg, var(--ember-2), var(--ember));
+    box-shadow: 0 14px 28px -16px rgba(255, 107, 53, .95), 0 0 0 1px rgba(255, 255, 255, .14) inset;
+    transition: transform .22s cubic-bezier(.22, .8, .24, 1), box-shadow .22s;
+  }
+  #cta:hover {
+    transform: translateY(-2px);
+    box-shadow: 0 18px 34px -14px rgba(255, 107, 53, 1), 0 0 0 1px rgba(255, 255, 255, .2) inset;
+  }
+  #cta:active { transform: translateY(0) scale(.98); }
+  #cta:focus-visible {
+    outline: 2px solid #ffd9c4;
+    outline-offset: 3px;
+  }
+  .sr-only {
+    position: absolute;
+    width: 1px;
+    height: 1px;
+    padding: 0;
+    margin: -1px;
+    overflow: hidden;
+    clip: rect(0 0 0 0);
+    white-space: nowrap;
+    border: 0;
+  }
+  @media (max-width: 520px) {
+    #cta { top: 16px; right: 16px; padding: 11px 17px; font-size: 10.5px; letter-spacing: .1em; }
+  }
 </style>
 </head>
 <body>
-<header>
-  <div class="wrap">
-    <a class="brand" href="/"><img src="/icon.png" alt="Logo do Evrix Social" width="44" height="44">Evrix Social</a>
-    <nav aria-label="Principal">
-      <a href="#como-funciona">Como funciona</a>
-      <a href="#redes">Redes</a>
-      <a class="menu-btn" href="/menu/">Ir para o Menu</a>
-      <a class="entrar" href="/auth/login.html?next=/programador/">Entrar</a>
-    </nav>
-  </div>
-</header>
+<canvas id="scene" aria-hidden="true"></canvas>
+<div class="vignette" aria-hidden="true"></div>
+<a id="cta" href="/">Entrar no Programador</a>
+<h1 class="sr-only">Evrix Social — Central de Programação</h1>
 
-<main>
-  <section class="hero">
-    <div class="wrap">
-      <div>
-        <h1>Cada vídeo no canal certo, na hora certa.</h1>
-        <p class="lead">O Evrix Social agenda e publica seus vídeos no YouTube, Instagram e TikTok a partir de um único painel, com um horário para cada canal.</p>
-        <a class="btn" href="/auth/login.html?next=/programador/">Entrar no painel</a>
-        <a class="btn menu-link" href="/menu/">Ir para o Menu</a>
-        <a class="btn ghost" href="#como-funciona">Ver como funciona</a>
-      </div>
-      <div class="board" role="img" aria-label="Exemplo de programação do dia com horários e redes por canal">
-        <div class="board-head"><b>Programação do dia</b><span>exemplo</span></div>
-        <ol class="rail">
-          <li><time>11:00</time><span class="dot"></span><div class="who"><b>Canal de receitas</b><div class="pills"><i class="y">YouTube</i><i class="i">Instagram</i><i class="t">TikTok</i></div></div></li>
-          <li class="next"><time>11:20</time><span class="dot"></span><div class="who"><b>Canal de games</b><div class="pills"><i class="y">YouTube</i><i class="t">TikTok</i></div></div></li>
-          <li><time>11:40</time><span class="dot"></span><div class="who"><b>Canal de notícias</b><div class="pills"><i class="y">YouTube</i><i class="i">Instagram</i></div></div></li>
-          <li><time>18:00</time><span class="dot"></span><div class="who"><b>Canal de treinos</b><div class="pills"><i class="i">Instagram</i><i class="t">TikTok</i></div></div></li>
-        </ol>
-      </div>
-    </div>
-  </section>
-
-  <section class="bloco" id="como-funciona">
-    <div class="wrap">
-      <h2>Do arquivo de vídeo à publicação, em três passos</h2>
-      <ol class="passos">
-        <li><h3>Conecte suas contas</h3><p>Você autoriza o Evrix Social em cada rede pelo login oficial da plataforma. Sua senha nunca passa por aqui.</p></li>
-        <li><h3>Envie e programe</h3><p>Anexe o vídeo, escreva o título e escolha data, horário e redes de cada canal. Dá para organizar vários canais de uma vez.</p></li>
-        <li><h3>Publique no horário</h3><p>Na hora marcada, o vídeo é publicado nas contas que você autorizou. Você acompanha o que foi agendado no painel.</p></li>
-      </ol>
-    </div>
-  </section>
-
-  <section class="bloco" id="redes">
-    <div class="wrap">
-      <h2>Publica apenas onde você autorizar</h2>
-      <dl class="redes">
-        <dt>YouTube</dt><dd>Publica vídeos no canal que você conectou, com o título e o horário que você definiu.</dd>
-        <dt>Instagram</dt><dd>Publica vídeos na conta profissional que você conectou, no horário agendado.</dd>
-        <dt>TikTok</dt><dd>Publica no seu perfil os vídeos que você mesmo enviou e agendou, somente com a sua autorização. Você pode revogar o acesso a qualquer momento nas configurações do TikTok.</dd>
-      </dl>
-      <p class="nota">Não vendemos dados e não publicamos nada sem uma ação sua. Saiba mais na <a href="/politica-privacidade/">Política de Privacidade</a> e nos <a href="/termos-de-uso-app/">Termos de Uso</a>.</p>
-    </div>
-  </section>
-
-  <section class="cta">
-    <div class="wrap">
-      <h2>Pronto para organizar seus canais?</h2>
-      <div>
-        <a class="btn" href="/auth/login.html?next=/programador/">Entrar no painel</a>
-        <a class="btn menu-link" href="/menu/">Ir para o Menu</a>
-      </div>
-    </div>
-  </section>
-</main>
-
-<footer>
-  <div class="wrap">
-    <a class="brand" href="/"><img src="/icon.png" alt="" width="32" height="32">Evrix Social</a>
-    <div class="links">
-      <a href="/menu/">Ir para o Menu</a>
-      <a href="/politica-privacidade/">Política de Privacidade</a>
-      <a href="/termos-de-uso-app/">Termos de Uso</a>
-    </div>
-    <span>© 2026 Evrix Social</span>
-  </div>
-</footer>
-
-<!-- Script de redirecionamento automático para o menu caso já esteja logado/retornando do OAuth -->
 <script>
-window.addEventListener('DOMContentLoaded', () => {
-    const temTokenUrl = window.location.hash.includes('access_token') || window.location.search.includes('auth=youtube');
-    if (temTokenUrl) {
-        setTimeout(() => {
-            if (!window.location.pathname.startsWith('/menu')) {
-                window.location.href = '/menu/';
-            }
-        }, 500);
+(function () {
+  "use strict";
+
+  var canvas = document.getElementById("scene");
+  var ctx = canvas.getContext("2d");
+  var reduceMotion = window.matchMedia("(prefers-reduced-motion: reduce)").matches;
+
+  var W = 0, H = 0, DPR = 1, scale = 2, originX = 0, originY = 0, horizon = 0;
+  var t = 0, raf = 0, last = 0, running = false;
+  var stars = [];
+
+  /* ---------- utilidades ---------- */
+
+  function line(x1, y1, x2, y2) {
+    ctx.beginPath();
+    ctx.moveTo(x1, y1);
+    ctx.lineTo(x2, y2);
+    ctx.stroke();
+  }
+
+  function vec(angle, len) {
+    return { x: Math.sin(angle) * len, y: Math.cos(angle) * len };
+  }
+
+  function add(p, q) {
+    return { x: p.x + q.x, y: p.y + q.y };
+  }
+
+  function seedStars() {
+    stars = [];
+    var seed = 9173;
+    function rnd() {
+      seed = (seed * 1103515245 + 12345) & 0x7fffffff;
+      return seed / 0x7fffffff;
     }
-});
+    var count = Math.round(Math.min(140, W * H / 9000));
+    for (var i = 0; i < count; i++) {
+      stars.push({
+        x: rnd() * W,
+        y: rnd() * horizon * 0.92,
+        r: 0.4 + rnd() * 1.3,
+        a: 0.15 + rnd() * 0.5,
+        ph: rnd() * Math.PI * 2,
+        sp: 0.4 + rnd() * 1.2
+      });
+    }
+  }
+
+  function resize() {
+    DPR = Math.min(window.devicePixelRatio || 1, 2);
+    W = window.innerWidth;
+    H = window.innerHeight;
+    canvas.width = Math.floor(W * DPR);
+    canvas.height = Math.floor(H * DPR);
+    canvas.style.width = W + "px";
+    canvas.style.height = H + "px";
+    ctx.setTransform(DPR, 0, 0, DPR, 0, 0);
+
+    horizon = Math.round(H * 0.56);
+    scale = Math.max(1, Math.min(H * 0.52, W * 0.62) / 150);
+    originX = W / 2;
+    originY = H * 0.80 - 50 * scale;
+
+    seedStars();
+  }
+
+  /* ---------- cenário ---------- */
+
+  function drawSky() {
+    var sky = ctx.createLinearGradient(0, 0, 0, horizon);
+    sky.addColorStop(0, "#04030a");
+    sky.addColorStop(0.42, "#0a0618");
+    sky.addColorStop(0.76, "#1b0a2e");
+    sky.addColorStop(1, "#3a1245");
+    ctx.fillStyle = sky;
+    ctx.fillRect(0, 0, W, horizon + 1);
+
+    for (var i = 0; i < stars.length; i++) {
+      var s = stars[i];
+      var tw = 0.65 + 0.35 * Math.sin(t * s.sp + s.ph);
+      ctx.globalAlpha = s.a * tw;
+      ctx.fillStyle = "#e7ecff";
+      ctx.beginPath();
+      ctx.arc(s.x, s.y, s.r, 0, Math.PI * 2);
+      ctx.fill();
+    }
+    ctx.globalAlpha = 1;
+  }
+
+  function drawHorizonGlow() {
+    var bloom = ctx.createRadialGradient(W / 2, horizon, 0, W / 2, horizon, Math.max(W, H) * 0.62);
+    bloom.addColorStop(0, "rgba(255, 70, 120, .38)");
+    bloom.addColorStop(0.28, "rgba(190, 40, 150, .20)");
+    bloom.addColorStop(0.62, "rgba(60, 20, 90, .07)");
+    bloom.addColorStop(1, "rgba(5, 3, 11, 0)");
+    ctx.fillStyle = bloom;
+    ctx.fillRect(0, 0, W, horizon + 2);
+
+    var band = ctx.createLinearGradient(0, horizon - 46, 0, horizon + 2);
+    band.addColorStop(0, "rgba(255, 120, 90, 0)");
+    band.addColorStop(0.7, "rgba(255, 110, 140, .16)");
+    band.addColorStop(1, "rgba(255, 200, 180, .45)");
+    ctx.fillStyle = band;
+    ctx.fillRect(0, horizon - 46, W, 48);
+
+    ctx.strokeStyle = "rgba(255, 196, 176, .80)";
+    ctx.lineWidth = 1.2;
+    line(0, horizon + 0.5, W, horizon + 0.5);
+  }
+
+  function drawFloor() {
+    var floor = ctx.createLinearGradient(0, horizon, 0, H);
+    floor.addColorStop(0, "#170a24");
+    floor.addColorStop(0.55, "#0a0514");
+    floor.addColorStop(1, "#05030b");
+    ctx.fillStyle = floor;
+    ctx.fillRect(0, horizon, W, H - horizon);
+
+    ctx.save();
+    ctx.beginPath();
+    ctx.rect(0, horizon, W, H - horizon);
+    ctx.clip();
+
+    // linhas horizontais em perspectiva, rolando na direção do espectador
+    var rows = 24;
+    var scroll = (t * 0.22) % 1;
+    for (var i = 0; i < rows; i++) {
+      var f = (i + scroll) / rows;
+      var y = horizon + Math.pow(f, 2.3) * (H - horizon + 30);
+      var alpha = 0.03 + f * 0.30;
+      ctx.strokeStyle = "rgba(34, 211, 238, " + alpha.toFixed(3) + ")";
+      ctx.lineWidth = 0.6 + f * 1.2;
+      line(0, y, W, y);
+    }
+
+    // linhas verticais convergindo no ponto de fuga
+    var cols = 20;
+    for (var k = -cols; k <= cols; k++) {
+      var bx = W / 2 + (k / cols) * W * 1.35;
+      var edge = 1 - Math.min(1, Math.abs(k) / cols);
+      ctx.strokeStyle = "rgba(34, 211, 238, " + (0.10 + edge * 0.16).toFixed(3) + ")";
+      ctx.lineWidth = 0.9;
+      line(W / 2, horizon, bx, H);
+    }
+
+    // brilho de piso sob o boneco
+    var groundY = originY + 48 * scale;
+    var glow = ctx.createRadialGradient(W / 2, groundY, 0, W / 2, groundY, 190);
+    glow.addColorStop(0, "rgba(255, 90, 70, .18)");
+    glow.addColorStop(0.55, "rgba(160, 40, 120, .07)");
+    glow.addColorStop(1, "rgba(5, 3, 11, 0)");
+    ctx.fillStyle = glow;
+    ctx.beginPath();
+    ctx.ellipse(W / 2, groundY, 190, 44, 0, 0, Math.PI * 2);
+    ctx.fill();
+
+    ctx.restore();
+  }
+
+  /* ---------- boneco ---------- */
+
+  function pose(time) {
+    var b = time * 2.6;
+    var sway = Math.sin(b);
+    var bounce = Math.abs(Math.sin(b * 2));
+    var lean = 6 * Math.sin(b + 0.7);
+
+    var hip = { x: 9 * sway, y: -8 - 4 * bounce };
+    var chest = { x: hip.x + lean, y: hip.y - 52 };
+    var neck = { x: chest.x + lean * 0.3, y: chest.y - 9 };
+    var head = { x: neck.x + lean * 0.2, y: neck.y - 15, r: 11 };
+
+    var shL = { x: chest.x - 18, y: chest.y + 5 };
+    var shR = { x: chest.x + 18, y: chest.y + 5 };
+    var hipL = { x: hip.x - 9, y: hip.y };
+    var hipR = { x: hip.x + 9, y: hip.y };
+
+    // braços alternados: um sobe enquanto o outro desce
+    var upL = Math.max(0, Math.sin(b));
+    var upR = Math.max(0, -Math.sin(b));
+    var armL = -0.6 - 1.7 * upL + 0.16 * Math.sin(b * 2);
+    var armR = 0.6 + 1.7 * upR - 0.16 * Math.sin(b * 2);
+    var elbowL = 0.5 + 0.55 * Math.sin(b + 0.9);
+    var elbowR = 0.5 + 0.55 * Math.sin(b + 2.4);
+
+    // pernas: joelho alto alternado
+    var kickL = Math.max(0, Math.sin(b + 0.4));
+    var kickR = Math.max(0, -Math.sin(b + 0.4));
+    var thighL = -0.12 - 0.52 * kickL;
+    var thighR = 0.12 + 0.52 * kickR;
+    var kneeL = 0.16 + 1.2 * kickL;
+    var kneeR = 0.16 + 1.2 * kickR;
+
+    var elbowLeft = add(shL, vec(armL, 26));
+    var handLeft = add(elbowLeft, vec(armL + elbowL, 24));
+    var elbowRight = add(shR, vec(armR, 26));
+    var handRight = add(elbowRight, vec(armR - elbowR, 24));
+
+    var kneeLeft = add(hipL, vec(thighL, 30));
+    var footLeft = add(kneeLeft, vec(thighL + kneeL, 28));
+    var kneeRight = add(hipR, vec(thighR, 30));
+    var footRight = add(kneeRight, vec(thighR - kneeR, 28));
+
+    return {
+      hip: hip, chest: chest, neck: neck, head: head,
+      shL: shL, shR: shR, hipL: hipL, hipR: hipR,
+      elbowLeft: elbowLeft, handLeft: handLeft,
+      elbowRight: elbowRight, handRight: handRight,
+      kneeLeft: kneeLeft, footLeft: footLeft,
+      kneeRight: kneeRight, footRight: footRight
+    };
+  }
+
+  function traceBody(p) {
+    ctx.beginPath();
+    ctx.moveTo(p.hipL.x, p.hipL.y);
+    ctx.lineTo(p.hipR.x, p.hipR.y);
+    ctx.moveTo(p.hip.x, p.hip.y);
+    ctx.lineTo(p.chest.x, p.chest.y);
+    ctx.lineTo(p.neck.x, p.neck.y);
+    ctx.moveTo(p.shL.x, p.shL.y);
+    ctx.lineTo(p.chest.x, p.chest.y);
+    ctx.lineTo(p.shR.x, p.shR.y);
+    ctx.stroke();
+  }
+
+  function traceLimb(a, b, c) {
+    ctx.beginPath();
+    ctx.moveTo(a.x, a.y);
+    ctx.lineTo(b.x, b.y);
+    ctx.lineTo(c.x, c.y);
+    ctx.stroke();
+  }
+
+  function drawDancer(p, alpha) {
+    ctx.save();
+    ctx.translate(originX, originY);
+    ctx.scale(scale, scale);
+    ctx.lineCap = "round";
+    ctx.lineJoin = "round";
+
+    // halo/brilho
+    ctx.globalAlpha = alpha * 0.85;
+    ctx.shadowColor = "rgba(255, 96, 70, .95)";
+    ctx.shadowBlur = 20;
+    ctx.strokeStyle = "rgba(255, 130, 95, .55)";
+    ctx.lineWidth = 11;
+    traceBody(p);
+    traceLimb(p.shL, p.elbowLeft, p.handLeft);
+    traceLimb(p.shR, p.elbowRight, p.handRight);
+    traceLimb(p.hipL, p.kneeLeft, p.footLeft);
+    traceLimb(p.hipR, p.kneeRight, p.footRight);
+    ctx.beginPath();
+    ctx.arc(p.head.x, p.head.y, p.head.r, 0, Math.PI * 2);
+    ctx.stroke();
+
+    // traço principal
+    ctx.shadowBlur = 8;
+    ctx.shadowColor = "rgba(255, 170, 130, .65)";
+    ctx.strokeStyle = "rgba(255, 249, 244, " + alpha + ")";
+    ctx.lineWidth = 5.5;
+    traceBody(p);
+    traceLimb(p.shL, p.elbowLeft, p.handLeft);
+    traceLimb(p.shR, p.elbowRight, p.handRight);
+    traceLimb(p.hipL, p.kneeLeft, p.footLeft);
+    traceLimb(p.hipR, p.kneeRight, p.footRight);
+    ctx.beginPath();
+    ctx.arc(p.head.x, p.head.y, p.head.r, 0, Math.PI * 2);
+    ctx.stroke();
+
+    // juntas
+    ctx.shadowBlur = 0;
+    ctx.fillStyle = "rgba(255, 225, 210, " + alpha + ")";
+    var joints = [p.shL, p.shR, p.elbowLeft, p.elbowRight, p.handLeft, p.handRight,
+      p.kneeLeft, p.kneeRight, p.footLeft, p.footRight];
+    for (var i = 0; i < joints.length; i++) {
+      ctx.beginPath();
+      ctx.arc(joints[i].x, joints[i].y, 2.4, 0, Math.PI * 2);
+      ctx.fill();
+    }
+
+    ctx.restore();
+    ctx.globalAlpha = 1;
+  }
+
+  /* ---------- loop ---------- */
+
+  function render() {
+    ctx.clearRect(0, 0, W, H);
+    drawSky();
+    drawHorizonGlow();
+    drawFloor();
+    drawDancer(pose(t), 1);
+  }
+
+  function frame(now) {
+    if (!running) return;
+    if (!last) last = now;
+    var dt = Math.min((now - last) / 1000, 0.05);
+    last = now;
+    t += dt;
+    render();
+    raf = requestAnimationFrame(frame);
+  }
+
+  function start() {
+    if (reduceMotion || running) {
+      if (reduceMotion) { t = 0.8; render(); }
+      return;
+    }
+    running = true;
+    last = 0;
+    raf = requestAnimationFrame(frame);
+  }
+
+  function stop() {
+    running = false;
+    if (raf) cancelAnimationFrame(raf);
+    raf = 0;
+  }
+
+  window.addEventListener("resize", function () {
+    resize();
+    if (reduceMotion) render();
+  });
+
+  document.addEventListener("visibilitychange", function () {
+    if (document.hidden) stop();
+    else start();
+  });
+
+  resize();
+  start();
+})();
 </script>
 </body>
 </html>
