@@ -13,8 +13,9 @@
 (function () {
   "use strict";
 
-  // Endereço do painel de analytics (relativo à pasta atual da plataforma).
-  const URL_ANALYTICS = "menu/";
+  // Endereço do painel de analytics. Caminho absoluto a partir da raiz do site, pois
+  // a plataforma está em /programador/ e o menu em /menu/ (pasta irmã).
+  const URL_ANALYTICS = "/menu/";
 
   const STATUS_FALHA = /erro|falh|fail|error/i;
   const STATUS_CONCLUIDO = /publicad|enviad|sucesso|success|done|conclu/i;
