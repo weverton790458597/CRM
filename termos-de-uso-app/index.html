@@ -1,143 +1,162 @@
 <!DOCTYPE html>
-<html lang="pt-BR">
+<html lang="en">
 <head>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Termos de Uso App</title>
-    <style>
-        * {
-            box-sizing: border-box;
-            margin: 0;
-            padding: 0;
-        }
-        body {
-            font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
-            background-color: #f3f4f6;
-            color: #111827;
-            display: flex;
-            justify-content: center;
-            align-items: flex-start;
-            min-height: 100vh;
-            padding: 40px 20px;
-        }
-        .container {
-            background-color: #ffffff;
-            width: 100%;
-            max-width: 680px;
-            border-radius: 24px;
-            padding: 40px 32px;
-            box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.05), 0 2px 4px -1px rgba(0, 0, 0, 0.03);
-            border: 1px solid #e5e7eb;
-        }
-        h1 {
-            color: #0d1b4a;
-            font-size: 42px;
-            font-weight: 700;
-            margin-bottom: 24px;
-            letter-spacing: -0.5px;
-        }
-        .subtitle {
-            font-size: 15px;
-            font-weight: bold;
-            color: #374151;
-            margin-bottom: 12px;
-        }
-        .intro {
-            font-size: 15px;
-            line-height: 1.5;
-            color: #374151;
-            margin-bottom: 24px;
-        }
-        .section {
-            margin-bottom: 20px;
-        }
-        h2 {
-            font-size: 15px;
-            font-weight: bold;
-            color: #111827;
-            margin-bottom: 4px;
-        }
-        p {
-            font-size: 15px;
-            line-height: 1.5;
-            color: #374151;
-            margin-bottom: 8px;
-        }
-        p:last-child {
-            margin-bottom: 0;
-        }
-        .contact-info {
-            display: flex;
-            flex-direction: column;
-            gap: 8px;
-            margin-top: 8px;
-        }
-        .contact-item {
-            display: flex;
-            align-items: center;
-            gap: 8px;
-            font-size: 15px;
-            color: #374151;
-        }
-        .contact-item a {
-            color: #111827;
-            text-decoration: none;
-        }
-        .contact-item a:hover {
-            text-decoration: underline;
-        }
-    </style>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Terms of Service — Evrix Social</title>
+<meta name="description" content="Terms of Service of Evrix Social, a multi-channel video scheduling dashboard.">
+<link rel="icon" href="/favicon.ico" sizes="any">
+<link rel="icon" type="image/png" href="/favicon.png">
+<style>
+  *{box-sizing:border-box}
+  body{margin:0;font-family:-apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,Helvetica,Arial,sans-serif;background:#f3f4f6;color:#111827;padding:32px 16px;line-height:1.65}
+  .container{max-width:760px;margin:0 auto;background:#fff;border:1px solid #e5e7eb;border-radius:20px;padding:36px 30px;box-shadow:0 4px 8px -2px rgba(0,0,0,.06)}
+  .bar{display:flex;justify-content:space-between;align-items:center;gap:12px;flex-wrap:wrap;margin-bottom:18px;font-size:14px}
+  .bar a{color:#2563eb;text-decoration:none}.bar a:hover{text-decoration:underline}
+  .lang{background:#fff;border:1px solid #d1d5db;border-radius:999px;padding:5px 14px;font-size:12px;font-weight:600;cursor:pointer;color:#374151}
+  h1{color:#0d1b4a;font-size:34px;margin:0 0 6px;letter-spacing:-.4px}
+  h2{color:#0d1b4a;font-size:18px;margin:28px 0 8px}
+  p,li{font-size:15px;color:#374151}
+  p{margin:0 0 12px}
+  ul{margin:0 0 12px 20px;padding:0}li{margin-bottom:6px}
+  .meta{color:#6b7280;font-size:13px;margin-bottom:18px}
+  a{color:#2563eb}
+  html[lang="en"] [data-l="pt"]{display:none}
+  html[lang="pt-BR"] [data-l="en"]{display:none}
+</style>
 </head>
 <body>
+<div class="container">
+  <div class="bar">
+    <a href="/">← Evrix Social</a>
+    <button class="lang" id="langBtn" type="button" aria-label="Change language">PT</button>
+  </div>
 
-    <div class="container">
-        <h1>termos de uso app</h1>
-        
-        <div class="subtitle">Termos de Uso – nativeapi_ofcluiz</div>
-        <p class="intro">Estes Termos regulam o uso do aplicativo NativeAPI e dos serviços de integração com a API do WhatsApp Business.</p>
+  <!-- ===================== ENGLISH ===================== -->
+  <div data-l="en">
+    <h1>Terms of Service</h1>
+    <p class="meta">Last updated: November 15, 2026</p>
 
-        <div class="section">
-            <h2>1. Aceitação</h2>
-            <p>Ao utilizar o NativeAPI, você concorda com estes Termos. Caso não concorde, não utilize o serviço.</p>
-        </div>
+    <p>These Terms govern your use of <strong>Evrix Social</strong>, available at <a href="https://evrix.hubbio.shop">https://evrix.hubbio.shop</a>, operated by <strong>DIGITAL PERFORMANCE CONSULTING LTDA</strong> ("Company", "we"). By creating an account or using the service you agree to these Terms and to our <a href="/politica-privacidade/">Privacy Policy</a>. If you do not agree, do not use the service.</p>
 
-        <div class="section">
-            <h2>2. Escopo dos serviços</h2>
-            <p>Integração com a API oficial do WhatsApp Business.</p>
-            <p>O usuário deve possuir conta de WhatsApp Business válida e respeitar as Políticas da Meta.</p>
-            <p>O uso indevido poderá resultar na suspensão do serviço.</p>
-        </div>
+    <h2>1. The service</h2>
+    <p>Evrix Social is a dashboard that lets you upload videos, write titles or captions, and schedule their publication to your own TikTok, YouTube and Instagram accounts that you connect to the service.</p>
 
-        <div class="section">
-            <h2>3. Obrigações do usuário</h2>
-            <p>Fornecer informações verdadeiras e atualizadas.</p>
-            <p>Não usar o serviço para spam, fraude ou atividades ilegais.</p>
-            <p>Respeitar as políticas de uso do WhatsApp Business.</p>
-        </div>
+    <h2>2. Eligibility and account</h2>
+    <p>You must be at least 18 years old and able to enter into a binding agreement. You are responsible for keeping your sign-in credentials confidential and for all activity under your account. Provide accurate and up-to-date information.</p>
 
-        <div class="section">
-            <h2>4. Limitações de responsabilidade</h2>
-            <p>Não garantimos disponibilidade ininterrupta do serviço, pois dependemos da infraestrutura da Meta.</p>
-            <p>Não nos responsabilizamos por danos indiretos ou uso indevido do serviço pelos usuários.</p>
-        </div>
+    <h2>3. Connected accounts and third-party platforms</h2>
+    <ul>
+      <li>You may connect only accounts that you own or are authorized to manage.</li>
+      <li>Connection happens through each platform's official authorization screen. You can disconnect an account at any time in the dashboard or in the platform's own settings.</li>
+      <li>Your use of TikTok, YouTube and Instagram remains subject to their own terms, community guidelines and policies, which you must follow. Evrix Social is independent and is not affiliated with, endorsed by or sponsored by those platforms.</li>
+      <li>We publish content only at the date and time you schedule and only to the platforms you select.</li>
+    </ul>
 
-        <div class="section">
-            <h2>5. Alterações</h2>
-            <p>Os Termos poderão ser atualizados a qualquer momento. A versão mais recente estará sempre publicada em nosso site.</p>
-        </div>
+    <h2>4. Your content</h2>
+    <p>You keep all rights to the videos, titles and captions you upload ("Your Content"). You grant us a limited, non-exclusive license to store, process and transmit Your Content solely to provide the service, that is, to prepare and publish your scheduled posts. You are solely responsible for Your Content and confirm that you have the rights needed to publish it (including any music, images and other third-party material) and that it complies with the law and with each platform's rules.</p>
 
-        <div class="section">
-            <h2>6. Contato</h2>
-            <div class="contact-info">
-                <div class="contact-item">
-                    <span>📧</span> E-mail: <a href="mailto:ma.imoveis.slz@gmail.com">ma.imoveis.slz@gmail.com</a>
-                </div>
-                <div class="contact-item">
-                    <span>🌐</span> Site: <a href="https://www.evrix.shop/" target="_blank">https://www.evrix.shop/</a>
-                </div>
-            </div>
-        </div>
-    </div>
+    <h2>5. Acceptable use</h2>
+    <p>You agree not to:</p>
+    <ul>
+      <li>use the service for spam, fraud, deception, or any unlawful activity;</li>
+      <li>publish content that is illegal, hateful, violent, sexually exploitative, or that infringes others' rights;</li>
+      <li>attempt to circumvent platform limits, restrictions or review processes, or to manipulate engagement artificially;</li>
+      <li>interfere with, probe or attack the service, its security or its infrastructure, or access it by unauthorized means;</li>
+      <li>use the service for accounts you do not own or are not authorized to manage.</li>
+    </ul>
+    <p>We may suspend or remove access, and delete scheduled posts, if these rules are violated or if a platform requires it.</p>
 
+    <h2>6. Availability and changes to the service</h2>
+    <p>The service depends on third-party platforms and their APIs, which can change, limit or fail. Therefore we do not guarantee uninterrupted availability or that every scheduled post will be published successfully. We may modify or discontinue features at any time.</p>
+
+    <h2>7. Termination</h2>
+    <p>You may stop using the service and request deletion of your account and data at any time through the contact below. We may suspend or terminate your access if you breach these Terms or if required by law or by a platform.</p>
+
+    <h2>8. Disclaimer and limitation of liability</h2>
+    <p>The service is provided "as is" and "as available". To the maximum extent permitted by law, we are not liable for indirect or consequential damages, loss of revenue or audience, content removed or accounts restricted by a platform, or failures caused by third-party services. Nothing in these Terms excludes liability that cannot be excluded by law.</p>
+
+    <h2>9. Changes to these Terms</h2>
+    <p>We may update these Terms from time to time. The latest version is always published on this page. Continued use after an update means you accept the new Terms.</p>
+
+    <h2>10. Governing law</h2>
+    <p>These Terms are governed by the laws of Brazil. Any dispute will be submitted to the courts of the city of São Luís, Maranhão, Brazil, unless mandatory consumer law provides otherwise.</p>
+
+    <h2>11. Contact</h2>
+    <p>Questions about these Terms: <a href="mailto:ma.imoveis.slz@gmail.com">ma.imoveis.slz@gmail.com</a> · <a href="https://evrix.hubbio.shop">https://evrix.hubbio.shop</a></p>
+  </div>
+
+  <!-- ===================== PORTUGUÊS ===================== -->
+  <div data-l="pt">
+    <h1>Termos de Uso</h1>
+    <p class="meta">Última atualização: 15 de novembro de 2026</p>
+
+    <p>Estes Termos regulam o uso do <strong>Evrix Social</strong>, disponível em <a href="https://evrix.hubbio.shop">https://evrix.hubbio.shop</a>, operado pela <strong>DIGITAL PERFORMANCE CONSULTING LTDA</strong> ("Empresa", "nós"). Ao criar uma conta ou usar o serviço, você concorda com estes Termos e com nossa <a href="/politica-privacidade/">Política de Privacidade</a>. Se não concordar, não utilize o serviço.</p>
+
+    <h2>1. O serviço</h2>
+    <p>O Evrix Social é um painel que permite enviar vídeos, escrever títulos ou legendas e agendar a publicação em contas suas do TikTok, YouTube e Instagram que você conecta ao serviço.</p>
+
+    <h2>2. Elegibilidade e conta</h2>
+    <p>Você deve ter pelo menos 18 anos e capacidade para firmar um contrato. Você é responsável por manter suas credenciais de acesso em sigilo e por toda atividade realizada na sua conta. Forneça informações verdadeiras e atualizadas.</p>
+
+    <h2>3. Contas conectadas e plataformas de terceiros</h2>
+    <ul>
+      <li>Você só pode conectar contas que sejam suas ou que esteja autorizado a gerenciar.</li>
+      <li>A conexão é feita pela tela oficial de autorização de cada plataforma. Você pode desconectar uma conta a qualquer momento no painel ou nas configurações da própria plataforma.</li>
+      <li>O uso do TikTok, YouTube e Instagram continua sujeito aos termos, diretrizes e políticas de cada um, que você deve cumprir. O Evrix Social é independente e não é afiliado, endossado nem patrocinado por essas plataformas.</li>
+      <li>Publicamos conteúdo apenas na data e hora que você agendar e somente nas plataformas que selecionar.</li>
+    </ul>
+
+    <h2>4. Seu conteúdo</h2>
+    <p>Você mantém todos os direitos sobre os vídeos, títulos e legendas que envia ("Seu Conteúdo"). Você nos concede uma licença limitada e não exclusiva para armazenar, processar e transmitir Seu Conteúdo exclusivamente para prestar o serviço, ou seja, preparar e publicar seus posts agendados. Você é o único responsável por Seu Conteúdo e declara possuir os direitos necessários para publicá-lo (incluindo músicas, imagens e outros materiais de terceiros) e que ele cumpre a lei e as regras de cada plataforma.</p>
+
+    <h2>5. Uso aceitável</h2>
+    <p>Você concorda em não:</p>
+    <ul>
+      <li>usar o serviço para spam, fraude, engano ou qualquer atividade ilegal;</li>
+      <li>publicar conteúdo ilegal, de ódio, violento, de exploração sexual ou que viole direitos de terceiros;</li>
+      <li>tentar burlar limites, restrições ou processos de análise das plataformas, nem manipular engajamento artificialmente;</li>
+      <li>interferir, sondar ou atacar o serviço, sua segurança ou sua infraestrutura, ou acessá-lo por meios não autorizados;</li>
+      <li>usar o serviço com contas que não sejam suas ou que você não esteja autorizado a gerenciar.</li>
+    </ul>
+    <p>Podemos suspender ou remover o acesso e apagar posts agendados se essas regras forem violadas ou se uma plataforma exigir.</p>
+
+    <h2>6. Disponibilidade e alterações no serviço</h2>
+    <p>O serviço depende de plataformas de terceiros e de suas APIs, que podem mudar, impor limites ou falhar. Por isso não garantimos disponibilidade ininterrupta nem que todo post agendado será publicado com sucesso. Podemos modificar ou descontinuar funções a qualquer momento.</p>
+
+    <h2>7. Encerramento</h2>
+    <p>Você pode deixar de usar o serviço e solicitar a exclusão da sua conta e dos seus dados a qualquer momento pelo contato abaixo. Podemos suspender ou encerrar seu acesso se você descumprir estes Termos ou se a lei ou uma plataforma exigir.</p>
+
+    <h2>8. Isenção e limitação de responsabilidade</h2>
+    <p>O serviço é fornecido "como está" e "conforme disponível". Na máxima extensão permitida por lei, não nos responsabilizamos por danos indiretos ou consequentes, perda de receita ou audiência, conteúdo removido ou contas restringidas por uma plataforma, nem por falhas causadas por serviços de terceiros. Nada nestes Termos exclui responsabilidade que não possa ser excluída por lei.</p>
+
+    <h2>9. Alterações nestes Termos</h2>
+    <p>Podemos atualizar estes Termos periodicamente. A versão mais recente sempre ficará publicada nesta página. O uso continuado após uma atualização significa que você aceita os novos Termos.</p>
+
+    <h2>10. Lei aplicável</h2>
+    <p>Estes Termos são regidos pelas leis do Brasil. Qualquer disputa será submetida ao foro da comarca de São Luís, Maranhão, salvo se a legislação consumerista obrigatória dispuser de outra forma.</p>
+
+    <h2>11. Contato</h2>
+    <p>Dúvidas sobre estes Termos: <a href="mailto:ma.imoveis.slz@gmail.com">ma.imoveis.slz@gmail.com</a> · <a href="https://evrix.hubbio.shop">https://evrix.hubbio.shop</a></p>
+  </div>
+</div>
+
+<script>
+(function(){
+  "use strict";
+  function apply(l){
+    document.documentElement.lang = l === "pt" ? "pt-BR" : "en";
+    document.title = l === "pt" ? "Termos de Uso — Evrix Social" : "Terms of Service — Evrix Social";
+    document.getElementById("langBtn").textContent = l === "pt" ? "EN" : "PT";
+    try { localStorage.setItem("evrix_lang", l); } catch(_){}
+  }
+  var s = null;
+  try { s = localStorage.getItem("evrix_lang"); } catch(_){}
+  apply(s || ((navigator.language || "en").toLowerCase().indexOf("pt") === 0 ? "pt" : "en"));
+  document.getElementById("langBtn").addEventListener("click", function(){
+    apply(document.documentElement.lang === "pt-BR" ? "en" : "pt");
+  });
+})();
+</script>
 </body>
 </html>
