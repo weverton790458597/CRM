@@ -1,0 +1,431 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Evrix Social — Programador</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@500;600;700&display=swap" rel="stylesheet">
+<style>
+  :root {
+    --bg: #05030b;
+    --ember: #ff6b35;
+    --ember-2: #ffa06b;
+    --text: #f7f4f0;
+  }
+  * { box-sizing: border-box; }
+  html, body {
+    margin: 0;
+    padding: 0;
+    height: 100%;
+    background: var(--bg);
+    overflow: hidden;
+  }
+  body {
+    font-family: 'Space Grotesk', 'Inter', sans-serif;
+    color: var(--text);
+  }
+  #scene {
+    position: fixed;
+    inset: 0;
+    display: block;
+    width: 100vw;
+    height: 100vh;
+  }
+  .vignette {
+    position: fixed;
+    inset: 0;
+    pointer-events: none;
+    background: radial-gradient(115% 85% at 50% 48%, transparent 38%, rgba(3, 2, 8, .55) 76%, rgba(3, 2, 8, .92) 100%);
+  }
+  #cta {
+    position: fixed;
+    top: 24px;
+    right: 26px;
+    z-index: 10;
+    display: inline-flex;
+    align-items: center;
+    gap: 8px;
+    padding: 12px 22px;
+    border-radius: 999px;
+    font-family: inherit;
+    font-size: 12px;
+    font-weight: 600;
+    letter-spacing: .14em;
+    text-transform: uppercase;
+    text-decoration: none;
+    color: #1b0e07;
+    background: linear-gradient(140deg, var(--ember-2), var(--ember));
+    box-shadow: 0 14px 28px -16px rgba(255, 107, 53, .95), 0 0 0 1px rgba(255, 255, 255, .14) inset;
+    transition: transform .22s cubic-bezier(.22, .8, .24, 1), box-shadow .22s;
+  }
+  #cta:hover {
+    transform: translateY(-2px);
+    box-shadow: 0 18px 34px -14px rgba(255, 107, 53, 1), 0 0 0 1px rgba(255, 255, 255, .2) inset;
+  }
+  #cta:active { transform: translateY(0) scale(.98); }
+  #cta:focus-visible {
+    outline: 2px solid #ffd9c4;
+    outline-offset: 3px;
+  }
+  .sr-only {
+    position: absolute;
+    width: 1px;
+    height: 1px;
+    padding: 0;
+    margin: -1px;
+    overflow: hidden;
+    clip: rect(0 0 0 0);
+    white-space: nowrap;
+    border: 0;
+  }
+  @media (max-width: 520px) {
+    #cta { top: 16px; right: 16px; padding: 11px 17px; font-size: 10.5px; letter-spacing: .1em; }
+  }
+</style>
+</head>
+<body>
+<canvas id="scene" aria-hidden="true"></canvas>
+<div class="vignette" aria-hidden="true"></div>
+<a id="cta" href="programador/">Entrar no Programador</a>
+<h1 class="sr-only">Evrix Social — Central de Programação</h1>
+
+<script>
+(function () {
+  "use strict";
+
+  var canvas = document.getElementById("scene");
+  var ctx = canvas.getContext("2d");
+  var reduceMotion = window.matchMedia("(prefers-reduced-motion: reduce)").matches;
+
+  var W = 0, H = 0, DPR = 1, scale = 2, originX = 0, originY = 0, horizon = 0;
+  var t = 0, raf = 0, last = 0, running = false;
+  var stars = [];
+
+  /* ---------- utilidades ---------- */
+
+  function line(x1, y1, x2, y2) {
+    ctx.beginPath();
+    ctx.moveTo(x1, y1);
+    ctx.lineTo(x2, y2);
+    ctx.stroke();
+  }
+
+  function vec(angle, len) {
+    return { x: Math.sin(angle) * len, y: Math.cos(angle) * len };
+  }
+
+  function add(p, q) {
+    return { x: p.x + q.x, y: p.y + q.y };
+  }
+
+  function seedStars() {
+    stars = [];
+    var seed = 9173;
+    function rnd() {
+      seed = (seed * 1103515245 + 12345) & 0x7fffffff;
+      return seed / 0x7fffffff;
+    }
+    var count = Math.round(Math.min(140, W * H / 9000));
+    for (var i = 0; i < count; i++) {
+      stars.push({
+        x: rnd() * W,
+        y: rnd() * horizon * 0.92,
+        r: 0.4 + rnd() * 1.3,
+        a: 0.15 + rnd() * 0.5,
+        ph: rnd() * Math.PI * 2,
+        sp: 0.4 + rnd() * 1.2
+      });
+    }
+  }
+
+  function resize() {
+    DPR = Math.min(window.devicePixelRatio || 1, 2);
+    W = window.innerWidth;
+    H = window.innerHeight;
+    canvas.width = Math.floor(W * DPR);
+    canvas.height = Math.floor(H * DPR);
+    canvas.style.width = W + "px";
+    canvas.style.height = H + "px";
+    ctx.setTransform(DPR, 0, 0, DPR, 0, 0);
+
+    horizon = Math.round(H * 0.56);
+    scale = Math.max(1, Math.min(H * 0.52, W * 0.62) / 150);
+    originX = W / 2;
+    originY = H * 0.80 - 50 * scale;
+
+    seedStars();
+  }
+
+  /* ---------- cenário ---------- */
+
+  function drawSky() {
+    var sky = ctx.createLinearGradient(0, 0, 0, horizon);
+    sky.addColorStop(0, "#04030a");
+    sky.addColorStop(0.42, "#0a0618");
+    sky.addColorStop(0.76, "#1b0a2e");
+    sky.addColorStop(1, "#3a1245");
+    ctx.fillStyle = sky;
+    ctx.fillRect(0, 0, W, horizon + 1);
+
+    for (var i = 0; i < stars.length; i++) {
+      var s = stars[i];
+      var tw = 0.65 + 0.35 * Math.sin(t * s.sp + s.ph);
+      ctx.globalAlpha = s.a * tw;
+      ctx.fillStyle = "#e7ecff";
+      ctx.beginPath();
+      ctx.arc(s.x, s.y, s.r, 0, Math.PI * 2);
+      ctx.fill();
+    }
+    ctx.globalAlpha = 1;
+  }
+
+  function drawHorizonGlow() {
+    var bloom = ctx.createRadialGradient(W / 2, horizon, 0, W / 2, horizon, Math.max(W, H) * 0.62);
+    bloom.addColorStop(0, "rgba(255, 70, 120, .38)");
+    bloom.addColorStop(0.28, "rgba(190, 40, 150, .20)");
+    bloom.addColorStop(0.62, "rgba(60, 20, 90, .07)");
+    bloom.addColorStop(1, "rgba(5, 3, 11, 0)");
+    ctx.fillStyle = bloom;
+    ctx.fillRect(0, 0, W, horizon + 2);
+
+    var band = ctx.createLinearGradient(0, horizon - 46, 0, horizon + 2);
+    band.addColorStop(0, "rgba(255, 120, 90, 0)");
+    band.addColorStop(0.7, "rgba(255, 110, 140, .16)");
+    band.addColorStop(1, "rgba(255, 200, 180, .45)");
+    ctx.fillStyle = band;
+    ctx.fillRect(0, horizon - 46, W, 48);
+
+    ctx.strokeStyle = "rgba(255, 196, 176, .80)";
+    ctx.lineWidth = 1.2;
+    line(0, horizon + 0.5, W, horizon + 0.5);
+  }
+
+  function drawFloor() {
+    var floor = ctx.createLinearGradient(0, horizon, 0, H);
+    floor.addColorStop(0, "#170a24");
+    floor.addColorStop(0.55, "#0a0514");
+    floor.addColorStop(1, "#05030b");
+    ctx.fillStyle = floor;
+    ctx.fillRect(0, horizon, W, H - horizon);
+
+    ctx.save();
+    ctx.beginPath();
+    ctx.rect(0, horizon, W, H - horizon);
+    ctx.clip();
+
+    // linhas horizontais em perspectiva, rolando na direção do espectador
+    var rows = 24;
+    var scroll = (t * 0.22) % 1;
+    for (var i = 0; i < rows; i++) {
+      var f = (i + scroll) / rows;
+      var y = horizon + Math.pow(f, 2.3) * (H - horizon + 30);
+      var alpha = 0.03 + f * 0.30;
+      ctx.strokeStyle = "rgba(34, 211, 238, " + alpha.toFixed(3) + ")";
+      ctx.lineWidth = 0.6 + f * 1.2;
+      line(0, y, W, y);
+    }
+
+    // linhas verticais convergindo no ponto de fuga
+    var cols = 20;
+    for (var k = -cols; k <= cols; k++) {
+      var bx = W / 2 + (k / cols) * W * 1.35;
+      var edge = 1 - Math.min(1, Math.abs(k) / cols);
+      ctx.strokeStyle = "rgba(34, 211, 238, " + (0.10 + edge * 0.16).toFixed(3) + ")";
+      ctx.lineWidth = 0.9;
+      line(W / 2, horizon, bx, H);
+    }
+
+    // brilho de piso sob o boneco
+    var groundY = originY + 48 * scale;
+    var glow = ctx.createRadialGradient(W / 2, groundY, 0, W / 2, groundY, 190);
+    glow.addColorStop(0, "rgba(255, 90, 70, .18)");
+    glow.addColorStop(0.55, "rgba(160, 40, 120, .07)");
+    glow.addColorStop(1, "rgba(5, 3, 11, 0)");
+    ctx.fillStyle = glow;
+    ctx.beginPath();
+    ctx.ellipse(W / 2, groundY, 190, 44, 0, 0, Math.PI * 2);
+    ctx.fill();
+
+    ctx.restore();
+  }
+
+  /* ---------- boneco ---------- */
+
+  function pose(time) {
+    var b = time * 2.6;
+    var sway = Math.sin(b);
+    var bounce = Math.abs(Math.sin(b * 2));
+    var lean = 6 * Math.sin(b + 0.7);
+
+    var hip = { x: 9 * sway, y: -8 - 4 * bounce };
+    var chest = { x: hip.x + lean, y: hip.y - 52 };
+    var neck = { x: chest.x + lean * 0.3, y: chest.y - 9 };
+    var head = { x: neck.x + lean * 0.2, y: neck.y - 15, r: 11 };
+
+    var shL = { x: chest.x - 18, y: chest.y + 5 };
+    var shR = { x: chest.x + 18, y: chest.y + 5 };
+    var hipL = { x: hip.x - 9, y: hip.y };
+    var hipR = { x: hip.x + 9, y: hip.y };
+
+    // braços alternados: um sobe enquanto o outro desce
+    var upL = Math.max(0, Math.sin(b));
+    var upR = Math.max(0, -Math.sin(b));
+    var armL = -0.6 - 1.7 * upL + 0.16 * Math.sin(b * 2);
+    var armR = 0.6 + 1.7 * upR - 0.16 * Math.sin(b * 2);
+    var elbowL = 0.5 + 0.55 * Math.sin(b + 0.9);
+    var elbowR = 0.5 + 0.55 * Math.sin(b + 2.4);
+
+    // pernas: joelho alto alternado
+    var kickL = Math.max(0, Math.sin(b + 0.4));
+    var kickR = Math.max(0, -Math.sin(b + 0.4));
+    var thighL = -0.12 - 0.52 * kickL;
+    var thighR = 0.12 + 0.52 * kickR;
+    var kneeL = 0.16 + 1.2 * kickL;
+    var kneeR = 0.16 + 1.2 * kickR;
+
+    var elbowLeft = add(shL, vec(armL, 26));
+    var handLeft = add(elbowLeft, vec(armL + elbowL, 24));
+    var elbowRight = add(shR, vec(armR, 26));
+    var handRight = add(elbowRight, vec(armR - elbowR, 24));
+
+    var kneeLeft = add(hipL, vec(thighL, 30));
+    var footLeft = add(kneeLeft, vec(thighL + kneeL, 28));
+    var kneeRight = add(hipR, vec(thighR, 30));
+    var footRight = add(kneeRight, vec(thighR - kneeR, 28));
+
+    return {
+      hip: hip, chest: chest, neck: neck, head: head,
+      shL: shL, shR: shR, hipL: hipL, hipR: hipR,
+      elbowLeft: elbowLeft, handLeft: handLeft,
+      elbowRight: elbowRight, handRight: handRight,
+      kneeLeft: kneeLeft, footLeft: footLeft,
+      kneeRight: kneeRight, footRight: footRight
+    };
+  }
+
+  function traceBody(p) {
+    ctx.beginPath();
+    ctx.moveTo(p.hipL.x, p.hipL.y);
+    ctx.lineTo(p.hipR.x, p.hipR.y);
+    ctx.moveTo(p.hip.x, p.hip.y);
+    ctx.lineTo(p.chest.x, p.chest.y);
+    ctx.lineTo(p.neck.x, p.neck.y);
+    ctx.moveTo(p.shL.x, p.shL.y);
+    ctx.lineTo(p.chest.x, p.chest.y);
+    ctx.lineTo(p.shR.x, p.shR.y);
+    ctx.stroke();
+  }
+
+  function traceLimb(a, b, c) {
+    ctx.beginPath();
+    ctx.moveTo(a.x, a.y);
+    ctx.lineTo(b.x, b.y);
+    ctx.lineTo(c.x, c.y);
+    ctx.stroke();
+  }
+
+  function drawDancer(p, alpha) {
+    ctx.save();
+    ctx.translate(originX, originY);
+    ctx.scale(scale, scale);
+    ctx.lineCap = "round";
+    ctx.lineJoin = "round";
+
+    // halo/brilho
+    ctx.globalAlpha = alpha * 0.85;
+    ctx.shadowColor = "rgba(255, 96, 70, .95)";
+    ctx.shadowBlur = 20;
+    ctx.strokeStyle = "rgba(255, 130, 95, .55)";
+    ctx.lineWidth = 11;
+    traceBody(p);
+    traceLimb(p.shL, p.elbowLeft, p.handLeft);
+    traceLimb(p.shR, p.elbowRight, p.handRight);
+    traceLimb(p.hipL, p.kneeLeft, p.footLeft);
+    traceLimb(p.hipR, p.kneeRight, p.footRight);
+    ctx.beginPath();
+    ctx.arc(p.head.x, p.head.y, p.head.r, 0, Math.PI * 2);
+    ctx.stroke();
+
+    // traço principal
+    ctx.shadowBlur = 8;
+    ctx.shadowColor = "rgba(255, 170, 130, .65)";
+    ctx.strokeStyle = "rgba(255, 249, 244, " + alpha + ")";
+    ctx.lineWidth = 5.5;
+    traceBody(p);
+    traceLimb(p.shL, p.elbowLeft, p.handLeft);
+    traceLimb(p.shR, p.elbowRight, p.handRight);
+    traceLimb(p.hipL, p.kneeLeft, p.footLeft);
+    traceLimb(p.hipR, p.kneeRight, p.footRight);
+    ctx.beginPath();
+    ctx.arc(p.head.x, p.head.y, p.head.r, 0, Math.PI * 2);
+    ctx.stroke();
+
+    // juntas
+    ctx.shadowBlur = 0;
+    ctx.fillStyle = "rgba(255, 225, 210, " + alpha + ")";
+    var joints = [p.shL, p.shR, p.elbowLeft, p.elbowRight, p.handLeft, p.handRight,
+      p.kneeLeft, p.kneeRight, p.footLeft, p.footRight];
+    for (var i = 0; i < joints.length; i++) {
+      ctx.beginPath();
+      ctx.arc(joints[i].x, joints[i].y, 2.4, 0, Math.PI * 2);
+      ctx.fill();
+    }
+
+    ctx.restore();
+    ctx.globalAlpha = 1;
+  }
+
+  /* ---------- loop ---------- */
+
+  function render() {
+    ctx.clearRect(0, 0, W, H);
+    drawSky();
+    drawHorizonGlow();
+    drawFloor();
+    drawDancer(pose(t), 1);
+  }
+
+  function frame(now) {
+    if (!running) return;
+    if (!last) last = now;
+    var dt = Math.min((now - last) / 1000, 0.05);
+    last = now;
+    t += dt;
+    render();
+    raf = requestAnimationFrame(frame);
+  }
+
+  function start() {
+    if (reduceMotion || running) {
+      if (reduceMotion) { t = 0.8; render(); }
+      return;
+    }
+    running = true;
+    last = 0;
+    raf = requestAnimationFrame(frame);
+  }
+
+  function stop() {
+    running = false;
+    if (raf) cancelAnimationFrame(raf);
+    raf = 0;
+  }
+
+  window.addEventListener("resize", function () {
+    resize();
+    if (reduceMotion) render();
+  });
+
+  document.addEventListener("visibilitychange", function () {
+    if (document.hidden) stop();
+    else start();
+  });
+
+  resize();
+  start();
+})();
+</script>
+</body>
+</html>

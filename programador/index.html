@@ -1,0 +1,160 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Evrix Social - Programador de Videos</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@500;600;700&family=Inter:wght@400;500;600;700&family=JetBrains+Mono:wght@400;500;700&display=swap" rel="stylesheet">
+<link rel="icon" href="/favicon.ico" sizes="any">
+<link rel="icon" type="image/png" href="/favicon.png">
+<link rel="apple-touch-icon" href="/apple-touch-icon.png">
+<link rel="stylesheet" href="style.css?v=6">
+<link rel="stylesheet" href="modern.css?v=8">
+</head>
+<body>
+<header class="app-header">
+<div class="brand">
+  <div class="brand-mark" role="button" tabindex="0" title="Atualizar página" aria-label="Atualizar página" onclick="location.reload()" onkeydown="if(event.key==='Enter'||event.key===' '){location.reload();}">
+    <img src="logo.png" alt="Logo Evrix Social" class="brand-logo">
+  </div>
+  <div class="brand-text">
+<h1>Evrix Social</h1>
+<span class="brand-sub">Programador Multi-Canal</span>
+</div>
+</div>
+<div class="header-status">
+<div class="status-pulse"><span class="pulse-dot"></span>Sistema Online</div>
+<span id="liveClock" class="header-clock">--:--:--</span>
+<span id="msg" class="header-msg">Pronto para uso</span>
+</div>
+</header>
+<div class="control-panel">
+<div class="control-group">
+<span class="control-group-label">Conexão Supabase</span>
+<div class="control-group-row">
+<button onclick="testarConexaoSupabase()" class="btn btn-cyan"><svg class="icon" viewBox="0 0 24 24"><path d="M20 11a8 8 0 1 0-2.6 6.2"/><polyline points="20 4 20 11 13 11"/></svg> Testar Conexão</button>
+</div>
+</div>
+<div class="control-divider"></div>
+<div class="control-group">
+<span class="control-group-label">Importação em Lote</span>
+<div class="control-group-row">
+<button onclick="document.getElementById('fileInput').click()" class="btn btn-outline"><svg class="icon" viewBox="0 0 24 24"><rect x="3" y="4" width="18" height="16" rx="2"/><line x1="7" y1="4" x2="7" y2="20"/><line x1="17" y1="4" x2="17" y2="20"/><line x1="3" y1="9" x2="7" y2="9"/><line x1="3" y1="15" x2="7" y2="15"/><line x1="17" y1="9" x2="21" y2="9"/><line x1="17" y1="15" x2="21" y2="15"/></svg> Vídeos (Lote)</button>
+<button onclick="document.getElementById('jsonInput').click()" class="btn btn-success"><svg class="icon" viewBox="0 0 24 24"><path d="M3 6.5A1.5 1.5 0 0 1 4.5 5H9l2 2h8.5A1.5 1.5 0 0 1 21 8.5v10A1.5 1.5 0 0 1 19.5 20h-15A1.5 1.5 0 0 1 3 18.5z"/></svg> Importar JSON (Títulos)</button>
+</div>
+</div>
+<div class="control-divider"></div>
+<div class="control-group">
+<span class="control-group-label">Ações Globais</span>
+<div class="control-group-row">
+<button onclick="selecionarTudoGlobal()" class="btn btn-violet"><svg class="icon" viewBox="0 0 24 24"><circle cx="12" cy="12" r="9"/><polyline points="8 12.5 11 15.5 16 9.5"/></svg> Selecionar Todos os Canais/Redes</button>
+<label class="toolbar-label" for="dataGlobal">Data:</label>
+<input type="date" id="dataGlobal">
+<button onclick="aplicarDataATodos()" class="btn btn-cyan"><svg class="icon" viewBox="0 0 24 24"><rect x="3" y="5" width="18" height="16" rx="2"/><line x1="3" y1="10" x2="21" y2="10"/><line x1="8" y1="3" x2="8" y2="7"/><line x1="16" y1="3" x2="16" y2="7"/></svg> Aplicar Data a Todos</button>
+</div>
+<div class="control-group-row">
+<label class="toolbar-label">Redes:</label>
+<div class="plataformas-select plataformas-select-global">
+<label class="chk-plataforma"><input type="checkbox" id="redeGlobal-youtube"> YT</label>
+<label class="chk-plataforma"><input type="checkbox" id="redeGlobal-instagram"> IG</label>
+<label class="chk-plataforma"><input type="checkbox" id="redeGlobal-tiktok"> TK</label>
+</div>
+<button onclick="aplicarRedesATodos()" class="btn btn-cyan"><svg class="icon" viewBox="0 0 24 24"><circle cx="12" cy="12" r="9"/><polyline points="8 12.5 11 15.5 16 9.5"/></svg> Aplicar Redes a Todos</button>
+</div>
+</div>
+<div class="control-divider"></div>
+<div class="control-group">
+<span class="control-group-label">Horário Padrão</span>
+<div class="control-group-row hp-row">
+<button type="button" class="hp-opt" id="hp-1" onclick="aplicarHorarioPadrao(1)"><b>Padrão 1</b><span>11:00 → --:--</span></button>
+<button type="button" class="hp-opt" id="hp-2" onclick="aplicarHorarioPadrao(2)"><b>Padrão 2</b><span>18:00 → --:--</span></button>
+</div>
+<span class="hp-note">Começa no horário escolhido e soma 5 min por canal, na ordem dos cards.</span>
+</div>
+<div class="control-divider"></div>
+<div class="control-group">
+<span class="control-group-label">Canais</span>
+<div class="control-group-row">
+<button onclick="abrirModalCanal()" class="btn btn-violet"><svg class="icon" viewBox="0 0 24 24"><circle cx="12" cy="12" r="9"/><line x1="12" y1="8" x2="12" y2="16"/><line x1="8" y1="12" x2="16" y2="12"/></svg> + Adicionar Canal</button>
+</div>
+</div>
+<div class="control-group">
+<span class="control-group-label">Acompanhamento</span>
+<div class="control-group-row">
+<button onclick="abrirPainelAgendados()" class="btn btn-cyan"><svg class="icon" viewBox="0 0 24 24"><rect x="3" y="5" width="18" height="16" rx="2"/><line x1="3" y1="10" x2="21" y2="10"/><line x1="8" y1="3" x2="8" y2="7"/><line x1="16" y1="3" x2="16" y2="7"/><polyline points="9 15 11 17 15 13"/></svg> Posts Agendados</button>
+<button onclick="abrirAnalytics()" class="btn btn-success"><svg class="icon" viewBox="0 0 24 24"><line x1="5" y1="20" x2="5" y2="11"/><line x1="12" y1="20" x2="12" y2="5"/><line x1="19" y1="20" x2="19" y2="14"/></svg> Analytics</button>
+</div>
+</div>
+<div class="control-divider"></div>
+<div class="control-group">
+<div class="control-group-row">
+<button onclick="randomizarHorariosAntiShadowban()" class="btn btn-violet"><svg class="icon" viewBox="0 0 24 24"><polyline points="16 3 21 3 21 8"/><line x1="4" y1="20" x2="21" y2="3"/><polyline points="21 16 21 21 16 21"/><line x1="15" y1="15" x2="21" y2="21"/><line x1="4" y1="4" x2="9" y2="9"/></svg> Anti-Shadowban</button>
+<button onclick="document.getElementById('historicoJsonInput').click()" class="btn btn-outline"><svg class="icon" viewBox="0 0 24 24"><path d="M3 6.5A1.5 1.5 0 0 1 4.5 5H9l2 2h8.5A1.5 1.5 0 0 1 21 8.5v10A1.5 1.5 0 0 1 19.5 20h-15A1.5 1.5 0 0 1 3 18.5z"/></svg> Adicionar JSON</button>
+<input id="historicoJsonInput" type="file" accept=".json" multiple style="display:none" onchange="processarUploadHistoricoJson(this.files)">
+</div>
+</div>
+<div class="control-group control-group-fire">
+<button onclick="dispararProgramacao()" class="btn btn-fire"><svg class="icon" viewBox="0 0 24 24"><path d="M12 2.5c2.6 2 4.2 5.1 4.2 8.6 0 2-.6 3.9-1.7 5.5l-2.5 3-2.5-3a9.4 9.4 0 0 1-1.7-5.5c0-3.5 1.6-6.6 4.2-8.6z"/><circle cx="12" cy="10.5" r="1.7"/><path d="M8.7 16.3L6 18l.6-3"/><path d="M15.3 16.3L18 18l-.6-3"/></svg> Disparar Programação</button>
+</div>
+<input id="fileInput" type="file" accept="video/*" multiple style="display:none" onchange="processarArquivosVideo(this.files)">
+<input id="jsonInput" type="file" accept=".json" style="display:none" onchange="processarArquivoJson(this.files[0])">
+</div>
+<div id="globalDrop">Solte os vídeos ou o arquivo JSON aqui — o sistema organizará tudo!</div>
+
+<div id="modal-canal" class="modal-overlay modal-canal-overlay">
+  <div class="modal-box modal-canal-box">
+    <div class="modal-head">
+      <h2>+ Adicionar Canal (Supabase)</h2>
+      <p>O novo canal será inserido diretamente na tabela <strong>conexoes_canais</strong> e os cards e trilhos serão recarregados automaticamente.</p>
+    </div>
+    <div class="modal-body modal-canal-body">
+      <div class="form-grid">
+        <label class="form-field">
+          <span class="field-label">Nome do Canal</span>
+          <input id="nc-nome" type="text" class="nc-input" placeholder="Ex: Alvox" autocomplete="off">
+        </label>
+        <label class="form-field">
+          <span class="field-label">ID do Canal / Slug</span>
+          <input id="nc-id" type="text" class="nc-input" placeholder="Ex: alvox" autocomplete="off">
+        </label>
+        <label class="form-field" style="display:none">
+          <span class="field-label">Faixa</span>
+          <select id="nc-faixa" class="nc-input nc-select">
+            <option value="manha">Manhã</option>
+            <option value="noite">Noite</option>
+          </select>
+        </label>
+        <label class="form-field" style="display:none">
+          <span class="field-label">Horário</span>
+          <input id="nc-horario" type="time" class="nc-input nc-time" value="23:59">
+        </label>
+      </div>
+    </div>
+    <div class="modal-foot">
+      <button onclick="fecharModalCanal()" class="btn btn-outline">Cancelar</button>
+      <button onclick="salvarNovoCanal()" class="btn btn-violet"><svg class="icon" viewBox="0 0 24 24"><path d="M4 4h12l4 4v12H4z"/><path d="M8 4v5h7V4"/><path d="M7 20v-7h10v7"/></svg> Salvar Canal</button>
+    </div>
+  </div>
+</div>
+
+<div class="bloco">
+<div class="bloco-header">
+<span class="bloco-icon"><svg class="icon" viewBox="0 0 24 24"><rect x="3" y="3" width="7.5" height="7.5" rx="1.5"/><rect x="13.5" y="3" width="7.5" height="7.5" rx="1.5"/><rect x="3" y="13.5" width="7.5" height="7.5" rx="1.5"/><rect x="13.5" y="13.5" width="7.5" height="7.5" rx="1.5"/></svg></span>
+<h2>Canais</h2>
+<span class="bloco-range" id="range-manha">11:00 → --:--</span>
+</div>
+<div class="launch-rail" id="rail-manha"></div>
+<div class="grid" id="grid-manha"></div>
+</div>
+<footer style="text-align:center;padding:24px;font-size:13px;opacity:.7"><a href="/politica-privacidade/" style="color:inherit">Política de Privacidade</a> · <a href="/termos-de-uso-app/" style="color:inherit">Termos de Uso</a></footer>
+<script src="app.js?v=7"></script>
+<script src="horarios.js?v=5"></script>
+<script src="agendados.js?v=1"></script>
+<script src="modern.js?v=5"></script>
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+<script src="/auth/auth-client.js"></script>
+<script src="/auth/auth-guard.js" data-login-url="/auth/login.html"></script>
+</body>
+</html>

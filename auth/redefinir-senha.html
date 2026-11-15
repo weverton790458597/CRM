@@ -1,0 +1,139 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Redefinir senha — Evrix Social</title>
+  <link rel="icon" type="image/png" href="../1.png" />
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800&display=swap" rel="stylesheet" />
+  <link rel="stylesheet" href="auth-style.css" />
+</head>
+<body>
+  <main class="auth-page" role="main">
+    <div class="auth-card">
+
+      <div class="login-logo">
+        <img src="../1.png" alt="Ícone Evrix Social" onerror="this.style.display='none'" />
+        <span class="login-logo-text">Evrix Social</span>
+      </div>
+
+      <h1 class="login-title">Criar nova senha</h1>
+      <p class="login-subtitle" id="subtitulo">Confirmando o link de recuperação…</p>
+
+      <form id="form-redefinir" novalidate style="display:none;">
+        <div class="field">
+          <label for="nova-senha">Nova senha</label>
+          <div class="field-wrap">
+            <input type="password" id="nova-senha" name="password" placeholder="Mínimo 6 caracteres" autocomplete="new-password" required minlength="6" />
+          </div>
+        </div>
+
+        <div class="field">
+          <label for="confirmar-senha">Confirmar nova senha</label>
+          <div class="field-wrap">
+            <input type="password" id="confirmar-senha" name="confirm-password" placeholder="Repita a nova senha" autocomplete="new-password" required minlength="6" />
+          </div>
+        </div>
+
+        <button class="btn-primary" id="salvar" type="submit">Salvar nova senha</button>
+        <p class="msg-erro" id="msg-erro" role="alert" aria-live="polite"></p>
+        <p class="msg-ok" id="msg-ok" role="status" aria-live="polite"></p>
+      </form>
+
+      <div class="auth-footer">
+        <a href="login.html">Voltar para o login</a>
+      </div>
+
+    </div>
+  </main>
+
+  <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+  <script src="auth-client.js"></script>
+  <script>
+    (() => {
+      const subtitulo      = document.getElementById('subtitulo');
+      const form           = document.getElementById('form-redefinir');
+      const novaSenhaInput = document.getElementById('nova-senha');
+      const confirmarInput = document.getElementById('confirmar-senha');
+      const salvarBtn      = document.getElementById('salvar');
+      const erroEl         = document.getElementById('msg-erro');
+      const okEl           = document.getElementById('msg-ok');
+
+      let sessaoDeRecuperacaoPronta = false;
+
+      function liberarFormulario() {
+        if (sessaoDeRecuperacaoPronta) return;
+        sessaoDeRecuperacaoPronta = true;
+        subtitulo.textContent = 'Digite a nova senha para sua conta.';
+        form.style.display = 'block';
+      }
+
+      // O supabase-js dispara este evento quando detecta o token de recuperação na URL
+      window.supabaseClient.auth.onAuthStateChange((event, session) => {
+        if (event === 'PASSWORD_RECOVERY' && session) {
+          liberarFormulario();
+        }
+      });
+
+      // Fallback: se já existir uma sessão válida quando a página carregar
+      window.supabaseClient.auth.getSession().then(({ data: { session } }) => {
+        if (session) liberarFormulario();
+      });
+
+      // Se depois de alguns segundos nada foi detectado, o link provavelmente expirou
+      setTimeout(() => {
+        if (!sessaoDeRecuperacaoPronta) {
+          subtitulo.textContent = 'Este link de recuperação é inválido ou expirou. Solicite um novo na tela de recuperação de senha.';
+        }
+      }, 4000);
+
+      async function salvarNovaSenha(e) {
+        e.preventDefault();
+        erroEl.textContent = '';
+        okEl.textContent = '';
+
+        const senha  = novaSenhaInput.value;
+        const senha2 = confirmarInput.value;
+
+        if (!senha || !senha2) {
+          erroEl.textContent = 'Preencha os dois campos.';
+          return;
+        }
+        if (senha.length < 6) {
+          erroEl.textContent = 'A senha precisa ter no mínimo 6 caracteres.';
+          return;
+        }
+        if (senha !== senha2) {
+          erroEl.textContent = 'As senhas não coincidem.';
+          return;
+        }
+
+        salvarBtn.textContent = 'Salvando…';
+        salvarBtn.disabled = true;
+
+        try {
+          const { error } = await window.supabaseClient.auth.updateUser({ password: senha });
+          if (error) throw error;
+
+          form.style.display = 'none';
+          okEl.textContent = 'Senha atualizada com sucesso! Redirecionando para o login…';
+
+          // Encerra a sessão temporária de recuperação antes de mandar pro login
+          await window.supabaseClient.auth.signOut();
+          setTimeout(() => { window.location.href = 'login.html'; }, 1800);
+        } catch (err) {
+          console.error('❌ Erro ao redefinir senha:', err);
+          erroEl.textContent = window.traduzirErroAuth(err.message || '');
+        } finally {
+          salvarBtn.textContent = 'Salvar nova senha';
+          salvarBtn.disabled = false;
+        }
+      }
+
+      form.addEventListener('submit', salvarNovaSenha);
+    })();
+  </script>
+</body>
+</html>

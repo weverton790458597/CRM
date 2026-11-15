@@ -1,0 +1,419 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Frota Hub - Live Digital Panel</title>
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    <style>
+        /* --- DESIGN SYSTEM: LIQUID GLASS DARK --- */
+        :root {
+            --bg-gradient: linear-gradient(135deg, #070514 0%, #020205 100%);
+            --glass-bg: rgba(255, 255, 255, 0.02);
+            --glass-border: rgba(255, 255, 255, 0.05);
+            --glass-highlight: rgba(255, 255, 255, 0.08);
+            --text-primary: #f5f5f7;
+            --text-secondary: #86868b;
+            --accent-green: #00ffa3;
+            --accent-red: #ff3b30;
+            --accent-blue: #0071e3;
+            --neon-glow-blue: 0 0 20px rgba(0, 113, 227, 0.2);
+            --neon-glow-green: 0 0 20px rgba(0, 255, 163, 0.2);
+        }
+
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Helvetica, Arial, sans-serif;
+        }
+
+        body {
+            background: var(--bg-gradient);
+            color: var(--text-primary);
+            min-height: 100vh;
+            padding: 30px;
+            overflow-x: hidden;
+            position: relative;
+        }
+
+        /* Elementos Fluidos / Líquidos no Background */
+        body::before, body::after {
+            content: '';
+            position: absolute;
+            width: 450px;
+            height: 450px;
+            border-radius: 50%;
+            filter: blur(150px);
+            z-index: -1;
+            opacity: 0.12;
+            pointer-events: none;
+        }
+        body::before { top: -5%; left: 5%; background: #5e5ce6; }
+        body::after { bottom: 5%; right: 5%; background: #0df2c9; }
+
+        .container {
+            max-width: 1400px;
+            margin: 0 auto;
+        }
+
+        /* --- HEADER CONTROL --- */
+        header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 40px;
+            padding-bottom: 25px;
+            border-bottom: 1px solid var(--glass-border);
+        }
+
+        header h1 {
+            font-size: 1.6rem;
+            font-weight: 600;
+            letter-spacing: -0.5px;
+            display: flex;
+            align-items: center;
+            gap: 12px;
+        }
+
+        header h1 i {
+            color: var(--accent-blue);
+            text-shadow: var(--neon-glow-blue);
+        }
+
+        .revenue-badge {
+            background: rgba(0, 255, 163, 0.04);
+            border: 1px solid rgba(0, 255, 163, 0.15);
+            padding: 12px 24px;
+            border-radius: 14px;
+            display: flex;
+            align-items: center;
+            gap: 12px;
+            backdrop-filter: blur(20px);
+            -webkit-backdrop-filter: blur(20px);
+            box-shadow: var(--neon-glow-green);
+        }
+
+        .revenue-badge span {
+            color: var(--text-secondary);
+            font-size: 0.85rem;
+            font-weight: 500;
+        }
+
+        .revenue-badge strong {
+            color: var(--accent-green);
+            font-size: 1.4rem;
+            font-weight: 700;
+        }
+
+        /* --- DASHBOARD GRID --- */
+        .grid-canais {
+            display: grid;
+            grid-template-columns: repeat(auto-fill, minmax(300px, 1fr));
+            gap: 25px;
+        }
+
+        /* Card Liquid Glass */
+        .card-canal {
+            background: var(--glass-bg);
+            border: 1px solid var(--glass-border);
+            border-radius: 20px;
+            padding: 24px;
+            backdrop-filter: blur(25px);
+            -webkit-backdrop-filter: blur(25px);
+            transition: all 0.4s cubic-bezier(0.16, 1, 0.3, 1);
+            position: relative;
+            overflow: hidden;
+            display: flex;
+            flex-direction: column;
+            justify-content: space-between;
+        }
+
+        .card-canal:hover {
+            transform: translateY(-4px);
+            border-color: var(--glass-highlight);
+            background: rgba(255, 255, 255, 0.04);
+            box-shadow: 0 15px 35px rgba(0, 0, 0, 0.4);
+        }
+
+        .card-header {
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            margin-bottom: 20px;
+            gap: 12px;
+        }
+
+        .profile-area {
+            display: flex;
+            align-items: center;
+            gap: 12px;
+            max-width: 65%;
+        }
+
+        .avatar-canal {
+            width: 42px;
+            height: 42px;
+            border-radius: 50%;
+            border: 1.5px solid var(--glass-border);
+            background: #1c1c1e;
+            object-fit: cover;
+        }
+
+        .channel-name {
+            font-size: 1rem;
+            font-weight: 600;
+            color: var(--text-primary);
+            overflow: hidden;
+            text-overflow: ellipsis;
+            white-space: nowrap;
+        }
+
+        /* Badges de Estado */
+        .status-pill {
+            padding: 5px 12px;
+            border-radius: 30px;
+            font-size: 0.7rem;
+            font-weight: 600;
+            text-transform: uppercase;
+            letter-spacing: 0.5px;
+            cursor: pointer;
+            transition: all 0.2s ease;
+        }
+
+        .status-active {
+            background: rgba(0, 255, 163, 0.08);
+            color: var(--accent-green);
+            border: 1px solid rgba(0, 255, 163, 0.2);
+        }
+
+        .status-active:hover {
+            background: rgba(0, 255, 163, 0.15);
+        }
+
+        .status-resting {
+            background: rgba(255, 59, 48, 0.08);
+            color: var(--accent-red);
+            border: 1px solid rgba(255, 59, 48, 0.2);
+        }
+
+        .status-resting:hover {
+            background: rgba(255, 59, 48, 0.15);
+        }
+
+        /* Live Data Counters */
+        .live-stats {
+            display: grid;
+            grid-template-columns: repeat(3, 1fr);
+            gap: 10px;
+            background: rgba(0, 0, 0, 0.15);
+            padding: 12px;
+            border-radius: 12px;
+            margin-bottom: 18px;
+            border: 1px solid rgba(255, 255, 255, 0.02);
+        }
+
+        .stat-box {
+            text-align: center;
+            display: flex;
+            flex-direction: column;
+            gap: 4px;
+        }
+
+        .stat-box i {
+            font-size: 0.8rem;
+            color: var(--text-secondary);
+            margin-bottom: 2px;
+        }
+
+        .stat-box .stat-val {
+            font-size: 0.95rem;
+            font-weight: 600;
+            color: var(--text-primary);
+        }
+
+        .stat-box .stat-label {
+            font-size: 0.65rem;
+            color: var(--text-secondary);
+            text-transform: uppercase;
+            letter-spacing: 0.3px;
+        }
+
+        /* Último Post */
+        .last-post-box {
+            background: rgba(255, 255, 255, 0.01);
+            border: 1px solid var(--glass-border);
+            border-radius: 10px;
+            padding: 10px 12px;
+            font-size: 0.75rem;
+        }
+
+        .last-post-box div {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            gap: 8px;
+        }
+
+        .last-post-title {
+            color: var(--text-secondary);
+            overflow: hidden;
+            text-overflow: ellipsis;
+            white-space: nowrap;
+            max-width: 150px;
+        }
+
+        .last-post-val {
+            color: var(--accent-blue);
+            font-weight: 600;
+        }
+    </style>
+</head>
+<body>
+
+    <div class="container">
+        <header>
+            <h1><i class="fa-solid fa-layer-group"></i> Frota Control Hub</h1>
+            <div class="revenue-badge">
+                <span>Faturamento Estimado (Métrica):</span>
+                <strong id="total-revenue">$0.00</strong>
+            </div>
+        </header>
+
+        <main class="grid-canais" id="live-fleet-grid">
+            <p style="padding: 20px; color: var(--text-secondary);">Carregando informações em tempo real da API...</p>
+        </main>
+    </div>
+
+    <script>
+        // --- GERENCIADOR ESTADO LOCAL (Para controle do Molho) ---
+        const EstadoPainel = {
+            contasMolho: ['Loopx_Cortes', 'Maxx_Cortes'],
+
+            isMolho(nomeCanal) {
+                if(!nomeCanal) return false;
+                return this.contasMolho.some(nome => nomeCanal.toLowerCase().includes(nome.split('_')[0].toLowerCase()));
+            },
+
+            toggleMolho(nomeCanal) {
+                if(!nomeCanal) return;
+                const baseName = nomeCanal.split('_')[0];
+                const index = this.contasMolho.findIndex(nome => nome.toLowerCase().includes(baseName.toLowerCase()));
+                
+                if (index > -1) {
+                    this.contasMolho.splice(index, 1);
+                } else {
+                    this.contasMolho.push(nomeCanal);
+                }
+            }
+        };
+
+        // --- SISTEMA INTEGRADOR VIVO (Mapeamento flexível e robusto) ---
+        window.renderizarPainelVivo = function(canaisDoBanco) {
+            const gridContainer = document.getElementById('live-fleet-grid');
+            if (!gridContainer) return;
+
+            if (!canaisDoBanco || canaisDoBanco.length === 0) {
+                gridContainer.innerHTML = `<p style="padding: 20px; color: #86868b;">Nenhum canal sincronizado encontrado.</p>`;
+                return;
+            }
+
+            let faturamentoGeral = 0;
+
+            gridContainer.innerHTML = canaisDoBanco.map(canal => {
+                // Tenta puxar dados do cache local de vídeos para complementar
+                let cacheVideos = [];
+                try {
+                    const rawCache = sessionStorage.getItem(`cache_tk_${canal.canal_id}`);
+                    if (rawCache) cacheVideos = JSON.parse(rawCache).videos || [];
+                } catch(e) {}
+
+                // 🔥 MAPEAMENTO INTELIGENTE: Lê tanto do root quanto do objeto de metadados da API
+                const nome = canal.nome_canal || canal.username || 'Canal sem Nome';
+                const foto = canal.foto_perfil || canal.avatar_url || 'https://www.tiktok.com/favicon.ico';
+                
+                const seguidores = canal.subscriber_count || canal.followers_count || canal.stats?.follower_count || 0;
+                const totalViews = canal.view_count || canal.total_views || canal.stats?.view_count || 0;
+                const totalVideos = canal.video_count || cacheVideos.length || canal.stats?.video_count || 0;
+
+                // Captura os dados de performance do último corte de forma flexível
+                const viewsUltimoVideo = canal.last_video_views || canal.views_recente || (cacheVideos[0]?.statistics?.viewCount) || 0;
+                const tituloUltimoVideo = canal.last_video_title || canal.titulo_recente || (cacheVideos[0]?.title) || 'Nenhum post recente';
+
+                // Cálculo de Faturamento Estimado Dinâmico (Exemplo: $0.15 a cada 1000 views do último vídeo)
+                faturamentoGeral += (viewsUltimoVideo / 1000) * 0.15;
+
+                const formatarNum = (num) => {
+                    const n = Number(num || 0);
+                    if (n >= 1000000) return (n / 1000000).toFixed(1) + 'M';
+                    if (n >= 1000) return (n / 1000).toFixed(1) + 'k';
+                    return n.toString();
+                };
+
+                const deMolho = EstadoPainel.isMolho(nome);
+                const statusClass = deMolho ? 'status-resting' : 'status-active';
+                const statusText = deMolho ? 'De Molho' : 'Pronto';
+
+                return `
+                    <div class="card-canal" id="card-${canal.canal_id || Math.random()}">
+                        <div class="card-header">
+                            <div class="profile-area">
+                                <img src="${foto}" class="avatar-canal" alt="${nome}" onerror="this.src='https://www.tiktok.com/favicon.ico'">
+                                <span class="channel-name" title="${nome}">${nome}</span>
+                            </div>
+                            <span class="status-pill ${statusClass}" onclick="window.alternarEstadoConta('${canal.canal_id}', '${nome}')">
+                                ${statusText}
+                            </span>
+                        </div>
+
+                        <div class="live-stats">
+                            <div class="stat-box">
+                                <i class="fa-solid fa-users"></i>
+                                <span class="stat-val">${formatarNum(seguidores)}</span>
+                                <span class="stat-label">Seguidores</span>
+                            </div>
+                            <div class="stat-box">
+                                <i class="fa-solid fa-eye"></i>
+                                <span class="stat-val">${formatarNum(totalViews)}</span>
+                                <span class="stat-label">Total Views</span>
+                            </div>
+                            <div class="stat-box">
+                                <i class="fa-solid fa-video"></i>
+                                <span class="stat-val">${formatarNum(totalVideos)}</span>
+                                <span class="stat-label">Vídeos</span>
+                            </div>
+                        </div>
+
+                        <div class="last-post-box">
+                            <div>
+                                <span style="color: #86868b; font-weight:500;">Último Corte:</span>
+                                <span class="last-post-title" title="${tituloUltimoVideo}">${tituloUltimoVideo}</span>
+                            </div>
+                            <div style="margin-top: 6px;">
+                                <span style="color: #86868b; font-weight:500;">Performance:</span>
+                                <span class="last-post-val"><i class="fa-solid fa-chart-line" style="font-size:0.7rem; margin-right:4px;"></i>${formatarNum(viewsUltimoVideo)} views</span>
+                            </div>
+                        </div>
+                    </div>
+                `;
+            }).join('');
+
+            // Atualiza o contador de faturamento do cabeçalho de forma viva
+            const revBadge = document.getElementById('total-revenue');
+            if(revBadge) {
+                revBadge.textContent = `$${faturamentoGeral.toFixed(2)}`;
+            }
+        };
+
+        window.alternarEstadoConta = function(id, nomeCanal) {
+            EstadoPainel.toggleMolho(nomeCanal);
+            if (window.ultimoPayloadCanais) {
+                window.renderizarPainelVivo(window.ultimoPayloadCanais);
+            }
+        };
+    </script>
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+
+    <script src="tiktok.js"></script> 
+    </body>
+</html>
