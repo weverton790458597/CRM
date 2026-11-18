@@ -1,0 +1,88 @@
+/* =========================================
+   EVRIX FINANCEIRO - BANCO.CSS
+   Visão "Conta Bancária" (usa as variáveis e componentes já existentes)
+========================================= */
+
+#view-banco { display: none; max-width: 1480px; margin: 0 auto; }
+#view-banco > * { margin-bottom: 22px; }
+body[data-view="banco"] #view-banco { display: block; }
+body[data-view="banco"] .cards-resumo,
+body[data-view="banco"] .dashboard-grid { display: none; }
+
+/* alternador Projetos / Conta */
+.bx-ctrl { display: flex; align-items: center; gap: 12px; }
+.bx-seg { display: flex; padding: 3px; border-radius: 999px; background: var(--surface-light); border: 1px solid var(--border-strong); }
+.bx-seg button, .m-modo {
+    border: none; background: none; color: var(--muted); font: inherit; font-size: .85rem; font-weight: 700;
+    padding: 8px 16px; border-radius: 999px; cursor: pointer; transition: .2s;
+}
+.bx-seg button.on { background: var(--primary); color: #111827; }
+.m-modo { display: none; background: var(--primary-soft); color: var(--primary); border: 1px solid rgba(247,184,75,.25); padding: 9px 14px; }
+.m-ctrl { display: flex; align-items: center; gap: 8px; }
+
+/* importação */
+.bx-drop { display: flex; align-items: center; justify-content: space-between; gap: 18px; border: 1.5px dashed var(--border-strong); transition: .2s; }
+.bx-drop.over { border-color: var(--primary); background: var(--primary-soft); }
+.bx-drop small { display: block; color: var(--muted); margin-top: 6px; font-size: .84rem; line-height: 1.4; }
+.bx-drop .btn-salvar { width: auto; padding: 14px 24px; margin: 0; white-space: nowrap; }
+.bx-prev-grid { display: grid; grid-template-columns: repeat(6, 1fr); gap: 14px; margin: 18px 0; }
+.bx-prev-grid small { display: block; color: var(--muted-2); font-size: .68rem; text-transform: uppercase; letter-spacing: .08em; margin-bottom: 4px; font-weight: 700; }
+.bx-prev-grid b { font-size: 1rem; }
+.bx-nota { color: var(--muted); font-size: .88rem; line-height: 1.5; margin-bottom: 14px; }
+.bx-chk { display: flex; gap: 10px; align-items: flex-start; color: var(--muted); font-size: .86rem; margin-bottom: 14px; }
+.bx-acoes { display: flex; gap: 10px; }
+.bx-acoes .btn-salvar { width: auto; padding: 14px 24px; margin: 0; }
+.btn-salvar:disabled { opacity: .45; cursor: not-allowed; transform: none; box-shadow: none; }
+.bx-sec { background: var(--surface-light); color: #fff; border: 1px solid var(--border-strong); border-radius: 16px; padding: 14px 22px; font: inherit; font-weight: 700; cursor: pointer; }
+.bx-erro { border-color: rgba(239,68,68,.3); color: #fca5a5; line-height: 1.6; }
+.bx-erro code { background: rgba(255,255,255,.08); padding: 2px 6px; border-radius: 6px; }
+
+/* KPIs e grades */
+.bx-kpis { display: grid; grid-template-columns: repeat(4, 1fr); gap: 14px; }
+.bx-grid { display: grid; grid-template-columns: 1.5fr 1fr; gap: 22px; }
+#view-banco .chart-wrapper { height: 280px; }
+.bx-alerta { padding: 14px 0; border-bottom: 1px solid var(--border); font-size: .92rem; line-height: 1.5; }
+.bx-alerta:last-child { border-bottom: none; }
+.bx-cat { margin-top: 16px; }
+.bx-cat > div:first-child { display: flex; justify-content: space-between; gap: 10px; font-size: .92rem; }
+.bx-cat span { font-weight: 800; color: var(--danger); }
+.bx-cat small { color: var(--muted-2); font-size: .74rem; }
+.bx-cat .m-bar { display: block; height: 8px; border-radius: 99px; background: rgba(255,255,255,.06); margin: 8px 0 6px; overflow: hidden; }
+.bx-cat .m-bar i { display: block; height: 100%; border-radius: 99px; }
+.bx-vazio { text-align: center; color: var(--muted); padding: 24px 10px; font-size: .9rem; }
+.bx-filtros { display: flex; gap: 10px; margin-bottom: 16px; }
+.bx-filtros input, .bx-filtros select { flex: 1; background: #0f1722; border: 1px solid transparent; color: var(--text); padding: 12px 14px; border-radius: 14px; font: inherit; outline: none; }
+.bx-filtros select { flex: 0 0 150px; }
+.bx-filtros input:focus, .bx-filtros select:focus { border-color: rgba(247,184,75,.35); }
+#bx-lista { display: flex; flex-direction: column; gap: 10px; }
+#view-banco .m-item { display: flex; align-items: center; gap: 12px; background: #0f1722; border: 1px solid var(--border); border-radius: 16px; padding: 14px; }
+#view-banco .m-dot { width: 10px; height: 10px; border-radius: 50%; flex-shrink: 0; background: var(--cor); box-shadow: 0 0 10px var(--cor); }
+#view-banco .m-item-main { flex: 1; min-width: 0; }
+#view-banco .m-item-main b { display: block; font-size: .92rem; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+#view-banco .m-item-main small { color: var(--muted-2); font-size: .74rem; }
+#view-banco .m-item-val { font-weight: 800; white-space: nowrap; }
+
+@media (max-width: 1280px) { .bx-kpis { grid-template-columns: repeat(2, 1fr); } .bx-prev-grid { grid-template-columns: repeat(3, 1fr); } }
+@media (max-width: 1080px) { .bx-grid { grid-template-columns: 1fr; } }
+
+/* MOBILE: a barra superior do app ganha o botão Conta/Projetos; o resto do app de projetos some no modo Conta */
+@media (max-width: 768px) {
+    .m-modo { display: block; }
+    .m-top { gap: 8px; }
+    .m-month { max-width: 130px; }
+    body[data-view="banco"] #mobile-app .m-main,
+    body[data-view="banco"] .m-nav { display: none; }
+    #view-banco { padding: 16px 16px calc(40px + env(safe-area-inset-bottom)); }
+    #view-banco .bloco { padding: 18px; border-radius: 22px; }
+    .bx-drop { flex-direction: column; align-items: stretch; }
+    .bx-drop .btn-salvar { width: 100%; }
+    .bx-kpis { grid-template-columns: 1fr 1fr; gap: 10px; }
+    .bx-kpis .card { padding: 16px; }
+    .bx-kpis .card-valor, .bx-kpis .card:first-child .card-valor { font-size: 1.15rem; }
+    .bx-prev-grid { grid-template-columns: 1fr 1fr; }
+    .bx-acoes { flex-direction: column; }
+    .bx-acoes .btn-salvar, .bx-sec { width: 100%; }
+    .bx-filtros { flex-direction: column; }
+    .bx-filtros select { flex: 1; }
+    #view-banco .analytics-header { margin-bottom: 0; }
+}
