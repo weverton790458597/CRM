@@ -1,404 +1,415 @@
 // =========================================
-// EVRIX FINANCEIRO - APP.JS
-// PREMIUM ANALYTICS DASHBOARD
+// EVRIX FINANCEIRO - APP.JS (v3 - Desktop + Mobile App)
 // =========================================
 
-// =========================================
-// SUPABASE CONFIG
-// =========================================
 const SUPABASE_URL = "https://abdliioyzkylccfylils.supabase.co";
 const SUPABASE_ANON_KEY = "sb_publishable_g6l6_QmwE4Tj85_KF_XHfQ_I4gFlY_n";
-
 const supabaseClient = supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
 
-// =========================================
-// CHARTS GLOBALS
-// =========================================
+// ---------- Estado ----------
 let graficoReceita = null;
 let graficoDistribuicao = null;
+let TODOS = [];   // todos os registros (histórico)
+let MES = [];     // registros do mês filtrado
 
-// =========================================
-// INIT INITIALIZATION
-// =========================================
+const mq = window.matchMedia("(max-width: 768px)");
+const prefixo = () => (mq.matches ? "m-" : "");
+
+const COR = {
+    Clipei: "#38ef7d",
+    Clipay: "#2dd4bf",
+    TikTok: "#06b6d4",
+    YouTube: "#ef4444",
+    Instagram: "#c084fc"
+};
+const corDe = g => COR[g] || "#f7b84b";
+const grupoDe = p =>
+    (p === "Bytedance Tiktok shop" || p === "Bytedance programa de recompensa") ? "TikTok" : p;
+
+// ---------- Utils ----------
+const $ = id => document.getElementById(id);
+const setTxt = (id, v) => { const e = $(id); if (e) e.innerText = v; };
+const setHtml = (id, v) => { const e = $(id); if (e) e.innerHTML = v; };
+const num = v => parseFloat(v) || 0;
+const esc = s => String(s ?? "").replace(/[&<>"']/g, c => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" }[c]));
+const fmtData = d => (d ? d.split("-").reverse().join("/") : "---");
+
+function formatarMoeda(valor) {
+    return new Intl.NumberFormat("pt-BR", { style: "currency", currency: "BRL" }).format(valor);
+}
+
+function mesAtual() {
+    const h = new Date();
+    return `${h.getFullYear()}-${String(h.getMonth() + 1).padStart(2, "0")}`;
+}
+
+function toast(msg, erro = false) {
+    const t = $("toast");
+    if (!t) return;
+    t.textContent = msg;
+    t.className = "toast show" + (erro ? " erro" : "");
+    clearTimeout(toast._t);
+    toast._t = setTimeout(() => (t.className = "toast"), 2600);
+}
+
+// ---------- Init ----------
 document.addEventListener("DOMContentLoaded", () => {
-    const filtroMes = document.getElementById("filtro-mes");
-    
-    // Injeta o mês atual no formato AAAA-MM
-    const hoje = new Date();
-    const ano = hoje.getFullYear();
-    const mes = String(hoje.getMonth() + 1).padStart(2, '0');
-    filtroMes.value = `${ano}-${mes}`;
-
-    // Chamada inicial para carregar dados
+    setMes(mesAtual(), false);
     carregarDashboard();
 
-    // Eventos
-    filtroMes.addEventListener("change", carregarDashboard);
-    
-    const formFinanceiro = document.getElementById("form-financeiro");
-    if (formFinanceiro) {
-        formFinanceiro.addEventListener("submit", salvarRegistro);
-    }
+    $("filtro-mes").addEventListener("change", e => setMes(e.target.value));
+    $("m-filtro-mes").addEventListener("change", e => setMes(e.target.value));
+
+    const form = $("form-financeiro");
+    if (form) form.addEventListener("submit", salvarRegistro);
+
+    // Navegação inferior (mobile)
+    document.querySelectorAll(".m-nav-btn").forEach(btn =>
+        btn.addEventListener("click", () => abrirAba(btn.dataset.tab))
+    );
+
+    // Bottom sheet do formulário
+    $("m-fab").addEventListener("click", () => sheet(true));
+    $("sheet-close").addEventListener("click", () => sheet(false));
+    $("sheet-overlay").addEventListener("click", () => sheet(false));
+
+    // Troca de layout (girar tela / redimensionar)
+    mq.addEventListener("change", () => renderizarGraficos(MES));
 });
 
-// =========================================
-// CARREGAR DASHBOARD
-// =========================================
+function setMes(valor, recarregar = true) {
+    if (!valor) return;
+    $("filtro-mes").value = valor;
+    $("m-filtro-mes").value = valor;
+    if (recarregar) carregarDashboard();
+}
+
+function abrirAba(id) {
+    document.querySelectorAll(".m-tab").forEach(t => t.classList.toggle("active", t.id === id));
+    document.querySelectorAll(".m-nav-btn").forEach(b => b.classList.toggle("active", b.dataset.tab === id));
+    window.scrollTo({ top: 0 });
+    if (id === "tab-graficos") {
+        // canvas estava oculto: força o recálculo de tamanho
+        setTimeout(() => { graficoReceita && graficoReceita.resize(); graficoDistribuicao && graficoDistribuicao.resize(); }, 30);
+    }
+}
+
+function sheet(abrir) {
+    $("sheet-form").classList.toggle("open", abrir);
+    $("sheet-overlay").classList.toggle("open", abrir);
+    document.body.style.overflow = abrir && mq.matches ? "hidden" : "";
+}
+
+// ---------- Busca (com paginação: o Supabase limita 1000 linhas por consulta) ----------
+async function buscarTudo() {
+    const tam = 1000;
+    const out = [];
+    for (let i = 0; ; i += tam) {
+        const { data, error } = await supabaseClient
+            .from("analise_financeira")
+            .select("*")
+            .order("data_lancamento", { ascending: false })
+            .range(i, i + tam - 1);
+        if (error) throw error;
+        out.push(...data);
+        if (data.length < tam) break;
+    }
+    return out;
+}
+
 async function carregarDashboard() {
-    const filtroMesEl = document.getElementById("filtro-mes");
-    if (!filtroMesEl) return;
-    
-    const mesFiltro = filtroMesEl.value;
+    const mesFiltro = $("filtro-mes").value;
     if (!mesFiltro) return;
 
     try {
-        const { data, error } = await supabaseClient
-            .from('analise_financeira')
-            .select('*')
-            .order('data_lancamento', { ascending: false });
+        TODOS = await buscarTudo();
+        MES = TODOS.filter(i => i.data_lancamento && i.data_lancamento.startsWith(mesFiltro));
 
-        if (error) throw error;
-
-        // Filtra os dados com base no mês selecionado (AAAA-MM)
-        const dadosFiltrados = data.filter(item => {
-            return (
-                item.data_lancamento &&
-                item.data_lancamento.startsWith(mesFiltro)
-            );
-        });
-
-        // Atualiza os componentes da Interface
-        renderizarTabela(dadosFiltrados);
-        calcularCards(dadosFiltrados, data);
-        renderizarGraficos(dadosFiltrados);
-
+        renderizarTabela(MES);
+        calcularCards(MES, TODOS);
+        renderizarMobile(MES, TODOS);
+        renderizarGraficos(MES);
     } catch (error) {
         console.error("Erro ao carregar dashboard:", error.message);
+        toast("Erro ao carregar dados", true);
     }
 }
 
-// =========================================
-// METRICS & CARDS CALCULATIONS (DASHBOARD COMPLETO)
-// =========================================
-function calcularCards(dadosDoMes, todosOsDados) {
-    let faturamentoGeralMes = 0;
-    const faturamentoPorPlataforma = {};
+// ---------- Tempo de operação e média mensal ----------
+function calcularTempo(todos) {
+    const datas = todos.map(i => i.data_lancamento).filter(Boolean).sort();
+    if (!datas.length) return null;
 
-    const resumoMes = {
-        Clipei: { receita: 0 },
-        Clipay: { receita: 0 },
-        TikTok: { receita: 0 }
-    };
+    const [y, m, d] = datas[0].split("-").map(Number);
+    const inicio = new Date(y, m - 1, d);
+    const hoje = new Date(); hoje.setHours(0, 0, 0, 0);
 
-    // 1. Processa os dados APENAS do mês filtrado atual
-    dadosDoMes.forEach(item => {
-        const plat = item.plataforma;
-        const rec = parseFloat(item.receita) || 0;
+    let meses = (hoje.getFullYear() - y) * 12 + (hoje.getMonth() - (m - 1));
+    if (hoje.getDate() < d) meses--;
+    meses = Math.max(0, meses);
 
-        faturamentoGeralMes += rec;
-        faturamentoPorPlataforma[plat] = (faturamentoPorPlataforma[plat] || 0) + rec;
-
-        if (plat === "Clipei") {
-            resumoMes.Clipei.receita += rec;
-        } else if (plat === "Clipay") {
-            resumoMes.Clipay.receita += rec;
-        } else if (plat === "Bytedance Tiktok shop" || plat === "Bytedance programa de recompensa") {
-            resumoMes.TikTok.receita += rec;
-        }
-    });
-
-    // 2. Processa os faturamentos HISTÓRICOS TOTAIS
-    let faturamentoGeralHistorico = 0; // Acumulador absoluto de todo o app
-    let faturamentoClipeiHistorico = 0;
-    let faturamentoClipayHistorico = 0;
-    let faturamentoTikTokHistorico = 0;
-
-    todosOsDados.forEach(item => {
-        const plat = item.plataforma;
-        const rec = parseFloat(item.receita) || 0;
-
-        // Soma para o faturamento histórico global absoluto
-        faturamentoGeralHistorico += rec;
-
-        // Somas individuais por plataforma
-        if (plat === "Clipei") {
-            faturamentoClipeiHistorico += rec;
-        } else if (plat === "Clipay") {
-            faturamentoClipayHistorico += rec;
-        } else if (plat === "Bytedance Tiktok shop" || plat === "Bytedance programa de recompensa") {
-            faturamentoTikTokHistorico += rec;
-        }
-    });
-
-    // 3. Calcula a Plataforma Campeã do Mês
-    let plataformaCampea = "---";
-    let maiorValor = 0;
-    for (const [nomePlat, valor] of Object.entries(faturamentoPorPlataforma)) {
-        if (valor > maiorValor) {
-            maiorValor = valor;
-            plataformaCampea = nomePlat;
-        }
-    }
-
-    // --- ATUALIZAÇÃO DOS COMPONENTES NA UI ---
-
-    // CARD PRINCIPAL: Faturamento Geral (Mês e Histórico)
-    const elFaturamento = document.getElementById("card-faturamento");
-    if (elFaturamento) elFaturamento.innerText = formatarMoeda(faturamentoGeralMes);
-
-    const elFaturamentoHistorico = document.getElementById("card-faturamento-historico");
-    if (elFaturamentoHistorico) elFaturamentoHistorico.innerText = formatarMoeda(faturamentoGeralHistorico);
-
-    // CARD PRINCIPAL: Campeão do Mês
-    const elCampeao = document.getElementById("card-campeao");
-    if (elCampeao) elCampeao.innerText = plataformaCampea;
-
-    // CARD CLIPEI: Mês e Histórico
-    const elFatClipei = document.getElementById("card-faturamento-clipei");
-    if (elFatClipei) elFatClipei.innerText = formatarMoeda(resumoMes.Clipei.receita);
-    
-    const elFatClipeiHistorico = document.getElementById("card-faturamento-clipei-historico");
-    if (elFatClipeiHistorico) elFatClipeiHistorico.innerText = formatarMoeda(faturamentoClipeiHistorico);
-
-    // CARD CLIPAY: Mês e Histórico
-    const elFatClipay = document.getElementById("card-faturamento-clipay");
-    if (elFatClipay) elFatClipay.innerText = formatarMoeda(resumoMes.Clipay.receita);
-
-    const elFatClipayHistorico = document.getElementById("card-faturamento-clipay-historico");
-    if (elFatClipayHistorico) elFatClipayHistorico.innerText = formatarMoeda(faturamentoClipayHistorico);
-
-    // CARD TIKTOK: Mês e Histórico
-    const elTiktokMes = document.getElementById("card-faturamento-tiktok-mes");
-    if (elTiktokMes) elTiktokMes.innerText = formatarMoeda(resumoMes.TikTok.receita);
-
-    const elTiktokHistorico = document.getElementById("card-faturamento-tiktok-historico");
-    if (elTiktokHistorico) elTiktokHistorico.innerText = formatarMoeda(faturamentoTikTokHistorico);
+    const dias = Math.max(0, Math.round((hoje - inicio) / 864e5));
+    return { primeira: datas[0], ultima: datas[datas.length - 1], meses, dias };
 }
 
+function textoTempo(t) {
+    if (!t) return "---";
+    if (t.meses < 1) return `${t.dias} ${t.dias === 1 ? "dia" : "dias"}`;
+    if (t.meses < 12) return `${t.meses} ${t.meses === 1 ? "mês" : "meses"}`;
+    const a = Math.floor(t.meses / 12), r = t.meses % 12;
+    return `${a} ${a === 1 ? "ano" : "anos"}` + (r ? ` e ${r} ${r === 1 ? "mês" : "meses"}` : "");
+}
 
+// Média = total histórico ÷ nº de meses de calendário desde o 1º registro (inclui o mês atual)
+function calcularMedia(todos, t) {
+    if (!t) return { media: 0, n: 0 };
+    const total = todos.reduce((a, i) => a + num(i.receita), 0);
+    const [y1, m1] = t.primeira.split("-").map(Number);
+    const h = new Date();
+    let [y2, m2] = [h.getFullYear(), h.getMonth() + 1];
+    const [yu, mu] = t.ultima.split("-").map(Number);
+    if (yu * 12 + mu > y2 * 12 + m2) { y2 = yu; m2 = mu; }
+    const n = Math.max(1, (y2 - y1) * 12 + (m2 - m1) + 1);
+    return { media: total / n, n };
+}
 
-// =========================================
-// RENDER DATA TABLE
-// =========================================
+// ---------- Agrupamentos ----------
+function somarPorGrupo(lista) {
+    const r = {};
+    lista.forEach(i => { const g = grupoDe(i.plataforma); r[g] = (r[g] || 0) + num(i.receita); });
+    return r;
+}
+
+// ---------- Cards (desktop + dados compartilhados) ----------
+function calcularCards(dadosMes, todos) {
+    const mes = somarPorGrupo(dadosMes);
+    const hist = somarPorGrupo(todos);
+    const totalMes = dadosMes.reduce((a, i) => a + num(i.receita), 0);
+    const totalHist = todos.reduce((a, i) => a + num(i.receita), 0);
+
+    let campea = "---", maior = 0;
+    for (const [nome, v] of Object.entries(somarPorPlataforma(dadosMes))) {
+        if (v > maior) { maior = v; campea = nome; }
+    }
+
+    setTxt("card-faturamento", formatarMoeda(totalMes));
+    setTxt("card-faturamento-historico", formatarMoeda(totalHist));
+    setTxt("card-campeao", campea);
+    setTxt("card-faturamento-clipei", formatarMoeda(mes.Clipei || 0));
+    setTxt("card-faturamento-clipei-historico", formatarMoeda(hist.Clipei || 0));
+    setTxt("card-faturamento-clipay", formatarMoeda(mes.Clipay || 0));
+    setTxt("card-faturamento-clipay-historico", formatarMoeda(hist.Clipay || 0));
+    setTxt("card-faturamento-tiktok-mes", formatarMoeda(mes.TikTok || 0));
+    setTxt("card-faturamento-tiktok-historico", formatarMoeda(hist.TikTok || 0));
+
+    // Tempo de operação e média mensal
+    const t = calcularTempo(todos);
+    const { media, n } = calcularMedia(todos, t);
+    const subTempo = t ? `Desde ${fmtData(t.primeira)} · ${t.dias} dias` : "Sem registros ainda";
+    const subMedia = t ? `Total ÷ ${n} ${n === 1 ? "mês" : "meses"}` : "Sem registros ainda";
+
+    setTxt("card-tempo", textoTempo(t));
+    setTxt("card-tempo-sub", subTempo);
+    setTxt("card-media", formatarMoeda(media));
+    setTxt("card-media-sub", subMedia);
+
+    setTxt("m-tempo", textoTempo(t));
+    setTxt("m-tempo-sub", subTempo);
+    setTxt("m-media", formatarMoeda(media));
+    setTxt("m-media-sub", subMedia);
+
+    // Hero + campeã mobile
+    setTxt("m-fat-mes", formatarMoeda(totalMes));
+    setTxt("m-fat-hist", formatarMoeda(totalHist));
+    setTxt("m-campeao", campea);
+}
+
+function somarPorPlataforma(lista) {
+    const r = {};
+    lista.forEach(i => { r[i.plataforma] = (r[i.plataforma] || 0) + num(i.receita); });
+    return r;
+}
+
+// ---------- Mobile: listas e cards ----------
+function itemLista(item) {
+    const rec = num(item.receita);
+    const esf = parseInt(item.esforco) || 0;
+    const sub = item.subcategoria && item.subcategoria !== "Geral" ? ` · ${esc(item.subcategoria)}` : "";
+    const efic = esf > 0 ? ` · ${formatarMoeda(rec / esf)}/corte` : "";
+    return `
+        <div class="m-item" style="--cor:${corDe(grupoDe(item.plataforma))}">
+            <div class="m-dot"></div>
+            <div class="m-item-main">
+                <b>${esc(item.plataforma)}${sub}</b>
+                <small>${fmtData(item.data_lancamento)} · ${esf} cortes${efic}</small>
+            </div>
+            <div class="m-item-val">${formatarMoeda(rec)}</div>
+        </div>`;
+}
+
+function renderizarMobile(dadosMes, todos) {
+    const mes = somarPorGrupo(dadosMes);
+    const hist = somarPorGrupo(todos);
+    const totalMes = dadosMes.reduce((a, i) => a + num(i.receita), 0);
+
+    // grupos: fixos + qualquer outro que tenha dados
+    const grupos = ["Clipei", "Clipay", "TikTok"];
+    Object.keys(hist).forEach(g => { if (!grupos.includes(g)) grupos.push(g); });
+
+    setHtml("m-plat-scroll", grupos.map(g => `
+        <div class="m-plat" style="--cor:${corDe(g)}">
+            <div class="m-plat-nome">${esc(g === "TikTok" ? "Bytedance TikTok" : g)}</div>
+            <div class="m-plat-valor">${formatarMoeda(mes[g] || 0)}</div>
+            <div class="m-plat-hist">Histórico total<b>${formatarMoeda(hist[g] || 0)}</b></div>
+        </div>`).join(""));
+
+    setHtml("m-plat-lista", [...grupos].sort((a, b) => (mes[b] || 0) - (mes[a] || 0)).map(g => {
+        const pct = totalMes > 0 ? ((mes[g] || 0) / totalMes) * 100 : 0;
+        return `
+        <div class="m-plat-det" style="--cor:${corDe(g)}">
+            <div class="m-plat-det-top"><b>${esc(g === "TikTok" ? "Bytedance TikTok" : g)}</b><span>${formatarMoeda(mes[g] || 0)}</span></div>
+            <div class="m-bar"><i style="width:${pct.toFixed(1)}%"></i></div>
+            <div class="m-plat-det-foot"><span>${pct.toFixed(1)}% do mês</span><span>Histórico <b>${formatarMoeda(hist[g] || 0)}</b></span></div>
+        </div>`;
+    }).join(""));
+
+    const vazio = `<div class="m-vazio">Nenhum lançamento neste período.</div>`;
+    setHtml("m-recentes", dadosMes.length ? dadosMes.slice(0, 5).map(itemLista).join("") : vazio);
+    setHtml("m-lista", dadosMes.length ? dadosMes.map(itemLista).join("") : vazio);
+    setTxt("m-qtd", dadosMes.length ? `${dadosMes.length} lançamentos` : "");
+}
+
+// ---------- Tabela (desktop) ----------
 function renderizarTabela(dados) {
-    const tbody = document.getElementById("tabela-corpo");
+    const tbody = $("tabela-corpo");
     if (!tbody) return;
-
     tbody.innerHTML = "";
 
     if (dados.length === 0) {
-        tbody.innerHTML = `
-            <tr>
-                <td colspan="5" style="text-align:center; color:var(--texto-secundario); padding:30px;">
-                    Nenhum lançamento encontrado para este período.
-                </td>
-            </tr>
-        `;
+        tbody.innerHTML = `<tr><td colspan="5" style="text-align:center; color:var(--muted); padding:30px;">Nenhum lançamento encontrado para este período.</td></tr>`;
         return;
     }
 
     dados.forEach(item => {
-        const tr = document.createElement("tr");
-
-        const rec = parseFloat(item.receita) || 0;
+        const rec = num(item.receita);
         const esf = parseInt(item.esforco) || 0;
-        const mediaPorVideo = esf > 0 ? (rec / esf) : 0;
-        
-        const dataFormatada = item.data_lancamento 
-            ? item.data_lancamento.split('-').reverse().join('/') 
-            : '---';
-
         const subCat = item.subcategoria || "Geral";
+        const nome = (subCat === "Geral" || subCat === "Parcerias")
+            ? `${esc(item.plataforma)} <span style="color: var(--muted); font-weight: 500; font-size: .82rem;">(${esc(subCat)})</span>`
+            : `${esc(item.plataforma)} <b style="color: var(--primary);">· ${esc(subCat)}</b>`;
 
-        // Aplica estilizações dinâmicas baseadas nas variáveis corretas do CSS root
-        const nomeExibicao = (subCat === "Geral" || subCat === "Parcerias")
-            ? `${item.plataforma} <span style="color: var(--texto-secundario); font-weight: 500; font-size: .82rem;">(${subCat})</span>`
-            : `${item.plataforma} <b style="color: var(--cor-primaria);">· ${subCat}</b>`;
-
+        const tr = document.createElement("tr");
         tr.innerHTML = `
-            <td style="font-weight:700;">${nomeExibicao}</td>
+            <td style="font-weight:700;">${nome}</td>
             <td>${formatarMoeda(rec)}</td>
             <td>${esf}</td>
-            <td>${formatarMoeda(mediaPorVideo)}</td>
-            <td style="color:var(--texto-secundario)">${dataFormatada}</td>
-        `;
-
+            <td>${formatarMoeda(esf > 0 ? rec / esf : 0)}</td>
+            <td style="color:var(--muted)">${fmtData(item.data_lancamento)}</td>`;
         tbody.appendChild(tr);
     });
 }
 
-// =========================================
-// SUBMIT DATA TO SUPABASE
-// =========================================
+// ---------- Salvar ----------
 async function salvarRegistro(e) {
     e.preventDefault();
 
     const payload = {
-        plataforma: document.getElementById("plataforma").value,
-        subcategoria: document.getElementById("subcategoria").value,
-        data_lancamento: document.getElementById("data-lancamento").value,
-        receita: parseFloat(document.getElementById("receita").value) || 0,
-        esforco: parseInt(document.getElementById("esforco").value) || 0
+        plataforma: $("plataforma").value,
+        subcategoria: $("subcategoria").value,
+        data_lancamento: $("data-lancamento").value,
+        receita: num($("receita").value),
+        esforco: parseInt($("esforco").value) || 0
     };
 
-    try {
-        const { error } = await supabaseClient
-            .from('analise_financeira')
-            .insert([payload]);
+    const btn = e.target.querySelector(".btn-salvar");
+    btn.disabled = true;
 
+    try {
+        const { error } = await supabaseClient.from("analise_financeira").insert([payload]);
         if (error) throw error;
 
-        // Reseta os campos numéricos do formulário de entrada
-        document.getElementById("receita").value = "";
-        document.getElementById("esforco").value = "";
-        document.getElementById('data-lancamento').valueAsDate = new Date();
+        $("receita").value = "";
+        $("esforco").value = "";
+        $("data-lancamento").value = hojeLocal();
 
-        // Recarrega os dados atualizados na tela
-        carregarDashboard();
-        alert("Resultado salvo com sucesso!");
+        // se lançou em outro mês, mostra esse mês para o resultado aparecer na tela
+        const mesLancado = payload.data_lancamento.slice(0, 7);
+        if (mesLancado !== $("filtro-mes").value) setMes(mesLancado, false);
 
+        sheet(false);
+        await carregarDashboard();
+        toast("Resultado salvo com sucesso!");
     } catch (error) {
         console.error("Erro ao salvar:", error.message);
-        alert("Falha ao salvar: " + error.message);
+        toast("Falha ao salvar: " + error.message, true);
+    } finally {
+        btn.disabled = false;
     }
 }
 
-// =========================================
-// UTILS: MONEY FORMATTER
-// =========================================
-function formatarMoeda(valor) {
-    return new Intl.NumberFormat('pt-BR', {
-        style: 'currency',
-        currency: 'BRL'
-    }).format(valor);
-}
-
-// =========================================
-// CHARTS RENDERIZATION (CHART.JS CORRIGIDO)
-// =========================================
+// ---------- Gráficos ----------
 function renderizarGraficos(dados) {
-    const filtroMesEl = document.getElementById("filtro-mes");
-    if (!filtroMesEl) return;
-    
-    const [ano, mes] = filtroMesEl.value.split('-');
-    
-    // 1. Gerar TODOS os dias do mês com valor ZERO para o gráfico não mentir
-    const agrupadoPorData = {};
-    const ultimoDia = new Date(ano, mes, 0).getDate(); // Pega o último dia do mês (28, 30 ou 31)
-    
-    for (let dia = 1; dia <= ultimoDia; dia++) {
-        const diaFormatado = String(dia).padStart(2, '0');
-        const dataCompleta = `${ano}-${mes}-${diaFormatado}`;
-        agrupadoPorData[dataCompleta] = 0;
-    }
+    const filtro = $("filtro-mes").value;
+    if (!filtro || typeof Chart === "undefined") return;
+    const p = prefixo();
+    const mobile = mq.matches;
 
-    // 2. Injetar os dados reais vindos do Supabase por cima dos zeros
-    dados.forEach(item => {
-        const data = item.data_lancamento;
-        if (data && agrupadoPorData[data] !== undefined) {
-            const receita = parseFloat(item.receita) || 0;
-            agrupadoPorData[data] += receita; // Somatória se houver mais de um ganho no mesmo dia
-        }
-    });
+    const [ano, mes] = filtro.split("-");
+    const porData = {};
+    const ultimoDia = new Date(ano, mes, 0).getDate();
+    for (let d = 1; d <= ultimoDia; d++) porData[`${ano}-${mes}-${String(d).padStart(2, "0")}`] = 0;
 
-    // Ordenar as chaves garante a linha do tempo linear perfeita (01 até 31)
-    const labels = Object.keys(agrupadoPorData).sort();
-    const valores = labels.map(data => agrupadoPorData[data]);
+    dados.forEach(i => { if (i.data_lancamento && porData[i.data_lancamento] !== undefined) porData[i.data_lancamento] += num(i.receita); });
 
-    // Formatador visual para o Eixo X não ficar poluído com "2026-05-01"
-    // Vai exibir apenas "01", "02", "03"... ou "01/05"
-    const labelsExibicao = labels.map(data => {
-        const [,,, dia] = data.split('-'); 
-        // Retorna apenas DD/MM para ficar mais limpo
-        return data.split('-').reverse().slice(0,2).join('/');
-    });
+    const labels = Object.keys(porData).sort();
+    const valores = labels.map(d => porData[d]);
+    const labelsExib = labels.map(d => d.split("-").reverse().slice(0, 2).join("/"));
 
-    // Agrupamento de receitas para o Gráfico de Distribuição (Donut)
-    const distribuicao = {};
-    dados.forEach(item => {
-        const plat = item.plataforma;
-        const receita = parseFloat(item.receita) || 0;
-        distribuicao[plat] = (distribuicao[plat] || 0) + receita;
-    });
+    const dist = somarPorPlataforma(dados);
+    const total = valores.reduce((a, v) => a + v, 0);
+    setTxt("receita-total-chart", formatarMoeda(total));
+    setTxt("m-receita-total-chart", formatarMoeda(total));
 
-    const labelsDistribuicao = Object.keys(distribuicao);
-    const valoresDistribuicao = Object.values(distribuicao);
-
-    // Totalização
-    const total = valores.reduce((acc, val) => acc + val, 0);
-    const receitaTotalEl = document.getElementById("receita-total-chart");
-    if (receitaTotalEl) {
-        receitaTotalEl.innerText = formatarMoeda(total);
-    }
-
-    // Limpa instâncias antigas
     if (graficoReceita) graficoReceita.destroy();
     if (graficoDistribuicao) graficoDistribuicao.destroy();
 
-    // Renderização do Line Chart (Gráfico Receita)
-    const ctxReceita = document.getElementById("graficoReceita");
-    if (ctxReceita && typeof Chart !== 'undefined') {
-        graficoReceita = new Chart(ctxReceita, {
-            type: 'line',
+    const ctxR = $(p + "graficoReceita");
+    if (ctxR) {
+        graficoReceita = new Chart(ctxR, {
+            type: "line",
             data: {
-                labels: labelsExibicao, // Usa as labels formatadas mais limpas
+                labels: labelsExib,
                 datasets: [{
-                    label: 'Receita',
-                    data: valores,
-                    tension: 0.3, // Curvatura elegante, sem exageros
-                    borderWidth: 3,
-                    fill: true,
-                    pointRadius: 2, // Pequeno ponto para identificar que houve registro ali
-                    pointHoverRadius: 6,
-                    borderColor: '#f5b041',
-                    backgroundColor: 'rgba(245,176,65,.04)'
+                    label: "Receita", data: valores, tension: 0.3, borderWidth: mobile ? 2.5 : 3, fill: true,
+                    pointRadius: mobile ? 0 : 2, pointHoverRadius: 6, borderColor: "#f5b041", backgroundColor: "rgba(245,176,65,.08)"
                 }]
             },
             options: {
-                responsive: true,
-                maintainAspectRatio: false,
+                responsive: true, maintainAspectRatio: false,
+                interaction: { intersect: false, mode: "index" },
                 plugins: { legend: { display: false } },
                 scales: {
-                    x: { 
-                        ticks: { 
-                            color: '#8a99ad',
-                            maxTicksLimit: 10 // Evita que o eixo X quebre se o mês tiver 31 dias
-                        }, 
-                        grid: { display: false } 
-                    },
-                    y: { 
-                        ticks: { color: '#8a99ad' }, 
-                        grid: { color: 'rgba(255,255,255,.03)' },
-                        min: 0 // Garante que o gráfico comece do zero
-                    }
+                    x: { ticks: { color: "#8a99ad", maxTicksLimit: mobile ? 6 : 10 }, grid: { display: false } },
+                    y: { ticks: { color: "#8a99ad", maxTicksLimit: mobile ? 5 : 8 }, grid: { color: "rgba(255,255,255,.04)" }, min: 0 }
                 }
             }
         });
     }
 
-    // Renderização do Donut Chart (Gráfico Distribuição)
-    const ctxDistribuicao = document.getElementById("graficoDistribuicao");
-    if (ctxDistribuicao && typeof Chart !== 'undefined') {
-        graficoDistribuicao = new Chart(ctxDistribuicao, {
-            type: 'doughnut',
+    const ctxD = $(p + "graficoDistribuicao");
+    if (ctxD) {
+        graficoDistribuicao = new Chart(ctxD, {
+            type: "doughnut",
             data: {
-                labels: labelsDistribuicao,
+                labels: Object.keys(dist),
                 datasets: [{
-                    data: valoresDistribuicao,
-                    borderWidth: 0,
-                    cutout: '74%',
-                    backgroundColor: ['#f5b041', '#ff4d4d', '#00ff66', '#3498db', '#9b59b6', '#e67e22']
+                    data: Object.values(dist), borderWidth: 0, cutout: "74%",
+                    backgroundColor: ["#f5b041", "#ff4d4d", "#00ff66", "#3498db", "#9b59b6", "#e67e22"]
                 }]
             },
             options: {
-                responsive: true,
-                maintainAspectRatio: false,
-                plugins: {
-                    legend: {
-                        position: 'bottom',
-                        labels: { color: '#8a99ad', padding: 14, usePointStyle: true }
-                    }
-                }
+                responsive: true, maintainAspectRatio: false,
+                plugins: { legend: { position: "bottom", labels: { color: "#8a99ad", padding: 14, usePointStyle: true } } }
             }
         });
     }
