@@ -22,7 +22,7 @@ function hash(s) { // cyrb53 (determinístico, sem depender de crypto.subtle)
 const CATS = [
     ["Receita de plataformas", /TIKTOK|BYTEDANCE|CLIPEI|CLIPAY|YOUTUBE|ADSENSE|GOOGLE|META\b|FACEBOOK|KWAI|HOTMART|KIWIFY|EDUZZ|MONETIZZE|PAYPAL|STRIPE|ASAAS|PAGSEGURO/, "entrada"],
     ["Salário e benefícios", /SALARIO|BENEFICIO|INSS|FGTS|AUXILIO|BOLSA|SEGURO DESEMP/, "entrada"],
-    ["Rendimentos e estornos", /RENDIMENT|POUPANCA|ESTORNO|DEVOLU|RESGATE/, "entrada"],
+    ["Rendimentos e estornos", /RENDIMENT|POUPANCA|ESTORNO|DEVOLU|RESGATE|JUROS|CORRECAO MONETARIA/, "entrada"],
     ["Depósitos", /DEPOSITO|\bDP\b|DINHEIRO/, "entrada"],
     ["Apostas / bets", /\b(BET|BETANO|BET365|BLAZE|PIXBET|SPORTINGBET|ESTRELABET|VAIDEBET|BETNACIONAL|TIGRINHO|CASSINO)\b/],
     ["Fatura de cartão", /FATURA|CARTAO (DE )?CREDITO/],
@@ -37,7 +37,7 @@ const CATS = [
     ["Contas da casa", /ENERGIA|EQUATORIAL|CEMAR|CAEMA|AGUA|ALUGUEL|CONDOMINIO/],
     ["Saúde", /FARMAC|DROGA|HOSPITAL|CLINICA|MEDIC|LABORAT|ODONTO|UNIMED/],
     ["Compras online/varejo", /MERCADO ?LIVRE|SHOPEE|SHEIN|AMAZON|MAGALU|MAGAZINE|AMERICANAS|ALIEXPRESS|CASAS BAHIA/],
-    ["Impostos", /DARF|\bDAS\b|IMPOSTO|IPVA|IPTU|RECEITA FEDERAL/],
+    ["Impostos", /DARF|\bDAS (MEI|SIMPLES)\b|IMPOSTO|IPVA|IPTU|RECEITA FEDERAL/],
     ["Boletos e pagamentos", /BOLETO|PAG ?BOL|PAGAMENTO|PAGTO|CONVENIO|COBRANCA|LOTERIA/],
     ["Compras no débito", /COMPRA|CP DEB|CARTAO|\bELO\b|VISA|MASTER/],
 ];
@@ -68,21 +68,22 @@ function moedas(t) { // acha valores no formato brasileiro; detecta sinal por su
 
 const limpa = s => s.replace(/(\d{1,3}(?:\.\d{3})+|\d+),\d{2}(?!\d)(\s?[CD](?![A-Za-z]))?/gi, " ")
     .replace(/\d{3}\.?\d{3}\.?\d{3}-?\d{2}|\*{3}\.?\d{3}\.?\d{3}-?\*{2}|\b\d{14}\b/g, "•••") // mascara CPF/CNPJ
-    .replace(/^\s*\d{4,}\s+/, "").replace(/\s+/g, " ").trim().slice(0, 120);
+    .replace(/^[\s\-–—~=]*\d{1,2}:\d{2}(:\d{2})?\s*/, "").replace(/^\s*\d{4,}\s+/, "").replace(/\s+/g, " ").trim().slice(0, 120);
 
-const ENTR = /RECEB|CRED|DEPOS|SALARIO|RENDIMENT|ESTORNO|RESGATE|DEVOLU|\bDP\b/;
-const SAI = /ENVIAD|DEB|PAGTO|PAGAMENTO|COMPRA|SAQUE|TARIFA|BOLETO|FATURA|IOF|JUROS|\bENVIO/;
+const SG_D = /CARTAO (DE )?CREDITO|COMPRA|SAQUE|ENVIAD|PAGAMENTO|PAGTO|PAG BOL|BOLETO|TARIFA|FATURA|\bIOF\b|\bDEB\b|DEBITO|\bENVIO/;
+const SG_C = /RECEBID|RECEBIMENTO|CREDITO|CORRECAO|DEPOSITO|\bDP\b|ESTORNO|RESGATE|RENDIMENT|SALARIO|PROVENTO|DEVOLU/;
+const sgDesc = n => /ESTORNO|DEVOLU|RECEBID/.test(n) ? 1 : SG_D.test(n) ? -1 : SG_C.test(n) ? 1 : 0;
 
 function direcao(r) { // [+1 entrada | -1 saída, incerto?]
-    if (r.s) return [r.s, false];
-    const n = NORM(r.desc);
-    if (SAI.test(n) && !ENTR.test(n)) return [-1, false];
-    if (ENTR.test(n) && !SAI.test(n)) return [1, false];
-    return [-1, true];
+    if (r.s) return [r.s, r.flag === "incerto"];
+    const d = sgDesc(NORM(r.desc));
+    return d ? [d, false] : [-1, true];
 }
 
 // Tolerante a layout: cada data no início de linha abre um lançamento; valores podem estar na mesma linha ou nas seguintes
 function parseLinhas(L) {
+    const c = L.some(l => /SALDO ?(DIA|ANTERIOR)/i.test(NORM(l))) ? parseCaixa(L) : null;
+    if (c && c.rows.length >= 3) return c;
     const rows = [], saldoDia = {}; let ini = null, cur = null;
     const sv = x => x.v * (x.s || 1);
     const fecha = () => {
@@ -107,6 +108,126 @@ function parseLinhas(L) {
     fecha();
     const ult = Object.keys(saldoDia).sort().pop();
     return { rows, ini, fim: ult ? saldoDia[ult] : null, saldoDia };
+}
+
+// ---------- Extrato com coluna de saldo (Caixa): leitura tolerante a OCR + conferência pela cadeia de saldos ----------
+// Cada linha traz "valor" e "saldo após". O OCR erra muito (C/D viram 6/0/¢, vírgula some, ano vira 2028...),
+// então o saldo é usado como prova: saldo_anterior ± valor tem que ser igual ao saldo da linha.
+const r2 = x => Math.round(x * 100) / 100;
+const trimD = D => D.length > 3 ? D.slice(0, -1) : D;
+const lev = (a, b) => { const d = Array.from({ length: a.length + 1 }, (_, i) => [i]); for (let j = 1; j <= b.length; j++) d[0][j] = j;
+    for (let i = 1; i <= a.length; i++) for (let j = 1; j <= b.length; j++) d[i][j] = Math.min(d[i - 1][j] + 1, d[i][j - 1] + 1, d[i - 1][j - 1] + (a[i - 1] === b[j - 1] ? 0 : 1));
+    return d[a.length][b.length]; };
+
+function candNum(tok) { // valores possíveis de um número lido por OCR (o mais provável primeiro)
+    const t = String(tok).replace(/[^\d.,]/g, "").replace(/[.,]+$/, ""), D = t.replace(/\D/g, "");
+    if (D.length < 2) return [];
+    const c = n => r2(parseInt(n, 10) / 100);
+    let r;
+    if (/[.,]\d{2}$/.test(t)) r = [c(D)];                       // 1.773,71
+    else if (/[.,]\d{3}$/.test(t)) r = [c(trimD(D)), c(D)];      // 2,336 -> o "C" virou 6
+    else r = [c(D), c(trimD(D))];                                // vírgula perdida: 144 -> 1,44
+    return [...new Set(r)];
+}
+
+const HIST = /^[^A-Za-z]*(PIX ?(?:ENVIAD\w*|RECEBID\w*)|COMPRA CARTAO \w+|DEB RECARGA PREPAGO IBC|SAQUE DIN \w+|CREDITO JUROS|CORRECAO MONETARIA|SALDO ?DIA)\.?/i;
+const ehValor = t => /^[^\d,]*\d{1,3}(?:\.\d{3})*,\d{2,3}\D{0,2}$/.test(t) || /^[^\d.,\/*]*\d{2,}[^\d.,\/*]{0,2}$/.test(t);
+const ehSaldo = t => (t.match(/\d/g) || []).length >= 3;
+
+function lerLinhaCaixa(ln) {
+    const m = ln.match(/^\s*[^\dA-Za-z]*(\d{2})\s?[\/.]?\s?(\d{2})\s?[\/.]\s?(\d{4})(?!\d)\s*(.*)$/);
+    if (!m) return null;
+    const dia = +m[1], mes = +m[2]; if (mes < 1 || mes > 12 || dia < 1 || dia > 31) return null;
+    let rest = m[4].replace(/^\s*[-–—~=]*\s*\d{1,2}[:.]\d{2}(?:[:.]\d{2})?\s*/, "").replace(/^\s*\d{5,7}\s+/, "");
+    const tk = rest.split(/\s+/).filter(Boolean);
+    let iS = -1; for (let i = tk.length - 1; i >= 0; i--) if (ehSaldo(tk[i])) { iS = i; break; }
+    let iV = -1; if (iS > 0) for (let i = iS - 1; i >= 0; i--) if (/\d/.test(tk[i])) { if (ehValor(tk[i])) iV = i; break; }
+    const hm = rest.match(HIST), hist = hm ? hm[1].toUpperCase().replace(/^PIX ?/, "PIX ").replace(/\s+/g, " ") : "";
+    const fimTxt = iV >= 0 ? iV : iS >= 0 ? iS : tk.length;
+    let fav = hm ? rest.slice(hm[0].length) : rest;
+    fav = fav.trim().split(/\s+/).slice(0, Math.max(0, fimTxt - (hm ? hm[0].trim().split(/\s+/).length : 0))).filter(w => /^\*?[A-Za-zÀ-ÿ][A-Za-zÀ-ÿ.'’*-]*$/.test(w)).join(" ");
+    const histTxt = hist || tk.slice(0, fimTxt).filter(w => /[A-Za-zÀ-ÿ]/.test(w)).join(" ");
+    const x = { dia, mes, ano: +m[3], hist: histTxt, fav, sd: /SALDO ?D/i.test(histTxt) || /SALDO ?D/i.test(rest), vc: [], sc: [], solo: false, sufixo: 0 };
+    if (iS >= 0 && iV >= 0) { x.vc = candNum(tk[iV]); x.sc = candNum(tk[iS]); }
+    else if (iS >= 0) { x.vc = candNum(tk[iS]); x.solo = true; }
+    if (iV >= 0) {
+        const suf = tk[iV].replace(/^[^\d]*[\d.,]+/, "") + " " + tk.slice(iV + 1, iS).join(" ");
+        x.sufixo = /[Dd]/.test(suf) ? -1 : /[Cc¢]/.test(suf) ? 1 : 0;
+    }
+    const n = NORM(histTxt);
+    x.sg = x.sd ? 1 : (sgDesc(n) || x.sufixo);
+    return x;
+}
+
+function parseCaixa(L) {
+    let ini = null; const it = [];
+    for (const ln of L) {
+        if (/^[^A-Z0-9]*SALDO (ANTERIOR|INICIAL)/.test(NORM(ln))) {
+            const nums = ln.match(/\d[\d.,]*/g) || [], c = nums.length ? candNum(nums[nums.length - 1]) : [];
+            if (c.length) ini = c[0]; continue;
+        }
+        const x = lerLinhaCaixa(ln); if (x) it.push(x);
+    }
+    if (it.length < 3) return null;
+
+    // ano: o OCR às vezes lê 2025 como 2028; corrige pelo ano dos vizinhos
+    const anos = it.map(x => x.ano), freq = {}; anos.forEach(a => freq[a] = (freq[a] || 0) + 1);
+    const moda = +Object.keys(freq).sort((a, b) => freq[b] - freq[a])[0], ok = a => Math.abs(a - moda) <= 1;
+    const dia0 = (y, m, d) => Date.UTC(y, m - 1, d) / 864e5;
+    it.forEach((x, i) => {
+        if (ok(x.ano)) return;
+        const viz = [it[i - 1], it[i + 1], it[i - 2], it[i + 2]].filter(y => y && ok(y.ano)).slice(0, 2);
+        const cand = [moda - 1, moda].map(y => ({ y, d: viz.reduce((a, v) => a + Math.abs(dia0(y, x.mes, x.dia) - dia0(v.ano, v.mes, v.dia)), 0) }));
+        x.ano = cand.sort((a, b) => a.d - b.d)[0].y;
+    });
+    it.forEach(x => { x.data = `${x.ano}-${String(x.mes).padStart(2, "0")}-${String(x.dia).padStart(2, "0")}`; });
+
+    // o extrato vem do mais novo para o mais antigo: processa do mais antigo para o mais novo
+    const seq = (it[0].data >= it[it.length - 1].data ? it.slice().reverse() : it.slice());
+    seq.forEach(x => { if (x.solo && x.sd) { x.solo = false; x.sc = x.vc; x.vc = []; } });
+    const opcoes = x => x.sd ? [{ v: 0, s: 1 }] : (x.sg ? [x.sg] : [-1, 1]).flatMap(s => x.vc.map(v => ({ v, s })));
+    if (ini == null) { const p = seq.find(x => !x.sd && x.sc.length && x.vc.length && x.sg); if (p) ini = r2(p.sc[0] - p.sg * p.vc[0]); }
+    if (ini == null) return null;
+
+    let run = ini; const out = [], st = { corr: 0, ins: 0, nver: 0, perd: 0 };
+    const add = (x, o, saldo, flag) => { if (x.sd) return; out.push({ data: x.data, desc: x.hist + (x.fav ? " · " + x.fav : ""), v: o.v, s: o.s, saldo, flag: flag || null }); };
+    for (let k = 0; k < seq.length; k++) {
+        const x = seq[k], antes = run;
+        if (x.solo && !x.sd) { x.solo = false; const sh = x.vc.filter(S => Math.abs(S - antes) < .35 * Math.abs(antes) + .01); if (sh.length) { x.sc = sh; x.vc = []; } }
+        const op = opcoes(x),  hit = (S, o) => Math.abs(r2(antes + o.s * o.v) - S) < .006;
+        const pick = x.sc.length ? op.find(o => x.sc.some(S => hit(S, o))) : null;
+        if (pick) { run = r2(antes + pick.s * pick.v); add(x, pick, run); continue; }          // bate com o saldo do extrato
+        if (!x.sc.length) {                                                                    // sem saldo para provar
+            if (!op.length) { if (!x.sd) st.perd++; continue; }
+            run = r2(antes + op[0].s * op[0].v); add(x, op[0], null, x.sg ? null : "incerto"); st.nver++; continue;
+        }
+        const def = op[0];
+        if (def) { // o saldo desta linha pode ser só um erro de OCR: confirma olhando o próximo saldo legível
+            let r = r2(antes + def.s * def.v), conf = false;
+            for (let j = k + 1; j < seq.length; j++) {
+                const y = seq[j], oy = opcoes(y)[0]; if (oy) r = r2(r + oy.s * oy.v);
+                if (y.sc.length) { conf = y.sc.some(S => Math.abs(S - r) < .006); break; }
+            }
+            if (conf) { run = r2(antes + def.s * def.v); add(x, def, null); st.nver++; continue; }
+        }
+        if (x.sd) { // saldo do dia não fecha: faltou lançamento(s) no OCR
+            const S = x.sc.slice().sort((a, b) => Math.abs(a - antes) - Math.abs(b - antes))[0], d = r2(S - antes);
+            if (Math.abs(d) >= .005) { add({ data: x.data, hist: "LANÇAMENTO NÃO LIDO PELO OCR", fav: "" }, { v: Math.abs(d), s: d > 0 ? 1 : -1 }, null, "inserido"); st.ins++; }
+            run = S; continue;
+        }
+        // o valor lido está errado (ou faltou uma linha): usa o saldo como prova
+        const S = x.sc.slice().sort((a, b) => Math.abs(Math.abs(a - antes) - (def ? def.v : 0)) - Math.abs(Math.abs(b - antes) - (def ? def.v : 0)))[0], t = r2(S - antes);
+        if (Math.abs(t) < .005) { run = S; st.perd++; continue; }
+        const nv = { v: Math.abs(t), s: t > 0 ? 1 : -1 };
+        if (def && lev(String(Math.round(def.v * 100)), String(Math.round(nv.v * 100))) > 1) { // valores sem parentesco: faltou uma linha inteira no OCR
+            const d = r2(S - (antes + def.s * def.v));
+            if (Math.abs(d) >= .005) { add({ data: x.data, hist: "LANÇAMENTO NÃO LIDO PELO OCR", fav: "" }, { v: Math.abs(d), s: d > 0 ? 1 : -1 }, null, "inserido"); st.ins++; }
+            run = S; add(x, def, S); continue;
+        }
+        run = S; add(x, nv, S, "corrigido"); st.corr++;                                        // valor/sinal lido errado: vale o saldo
+    }
+    const ult = seq.slice().reverse().find(x => x.sc.length), fim = ult ? ult.sc.slice().sort((a, b) => Math.abs(a - run) - Math.abs(b - run))[0] : null;
+    return { rows: out, ini, fim, saldoDia: {}, st };
 }
 
 function parseOFX(t) {
@@ -194,6 +315,7 @@ async function ocrPDF(pdf) {
     await carregaScript("https://cdn.jsdelivr.net/npm/tesseract.js@5.1.1/dist/tesseract.min.js");
     const worker = await Tesseract.createWorker("por");
     try {
+        await worker.setParameters({ tessedit_pageseg_mode: "6", preserve_interword_spaces: "1" });
         for (let p = 1; p <= pdf.numPages; p++) {
             box.innerHTML = `Lendo página ${p} de ${pdf.numPages} por OCR… (pode levar alguns segundos por página)`;
             const page = await pdf.getPage(p), vp = page.getViewport({ scale: 2.5 });
@@ -228,16 +350,17 @@ async function lerArquivo(file) {
     return { p: parseCSV(t), formato: "csv" };
 }
 
-function montar(p, arquivo, formato) {
+function montar(p, arquivo, formato, ocr) {
     const occ = {}, chaves = new Set(EXT.map(x => x.chave_unica)), soft = {};
     EXT.forEach(x => { if (x.formato !== formato) { const k = x.data_movimento + "|" + Math.round(x.valor * 100); soft[k] = (soft[k] || 0) + 1; } });
     const tx = p.rows.filter(r => r.v > 0 && /^\d{4}-\d{2}-\d{2}$/.test(r.data)).map(r => {
         const [d, incerto] = direcao(r), tipo = d > 0 ? "entrada" : "saida", dn = NORM(r.desc);
-        const base = `${r.data}|${tipo[0]}${Math.round(r.v * 100)}|${hash(dn)}`; occ[base] = (occ[base] || 0) + 1;
+        const base = `${r.data}|${tipo[0]}${Math.round(r.v * 100)}` + (ocr ? "" : `|${hash(dn)}`); // OCR muda a grafia a cada leitura: a chave não usa o texto occ[base] = (occ[base] || 0) + 1;
         const chave = `${base}|${occ[base]}`;
-        return { chave_unica: chave, data_movimento: r.data, descricao: r.desc || "(sem descrição)", valor: r.v, tipo, categoria: categorizar(dn, tipo), contraparte: contraparte(dn), saldo_apos: r.saldo, formato, arquivo_origem: arquivo, incerto, dup: chaves.has(chave) };
+        return { chave_unica: chave, data_movimento: r.data, descricao: r.desc || "(sem descrição)", valor: r.v, tipo, categoria: categorizar(dn, tipo), contraparte: contraparte(dn), saldo_apos: r.saldo, formato, arquivo_origem: arquivo, incerto, ajuste: r.flag === "corrigido" || r.flag === "inserido" ? r.flag : null, dup: chaves.has(chave) };
     });
     const ultimo = {}; tx.forEach(t => (ultimo[t.data_movimento] = t));
+    if (p.st) tx.forEach(t => { if (ultimo[t.data_movimento] !== t) t.saldo_apos = null; }); // saldo só no último lançamento do dia (usado no KPI de saldo)
     Object.entries(p.saldoDia || {}).forEach(([d, s]) => { if (ultimo[d] && ultimo[d].saldo_apos == null) ultimo[d].saldo_apos = s; });
     tx.forEach(t => { if (!t.dup) { const k = t.data_movimento + "|" + Math.round(t.valor * 100); if (soft[k] > 0) { soft[k]--; t.prov = true; } } });
     return tx;
@@ -249,12 +372,12 @@ async function importar(file) {
     const box = $("bx-prev"); box.hidden = false; box.innerHTML = "Lendo arquivo…";
     try {
         const { p, formato, ocr } = await lerArquivo(file);
-        const tx = montar(p, file.name, formato);
+        const tx = montar(p, file.name, formato, ocr);
         if (!tx.length) throw new Error("Nenhum lançamento reconhecido. Se for PDF, me envie um exemplo sem dados pessoais para ajustar a leitura.");
         PREV = { tx };
         const ent = SOMA(tx.filter(t => t.tipo === "entrada"), t => t.valor), sai = SOMA(tx.filter(t => t.tipo === "saida"), t => t.valor);
         const datas = tx.map(t => t.data_movimento).sort(), nv = tx.filter(t => !t.dup && !t.prov).length;
-        const dup = tx.filter(t => t.dup).length, prov = tx.filter(t => t.prov).length, inc = tx.filter(t => t.incerto).length;
+        const ajs = tx.filter(t => t.ajuste), dup = tx.filter(t => t.dup).length, prov = tx.filter(t => t.prov).length, inc = tx.filter(t => t.incerto).length;
         let conf = "Sem saldos no arquivo para conferir.";
         if (p.ini != null && p.fim != null) {
             const dif = p.ini + ent - sai - p.fim;
@@ -270,7 +393,8 @@ async function importar(file) {
                 <div><small>Novos</small><b>${nv}</b></div>
                 <div><small>Já importados</small><b>${dup}</b></div>
             </div>
-            <p class="bx-nota">${conf}${inc ? ` · ${inc} linha(s) com sinal deduzido pela descrição.` : ""}${ocr ? " · ⚠️ Lido por OCR (PDF em imagem): confira os valores antes de salvar; reimportar o mesmo arquivo pode não detectar todas as duplicatas." : ""}</p>
+            <p class="bx-nota">${conf}${inc ? ` · ${inc} linha(s) com sinal deduzido pela descrição.` : ""}${ocr ? " · ℹ️ PDF em imagem lido por OCR; cada valor foi conferido pela coluna de saldo do extrato." : ""}</p>
+            ${ajs.length ? `<details class="bx-nota" open><summary>✏️ ${ajs.length} lançamento(s) ajustado(s) pelo saldo — confira:</summary>${ajs.map(t => `<div>${fmtData(t.data_movimento)} · ${esc(t.descricao)} · ${t.tipo === "entrada" ? "+" : "−"}${R$(t.valor)}</div>`).join("")}</details>` : ""}
             ${prov ? `<label class="bx-chk"><input type="checkbox" id="bx-soft" checked> Ignorar ${prov} provável(is) duplicata(s) (mesmo dia e valor já existentes, vindos de outro formato)</label>` : ""}
             <div class="bx-acoes"><button class="btn-salvar" type="button" onclick="salvarImport()" ${nv + (prov ? 0 : 0) ? "" : "disabled"}>Salvar ${nv} novo(s)</button><button class="bx-sec" type="button" onclick="cancelarImport()">Cancelar</button></div>`;
     } catch (e) {
@@ -424,4 +548,4 @@ document.addEventListener("DOMContentLoaded", () => {
     $("bx-q").addEventListener("input", listar); $("bx-t").addEventListener("change", listar);
 });
 
-console.log("banco.js v3 carregado");
+console.log("banco.js v4 carregado");
