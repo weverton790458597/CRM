@@ -824,6 +824,7 @@ td:nth-child(2){
 
     </style>
     <link rel="stylesheet" href="mobile.css">
+    <link rel="stylesheet" href="banco.css">
 
 <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
@@ -844,7 +845,10 @@ td:nth-child(2){
                     </div>
                 </div>
             </a>
-            <input type="month" id="filtro-mes" class="filtro-data">
+            <div class="bx-ctrl">
+                <div class="bx-seg"><button type="button" class="on" data-v="projetos">Projetos</button><button type="button" data-v="banco">Conta</button></div>
+                <input type="month" id="filtro-mes" class="filtro-data">
+            </div>
         </header>
 
 
@@ -1078,7 +1082,7 @@ td:nth-child(2){
                 <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><path stroke-linecap="round" stroke-linejoin="round" d="M16 8v8m-4-5v5m-4-2v2M4 21h16a1 1 0 001-1V4a1 1 0 00-1-1H4a1 1 0 00-1 1v16a1 1 0 001 1z"/></svg>
                 <div><b>EVRIX</b><small>FINANCEIRO</small></div>
             </div>
-            <input type="month" id="m-filtro-mes" class="m-month">
+            <div class="m-ctrl"><button type="button" class="m-modo" id="m-modo">Conta</button><input type="month" id="m-filtro-mes" class="m-month"></div>
         </header>
 
         <main class="m-main">
@@ -1150,6 +1154,63 @@ td:nth-child(2){
         </nav>
     </div>
 
+    <!-- =========== VISÃO CONTA BANCÁRIA =========== -->
+    <section id="view-banco">
+        <div class="analytics-header">
+            <div>
+                <div class="analytics-label">Conta Bancária</div>
+                <h2 class="analytics-title">Extrato e para onde o dinheiro vai</h2>
+            </div>
+            <div class="analytics-badge">Caixa Econômica Federal</div>
+        </div>
+
+        <div class="bloco bx-drop" id="bx-drop">
+            <input type="file" id="bx-file" accept=".pdf,.csv,.ofx,.txt" hidden>
+            <div>
+                <b>Importar extrato</b>
+                <small>Arraste o arquivo exportado pelo app da Caixa (PDF, CSV ou OFX) ou escolha no aparelho. A leitura acontece no seu navegador.</small>
+            </div>
+            <button class="btn-salvar" id="bx-btn" type="button">Escolher arquivo</button>
+        </div>
+        <div class="bloco" id="bx-prev" hidden></div>
+        <div class="bloco bx-erro" id="bx-erro" hidden></div>
+
+        <div class="bx-kpis" id="bx-kpis"></div>
+
+        <div class="bx-grid">
+            <div class="chart-card">
+                <div class="chart-mini-title">Entradas × saídas por dia</div>
+                <div class="chart-wrapper"><canvas id="bxFluxo"></canvas></div>
+            </div>
+            <div class="chart-card">
+                <div class="chart-mini-title">Saídas por categoria</div>
+                <div class="chart-wrapper"><canvas id="bxCat"></canvas></div>
+            </div>
+        </div>
+
+        <div class="bx-grid">
+            <div class="bloco"><div class="analytics-label">Diagnóstico do mês</div><div id="bx-alertas"></div></div>
+            <div class="bloco"><div class="analytics-label">Ralos · saídas por categoria</div><div id="bx-cats"></div></div>
+        </div>
+
+        <div class="bloco">
+            <div class="analytics-label">Projetos × conta</div>
+            <div class="tabela-container"><table>
+                <thead><tr><th>Mês</th><th>Faturado</th><th>Entrou</th><th>Saiu</th><th>Sobrou</th><th>Cobertura</th></tr></thead>
+                <tbody id="bx-cruz"></tbody>
+            </table></div>
+        </div>
+
+        <div class="bloco">
+            <div class="analytics-label" style="margin-bottom:14px">Lançamentos do mês</div>
+            <div class="bx-filtros">
+                <input type="search" id="bx-q" placeholder="Buscar por descrição ou categoria">
+                <select id="bx-t"><option value="">Todos</option><option value="entrada">Entradas</option><option value="saida">Saídas</option></select>
+            </div>
+            <div id="bx-lista"></div>
+        </div>
+    </section>
+
     <div class="sheet-overlay" id="sheet-overlay"></div>
     <div class="toast" id="toast"></div>
 
@@ -1190,5 +1251,6 @@ td:nth-child(2){
     </script>
 
     <script src="app.js"></script>
+    <script src="banco.js"></script>
 </body>
 </html>
