@@ -283,16 +283,16 @@ async function carregarBanco(forcar) {
 
 // ---------- Análise ----------
 const agrupa = (l, f) => { const r = {}; l.forEach(x => { const k = f(x); r[k] = (r[k] || 0) + (+x.valor); }); return r; };
-const top = o => Object.entries(o).sort((a, b) => b[1] - a[1]);
+const ranking = o => Object.entries(o).sort((a, b) => b[1] - a[1]);
 const mesAnt = m => { const [y, mm] = m.split("-").map(Number); const d = new Date(y, mm - 2, 1); return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}`; };
 const kpi = (t, v, d, cor) => `<div class="card"><div class="card-header-flex"><div class="card-titulo">${t}</div></div><div class="card-valor" style="color:${cor}">${v}</div><div class="card-detalhe">${d}</div></div>`;
 
 function alertas(mes, E, sai, tE, tS, fat) {
-    const A = [], cats = top(agrupa(sai, x => x.categoria));
+    const A = [], cats = ranking(agrupa(sai, x => x.categoria));
     if (!E.length) return ["Nenhum lançamento da conta neste mês. Importe o extrato para ver o diagnóstico."];
     A.push(tS > tE ? `🔴 As saídas (${R$(tS)}) superaram as entradas (${R$(tE)}): o saldo caiu ${R$(tS - tE)} no mês.` : `🟢 Entrou ${R$(tE)} e saiu ${R$(tS)}: sobraram ${R$(tE - tS)} no mês.`);
     if (cats[0]) A.push(`💸 Maior ralo: <b>${esc(cats[0][0])}</b> — ${R$(cats[0][1])} (${(cats[0][1] / tS * 100).toFixed(0)}% das saídas).`);
-    const ct = top(agrupa(sai, x => x.contraparte)).filter(c => c[0] !== "SEM IDENTIFICACAO")[0];
+    const ct = ranking(agrupa(sai, x => x.contraparte)).filter(c => c[0] !== "SEM IDENTIFICACAO")[0];
     if (ct) A.push(`👤 Maior destino individual: <b>${esc(ct[0])}</b> — ${R$(ct[1])} em ${sai.filter(x => x.contraparte === ct[0]).length} saída(s).`);
     const peq = sai.filter(x => +x.valor < 30);
     if (peq.length >= 15) A.push(`🪙 ${peq.length} saídas abaixo de R$ 30 somam ${R$(SOMA(peq, x => +x.valor))} — pequenos gastos frequentes.`);
@@ -320,7 +320,7 @@ function renderBanco() {
         kpi("Saldo ao fim do período", sd ? R$(sd.saldo_apos) : "---", sd ? `em ${fmtData(sd.data_movimento)}` : "Sem saldo no extrato", "var(--cyan)"));
     setHtml("bx-alertas", alertas(mes, E, sai, tE, tS, fat).map(a => `<p class="bx-alerta">${a}</p>`).join(""));
 
-    const cats = top(agrupa(sai, x => x.categoria));
+    const cats = ranking(agrupa(sai, x => x.categoria));
     setHtml("bx-cats", cats.length ? cats.map(([c, v]) => `<div class="bx-cat"><div><b>${esc(c)}</b><span>${R$(v)}</span></div><div class="m-bar"><i style="width:${(v / tS * 100).toFixed(1)}%;background:var(--danger)"></i></div><small>${(v / tS * 100).toFixed(1)}% das saídas</small></div>`).join("") : `<div class="bx-vazio">Sem saídas no período.</div>`);
 
     const fm = {}; const g = m => (fm[m] = fm[m] || { f: 0, e: 0, s: 0 });
