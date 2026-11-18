@@ -1,387 +1,417 @@
 // =========================================
-// EVRIX FINANCEIRO - BANCO.JS
-// Importação e análise de extrato bancário (Caixa)
-// Depende de app.js: $, esc, num, formatarMoeda, fmtData, supabaseClient, TODOS, toast, mq, prefixo
+// EVRIX FINANCEIRO - APP.JS (v3 - Desktop + Mobile App)
 // =========================================
 
-let EXT = null, PREV = null, gFluxo = null, gCat = null;
+const SUPABASE_URL = "https://abdliioyzkylccfylils.supabase.co";
+const SUPABASE_ANON_KEY = "sb_publishable_g6l6_QmwE4Tj85_KF_XHfQ_I4gFlY_n";
+const supabaseClient = supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
 
-const NORM = s => String(s || "").normalize("NFD").replace(/[\u0300-\u036f]/g, "").toUpperCase().replace(/\s+/g, " ").trim();
-const SOMA = (l, f) => l.reduce((a, x) => a + f(x), 0);
-const R$ = formatarMoeda;
+// ---------- Estado ----------
+let graficoReceita = null;
+let graficoDistribuicao = null;
+let TODOS = [];   // todos os registros (histórico)
+let MES = [];     // registros do mês filtrado
 
-function hash(s) { // cyrb53 (determinístico, sem depender de crypto.subtle)
-    let h1 = 0xdeadbeef, h2 = 0x41c6ce57;
-    for (let i = 0; i < s.length; i++) { const c = s.charCodeAt(i); h1 = Math.imul(h1 ^ c, 2654435761); h2 = Math.imul(h2 ^ c, 1597334677); }
-    h1 = Math.imul(h1 ^ (h1 >>> 16), 2246822507) ^ Math.imul(h2 ^ (h2 >>> 13), 3266489909);
-    h2 = Math.imul(h2 ^ (h2 >>> 16), 2246822507) ^ Math.imul(h1 ^ (h1 >>> 13), 3266489909);
-    return (4294967296 * (2097151 & h2) + (h1 >>> 0)).toString(36);
+const mq = window.matchMedia("(max-width: 768px)");
+const prefixo = () => (mq.matches ? "m-" : "");
+
+const COR = {
+    Clipei: "#38ef7d",
+    Clipay: "#2dd4bf",
+    TikTok: "#06b6d4",
+    YouTube: "#ef4444",
+    Instagram: "#c084fc"
+};
+const corDe = g => COR[g] || "#f7b84b";
+const grupoDe = p =>
+    (p === "Bytedance Tiktok shop" || p === "Bytedance programa de recompensa") ? "TikTok" : p;
+
+// ---------- Utils ----------
+const $ = id => document.getElementById(id);
+const setTxt = (id, v) => { const e = $(id); if (e) e.innerText = v; };
+const setHtml = (id, v) => { const e = $(id); if (e) e.innerHTML = v; };
+const num = v => parseFloat(v) || 0;
+const esc = s => String(s ?? "").replace(/[&<>"']/g, c => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" }[c]));
+const fmtData = d => (d ? d.split("-").reverse().join("/") : "---");
+
+function formatarMoeda(valor) {
+    return new Intl.NumberFormat("pt-BR", { style: "currency", currency: "BRL" }).format(valor);
 }
 
-// ---------- Categorização (ordem importa: específico antes de genérico) ----------
-const CATS = [
-    ["Receita de plataformas", /TIKTOK|BYTEDANCE|CLIPEI|CLIPAY|YOUTUBE|ADSENSE|GOOGLE|META\b|FACEBOOK|KWAI|HOTMART|KIWIFY|EDUZZ|MONETIZZE|PAYPAL|STRIPE|ASAAS|PAGSEGURO/, "entrada"],
-    ["Salário e benefícios", /SALARIO|BENEFICIO|INSS|FGTS|AUXILIO|BOLSA|SEGURO DESEMP/, "entrada"],
-    ["Rendimentos e estornos", /RENDIMENT|POUPANCA|ESTORNO|DEVOLU|RESGATE/, "entrada"],
-    ["Depósitos", /DEPOSITO|\bDP\b|DINHEIRO/, "entrada"],
-    ["Apostas / bets", /\b(BET|BETANO|BET365|BLAZE|PIXBET|SPORTINGBET|ESTRELABET|VAIDEBET|BETNACIONAL|TIGRINHO|CASSINO)\b/],
-    ["Fatura de cartão", /FATURA|CARTAO (DE )?CREDITO/],
-    ["Tarifas e taxas", /TARIFA|\bIOF\b|ANUIDADE|JUROS|ENCARGO|CESTA|PACOTE DE SERV/],
-    ["Saques", /SAQUE/],
-    ["Empréstimos", /EMPREST|FINANCIAM|PARCELA|CONSIGNADO|\bCDC\b/],
-    ["Anúncios", /FACEBK|META ADS|FACEBOOK ADS|GOOGLE ADS|TIKTOK ADS|\bADS\b/],
-    ["Assinaturas e ferramentas", /NETFLIX|SPOTIFY|PRIME|DISNEY|HBO|APPLE|OPENAI|CHATGPT|ANTHROPIC|CLAUDE|ELEVENLABS|CANVA|CAPCUT|HOSTINGER|NAMECHEAP|GODADDY|REGISTRO BR|VERCEL|SUPABASE|CLOUDFLARE|GITHUB|ADOBE|MICROSOFT|NOTION|DIGITALOCEAN|RAILWAY|GOOGLE ONE/],
-    ["Alimentação", /IFOOD|RAPPI|RESTAURANTE|LANCHE|PIZZ|PADARIA|SUPERMERC|MERCADINHO|ATACAD|ACOUGUE|BURGER|SORVET|ACAI|CAFE/],
-    ["Transporte", /UBER|\b99\b|POSTO|COMBUST|SHELL|IPIRANGA|PETROBRAS|ESTACIONAMENTO|PEDAGIO|SEM PARAR/],
-    ["Telefonia e internet", /CLARO|\bVIVO\b|\bTIM\b|\bOI\b|TELEFON|INTERNET|RECARGA/],
-    ["Contas da casa", /ENERGIA|EQUATORIAL|CEMAR|CAEMA|AGUA|ALUGUEL|CONDOMINIO/],
-    ["Saúde", /FARMAC|DROGA|HOSPITAL|CLINICA|MEDIC|LABORAT|ODONTO|UNIMED/],
-    ["Compras online/varejo", /MERCADO ?LIVRE|SHOPEE|SHEIN|AMAZON|MAGALU|MAGAZINE|AMERICANAS|ALIEXPRESS|CASAS BAHIA/],
-    ["Impostos", /DARF|\bDAS\b|IMPOSTO|IPVA|IPTU|RECEITA FEDERAL/],
-    ["Boletos e pagamentos", /BOLETO|PAG ?BOL|PAGAMENTO|PAGTO|CONVENIO|COBRANCA|LOTERIA/],
-    ["Compras no débito", /COMPRA|CP DEB|CARTAO|\bELO\b|VISA|MASTER/],
-];
-
-function categorizar(n, tipo) {
-    for (const [c, re, t] of CATS) if ((!t || t === tipo) && re.test(n)) return c;
-    if (/PIX|TRANSF|\bTED\b|\bDOC\b/.test(n)) return tipo === "entrada" ? "Pix/transferências recebidas" : "Pix/transferências enviadas";
-    return tipo === "entrada" ? "Outras entradas" : "Outros";
+function mesAtual() {
+    const h = new Date();
+    return `${h.getFullYear()}-${String(h.getMonth() + 1).padStart(2, "0")}`;
 }
 
-const contraparte = n => n.replace(/\b(PIX|ENVIADO|RECEBIDO|ENVIO|RECEBIMENTO|CRED|DEB|TRANSF|TRANSFERENCIA|TED|DOC|COMPRA|CARTAO|DEBITO|CREDITO|PAG|PAGTO|PAGAMENTO|EM|C\/C|DE|DA|DO|PARA|AUTOR)\b/g, " ")
-    .replace(/[^A-Z ]/g, " ").replace(/\s+/g, " ").trim().slice(0, 32) || "SEM IDENTIFICACAO";
-
-// ---------- Leitura de valores e linhas ----------
-function moedas(t) { // acha valores no formato brasileiro; detecta sinal por sufixo C/D, "-" ou "+"
-    const re = /(\d{1,3}(?:\.\d{3})+|\d+),(\d{2})(?!\d)/g, out = []; let m, x;
-    while ((m = re.exec(t))) {
-        const ant = t.slice(Math.max(0, m.index - 6), m.index), dep = t.slice(re.lastIndex, re.lastIndex + 3);
-        let s = 0;
-        if ((x = dep.match(/^\s?([CD])(?![A-Za-z])/i))) s = x[1].toUpperCase() === "C" ? 1 : -1;
-        else if (/^\s?-/.test(dep)) s = -1;
-        else if (/(^|\s)-\s?(R\$\s?)?$|\($/.test(ant)) s = -1;
-        else if (/\+\s?(R\$\s?)?$/.test(ant)) s = 1;
-        out.push({ v: parseFloat(m[1].replace(/\./g, "") + "." + m[2]), s });
-    }
-    return out;
+function toast(msg, erro = false) {
+    const t = $("toast");
+    if (!t) return;
+    t.textContent = msg;
+    t.className = "toast show" + (erro ? " erro" : "");
+    clearTimeout(toast._t);
+    toast._t = setTimeout(() => (t.className = "toast"), 2600);
 }
 
-const limpa = s => s.replace(/(\d{1,3}(?:\.\d{3})+|\d+),\d{2}(?!\d)(\s?[CD](?![A-Za-z]))?/gi, " ")
-    .replace(/\d{3}\.?\d{3}\.?\d{3}-?\d{2}|\*{3}\.?\d{3}\.?\d{3}-?\*{2}|\b\d{14}\b/g, "•••") // mascara CPF/CNPJ
-    .replace(/^\s*\d{4,}\s+/, "").replace(/\s+/g, " ").trim().slice(0, 120);
-
-const ENTR = /RECEB|CRED|DEPOS|SALARIO|RENDIMENT|ESTORNO|RESGATE|DEVOLU|\bDP\b/;
-const SAI = /ENVIAD|DEB|PAGTO|PAGAMENTO|COMPRA|SAQUE|TARIFA|BOLETO|FATURA|IOF|JUROS|\bENVIO/;
-
-function direcao(r) { // [+1 entrada | -1 saída, incerto?]
-    if (r.s) return [r.s, false];
-    const n = NORM(r.desc);
-    if (SAI.test(n) && !ENTR.test(n)) return [-1, false];
-    if (ENTR.test(n) && !SAI.test(n)) return [1, false];
-    return [-1, true];
-}
-
-// Tolerante a layout: cada data no início de linha abre um lançamento; valores podem estar na mesma linha ou nas seguintes
-function parseLinhas(L) {
-    const rows = [], saldoDia = {}; let ini = null, cur = null;
-    const sv = x => x.v * (x.s || 1);
-    const fecha = () => {
-        if (!cur) return; const c = cur; cur = null;
-        const ms = moedas(c.txt); if (!ms.length) return;
-        const desc = limpa(c.txt), n = NORM(desc);
-        if (/^SALDO (ANTERIOR|INICIAL)/.test(n)) { ini = sv(ms[ms.length - 1]); return; }
-        if (/^SALDO\b/.test(n)) { saldoDia[c.data] = sv(ms[ms.length - 1]); return; }
-        const val = ms.length > 1 ? (ms.slice(0, -1).find(x => x.v) || ms[0]) : ms[0];
-        rows.push({ data: c.data, desc, v: val.v, s: val.s, saldo: ms.length > 1 ? sv(ms[ms.length - 1]) : null });
-    };
-    for (const ln of L) {
-        const m = ln.match(/^\s*(\d{2})[\/.](\d{2})[\/.](\d{4}|\d{2})\b\s*(.*)$/);
-        const n = NORM(ln);
-        if (m) { fecha(); cur = { data: `${m[3].length === 2 ? "20" + m[3] : m[3]}-${m[2]}-${m[1]}`, txt: m[4], n: 0 }; }
-        else if (/^SALDO (ANTERIOR|INICIAL)/.test(n)) { fecha(); const ms = moedas(ln); if (ms.length) ini = sv(ms[ms.length - 1]); }
-        else if (cur && !/PERIODO|PAGINA|SAC |OUVIDORIA|0800|WWW\.|CAIXA ECON|EXTRATO|EMITIDO/.test(n)) {
-            const hm = moedas(ln).length;
-            if (hm ? !moedas(cur.txt).length : (cur.n < 2 && ln.length < 70)) { cur.txt += " " + ln; if (!hm) cur.n++; }
-        }
-    }
-    fecha();
-    const ult = Object.keys(saldoDia).sort().pop();
-    return { rows, ini, fim: ult ? saldoDia[ult] : null, saldoDia };
-}
-
-function parseOFX(t) {
-    const rows = [];
-    (t.match(/<STMTTRN>[\s\S]*?(?=<\/STMTTRN>|<STMTTRN>|<\/BANKTRANLIST>|$)/gi) || []).forEach(b => {
-        const g = k => ((b.match(new RegExp("<" + k + ">([^<\\r\\n]*)", "i")) || [])[1] || "").trim();
-        const d = g("DTPOSTED"), a = parseFloat(g("TRNAMT").replace(",", "."));
-        if (d.length >= 8 && !isNaN(a)) rows.push({ data: `${d.slice(0, 4)}-${d.slice(4, 6)}-${d.slice(6, 8)}`, desc: limpa(g("MEMO") || g("NAME")), v: Math.abs(a), s: a < 0 ? -1 : 1, saldo: null });
-    });
-    const lb = t.match(/<LEDGERBAL>[\s\S]*?<BALAMT>([-\d.,]+)/i);
-    return { rows, ini: null, fim: lb ? parseFloat(lb[1].replace(",", ".")) : null, saldoDia: {} };
-}
-
-function numBR(s) {
-    const x = String(s || "").replace(/R\$|\s/g, ""); if (!x) return null;
-    const neg = /^-|-$|^\(|D$/i.test(x), c = x.replace(/[^\d,.]/g, "");
-    const v = /,\d{1,2}$/.test(c) ? parseFloat(c.replace(/\./g, "").replace(",", ".")) : parseFloat(c.replace(/,/g, ""));
-    return isNaN(v) ? null : (neg ? -v : v);
-}
-
-function parseCSV(t) {
-    const ls = t.split(/\r?\n/).filter(l => l.trim()), first = ls[0] || "";
-    const sep = [";", "\t", ","].sort((a, b) => first.split(b).length - first.split(a).length)[0];
-    const T = ls.map(l => l.split(sep).map(c => c.replace(/^"|"$/g, "").trim()));
-    const hi = T.findIndex(r => r.some(c => /^DATA/.test(NORM(c)))), H = hi >= 0 ? T[hi].map(NORM) : [];
-    const ix = re => H.findIndex(h => re.test(h));
-    const iD = ix(/^DATA/), iH = ix(/HIST|DESC|LANC/), iV = ix(/^VALOR/), iC = ix(/CREDIT/), iB = ix(/DEBIT/), iT = ix(/TIPO|D\/C|NATUREZA/);
-    if (hi < 0 || iD < 0 || (iV < 0 && iC < 0)) return parseLinhas(T.map(r => r.join(" "))); // sem cabeçalho: tenta como texto
-    const rows = [];
-    T.slice(hi + 1).forEach(r => {
-        const dm = (r[iD] || "").match(/(\d{2})\/(\d{2})\/(\d{4})|(\d{4})-(\d{2})-(\d{2})/); if (!dm) return;
-        const data = dm[1] ? `${dm[3]}-${dm[2]}-${dm[1]}` : dm[0];
-        let v = iV >= 0 ? numBR(r[iV]) : (numBR(r[iC]) || 0) - Math.abs(numBR(r[iB]) || 0);
-        if (v == null || v === 0) return;
-        const tp = iT >= 0 ? NORM(r[iT]) : "";
-        let s = v < 0 ? -1 : 0;
-        if (/^D|DEB|SAI/.test(tp)) s = -1; else if (/^C|CRED|ENTR/.test(tp)) s = 1;
-        if (!s && iV >= 0 && !/-/.test(r[iV]) && !tp) s = 0; // sem sinal: decide por palavras
-        rows.push({ data, desc: limpa(r[iH] || ""), v: Math.abs(v), s: s || (iC >= 0 && v > 0 ? 1 : 0), saldo: null });
-    });
-    return { rows, ini: null, fim: null, saldoDia: {} };
-}
-
-// ---------- PDF (pdf.js carregado só quando necessário) ----------
-function carregaPdfJs() {
-    if (window.pdfjsLib) return Promise.resolve();
-    return new Promise((ok, no) => {
-        const s = document.createElement("script");
-        s.src = "https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.min.js";
-        s.onload = () => { pdfjsLib.GlobalWorkerOptions.workerSrc = "https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.worker.min.js"; ok(); };
-        s.onerror = () => no(new Error("Não foi possível carregar o leitor de PDF (verifique a internet)."));
-        document.head.appendChild(s);
-    });
-}
-
-async function linhasPDF(buf) {
-    await carregaPdfJs();
-    const task = pdfjsLib.getDocument({ data: buf });
-    task.onPassword = cb => cb(prompt("O PDF tem senha. Digite:") || "");
-    const pdf = await task.promise, out = [];
-    for (let p = 1; p <= pdf.numPages; p++) {
-        const tc = await (await pdf.getPage(p)).getTextContent();
-        const it = tc.items.filter(i => i.str.trim()).map(i => ({ s: i.str, x: i.transform[4], y: i.transform[5] })).sort((a, b) => b.y - a.y || a.x - b.x);
-        let cur = null; const ls = [];
-        for (const t of it) { if (cur && Math.abs(cur.y - t.y) <= 3) cur.t.push(t); else { cur = { y: t.y, t: [t] }; ls.push(cur); } }
-        ls.forEach(l => out.push(l.t.sort((a, b) => a.x - b.x).map(t => t.s).join(" ").replace(/\s+/g, " ").trim()));
-    }
-    return out;
-}
-
-// ---------- Importação ----------
-async function lerArquivo(file) {
-    const buf = await file.arrayBuffer(), nome = file.name.toLowerCase();
-    const texto = () => { try { return new TextDecoder("utf-8", { fatal: true }).decode(buf); } catch { return new TextDecoder("windows-1252").decode(buf); } };
-    if (nome.endsWith(".pdf") || file.type === "application/pdf") {
-        const L = await linhasPDF(buf);
-        if (!L.length) throw new Error("PDF sem texto (parece uma imagem). Exporte em CSV/OFX ou gere outro PDF.");
-        return { p: parseLinhas(L), formato: "pdf" };
-    }
-    const t = texto();
-    if (/<OFX>|<STMTTRN>/i.test(t)) return { p: parseOFX(t), formato: "ofx" };
-    return { p: parseCSV(t), formato: "csv" };
-}
-
-function montar(p, arquivo, formato) {
-    const occ = {}, chaves = new Set(EXT.map(x => x.chave_unica)), soft = {};
-    EXT.forEach(x => { if (x.formato !== formato) { const k = x.data_movimento + "|" + Math.round(x.valor * 100); soft[k] = (soft[k] || 0) + 1; } });
-    const tx = p.rows.filter(r => r.v > 0 && /^\d{4}-\d{2}-\d{2}$/.test(r.data)).map(r => {
-        const [d, incerto] = direcao(r), tipo = d > 0 ? "entrada" : "saida", dn = NORM(r.desc);
-        const base = `${r.data}|${tipo[0]}${Math.round(r.v * 100)}|${hash(dn)}`; occ[base] = (occ[base] || 0) + 1;
-        const chave = `${base}|${occ[base]}`;
-        return { chave_unica: chave, data_movimento: r.data, descricao: r.desc || "(sem descrição)", valor: r.v, tipo, categoria: categorizar(dn, tipo), contraparte: contraparte(dn), saldo_apos: r.saldo, formato, arquivo_origem: arquivo, incerto, dup: chaves.has(chave) };
-    });
-    const ultimo = {}; tx.forEach(t => (ultimo[t.data_movimento] = t));
-    Object.entries(p.saldoDia || {}).forEach(([d, s]) => { if (ultimo[d] && ultimo[d].saldo_apos == null) ultimo[d].saldo_apos = s; });
-    tx.forEach(t => { if (!t.dup) { const k = t.data_movimento + "|" + Math.round(t.valor * 100); if (soft[k] > 0) { soft[k]--; t.prov = true; } } });
-    return tx;
-}
-
-async function importar(file) {
-    if (!file) return;
-    if (!EXT) return toast("Crie a tabela extrato_bancario no Supabase primeiro", true);
-    const box = $("bx-prev"); box.hidden = false; box.innerHTML = "Lendo arquivo…";
-    try {
-        const { p, formato } = await lerArquivo(file);
-        const tx = montar(p, file.name, formato);
-        if (!tx.length) throw new Error("Nenhum lançamento reconhecido. Se for PDF, me envie um exemplo sem dados pessoais para ajustar a leitura.");
-        PREV = { tx };
-        const ent = SOMA(tx.filter(t => t.tipo === "entrada"), t => t.valor), sai = SOMA(tx.filter(t => t.tipo === "saida"), t => t.valor);
-        const datas = tx.map(t => t.data_movimento).sort(), nv = tx.filter(t => !t.dup && !t.prov).length;
-        const dup = tx.filter(t => t.dup).length, prov = tx.filter(t => t.prov).length, inc = tx.filter(t => t.incerto).length;
-        let conf = "Sem saldos no arquivo para conferir.";
-        if (p.ini != null && p.fim != null) {
-            const dif = p.ini + ent - sai - p.fim;
-            conf = Math.abs(dif) < 0.015 ? "✅ Conferência: bate com os saldos do extrato." : `⚠️ Diferença de ${R$(dif)} em relação ao saldo final — alguma linha pode ter sinal errado ou faltar.`;
-        }
-        box.innerHTML = `
-            <div class="analytics-label">Pré-visualização · ${esc(file.name)}</div>
-            <div class="bx-prev-grid">
-                <div><small>Período</small><b>${fmtData(datas[0])} → ${fmtData(datas[datas.length - 1])}</b></div>
-                <div><small>Lançamentos</small><b>${tx.length}</b></div>
-                <div><small>Entradas</small><b style="color:var(--success)">${R$(ent)}</b></div>
-                <div><small>Saídas</small><b style="color:var(--danger)">${R$(sai)}</b></div>
-                <div><small>Novos</small><b>${nv}</b></div>
-                <div><small>Já importados</small><b>${dup}</b></div>
-            </div>
-            <p class="bx-nota">${conf}${inc ? ` · ${inc} linha(s) com sinal deduzido pela descrição.` : ""}</p>
-            ${prov ? `<label class="bx-chk"><input type="checkbox" id="bx-soft" checked> Ignorar ${prov} provável(is) duplicata(s) (mesmo dia e valor já existentes, vindos de outro formato)</label>` : ""}
-            <div class="bx-acoes"><button class="btn-salvar" type="button" onclick="salvarImport()" ${nv + (prov ? 0 : 0) ? "" : "disabled"}>Salvar ${nv} novo(s)</button><button class="bx-sec" type="button" onclick="cancelarImport()">Cancelar</button></div>`;
-    } catch (e) {
-        console.error(e); PREV = null; box.innerHTML = `<b style="color:var(--danger)">Não consegui ler:</b> ${esc(e.message)}`;
-    }
-}
-
-function cancelarImport() { PREV = null; $("bx-prev").hidden = true; $("bx-file").value = ""; }
-
-async function salvarImport() {
-    if (!PREV) return;
-    const ignora = $("bx-soft") ? $("bx-soft").checked : false, lote = Date.now().toString(36);
-    const rows = PREV.tx.filter(t => !t.dup && !(t.prov && ignora)).map(t => ({
-        chave_unica: t.chave_unica, data_movimento: t.data_movimento, descricao: t.descricao, valor: t.valor, tipo: t.tipo, categoria: t.categoria,
-        contraparte: t.contraparte, saldo_apos: t.saldo_apos, formato: t.formato, arquivo_origem: t.arquivo_origem, lote_id: lote
-    }));
-    const ultimaData = rows.map(r => r.data_movimento).sort().pop();
-    let ins = 0;
-    try {
-        for (let i = 0; i < rows.length; i += 500) {
-            const { data, error } = await supabaseClient.from("extrato_bancario")
-                .upsert(rows.slice(i, i + 500), { onConflict: "chave_unica", ignoreDuplicates: true }).select("chave_unica");
-            if (error) throw error;
-            ins += data.length;
-        }
-        cancelarImport();
-        if (ultimaData) setMes(ultimaData.slice(0, 7), false);
-        await carregarBanco(true);
-        toast(`${ins} lançamento(s) importado(s)`);
-    } catch (e) { console.error(e); toast("Falha ao salvar: " + e.message, true); }
-}
-
-// ---------- Carga ----------
-async function carregarBanco(forcar) {
-    if (EXT && !forcar) return renderBanco();
-    try {
-        const out = [];
-        for (let i = 0; ; i += 1000) {
-            const { data, error } = await supabaseClient.from("extrato_bancario").select("*").order("data_movimento", { ascending: false }).range(i, i + 999);
-            if (error) throw error;
-            out.push(...data); if (data.length < 1000) break;
-        }
-        EXT = out;
-    } catch (e) { console.warn("extrato_bancario:", e.message); EXT = null; }
-    renderBanco();
-}
-
-// ---------- Análise ----------
-const agrupa = (l, f) => { const r = {}; l.forEach(x => { const k = f(x); r[k] = (r[k] || 0) + (+x.valor); }); return r; };
-const ranking = o => Object.entries(o).sort((a, b) => b[1] - a[1]);
-const mesAnt = m => { const [y, mm] = m.split("-").map(Number); const d = new Date(y, mm - 2, 1); return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}`; };
-const kpi = (t, v, d, cor) => `<div class="card"><div class="card-header-flex"><div class="card-titulo">${t}</div></div><div class="card-valor" style="color:${cor}">${v}</div><div class="card-detalhe">${d}</div></div>`;
-
-function alertas(mes, E, sai, tE, tS, fat) {
-    const A = [], cats = ranking(agrupa(sai, x => x.categoria));
-    if (!E.length) return ["Nenhum lançamento da conta neste mês. Importe o extrato para ver o diagnóstico."];
-    A.push(tS > tE ? `🔴 As saídas (${R$(tS)}) superaram as entradas (${R$(tE)}): o saldo caiu ${R$(tS - tE)} no mês.` : `🟢 Entrou ${R$(tE)} e saiu ${R$(tS)}: sobraram ${R$(tE - tS)} no mês.`);
-    if (cats[0]) A.push(`💸 Maior ralo: <b>${esc(cats[0][0])}</b> — ${R$(cats[0][1])} (${(cats[0][1] / tS * 100).toFixed(0)}% das saídas).`);
-    const ct = ranking(agrupa(sai, x => x.contraparte)).filter(c => c[0] !== "SEM IDENTIFICACAO")[0];
-    if (ct) A.push(`👤 Maior destino individual: <b>${esc(ct[0])}</b> — ${R$(ct[1])} em ${sai.filter(x => x.contraparte === ct[0]).length} saída(s).`);
-    const peq = sai.filter(x => +x.valor < 30);
-    if (peq.length >= 15) A.push(`🪙 ${peq.length} saídas abaixo de R$ 30 somam ${R$(SOMA(peq, x => +x.valor))} — pequenos gastos frequentes.`);
-    const ant = EXT.filter(x => x.tipo === "saida" && x.data_movimento.startsWith(mesAnt(mes))), ca = agrupa(ant, x => x.categoria);
-    if (ant.length) { const s = cats.map(([c, v]) => [c, v - (ca[c] || 0), ca[c] || 0]).filter(x => x[1] > 100 && (!x[2] || x[1] / x[2] > .3)).sort((a, b) => b[1] - a[1])[0]; if (s) A.push(`📈 Maior aumento vs. mês anterior: <b>${esc(s[0])}</b> (+${R$(s[1])}).`); }
-    const rec = {}; EXT.filter(x => x.tipo === "saida" && x.data_movimento.slice(0, 7) >= mesAnt(mesAnt(mes))).forEach(x => { (rec[x.contraparte] = rec[x.contraparte] || []).push(x); });
-    Object.entries(rec).filter(([k, l]) => k !== "SEM IDENTIFICACAO" && new Set(l.map(x => x.data_movimento.slice(0, 7))).size >= 2 && Math.max(...l.map(x => +x.valor)) / Math.min(...l.map(x => +x.valor)) < 1.15)
-        .slice(0, 3).forEach(([k, l]) => A.push(`🔁 Possível recorrência: <b>${esc(k)}</b> (~${R$(l[0].valor)} por mês).`));
-    A.push(`📊 Faturado nos projetos: ${R$(fat)} · entrou na conta: ${R$(tE)}${fat ? ` (${(tE / fat * 100).toFixed(0)}%)` : ""}. Plataformas pagam com atraso — veja o acumulado em “Projetos × conta”.`);
-    return A;
-}
-
-function renderBanco() {
-    const erro = $("bx-erro"); if (!erro) return;
-    if (!EXT) { erro.hidden = false; erro.innerHTML = `<b>Tabela <code>extrato_bancario</code> não encontrada.</b> Rode o arquivo <code>extrato_bancario.sql</code> no SQL Editor do Supabase e recarregue a página.`; return; }
-    erro.hidden = true;
-    const mes = $("filtro-mes").value, E = EXT.filter(x => x.data_movimento.startsWith(mes));
-    const ent = E.filter(x => x.tipo === "entrada"), sai = E.filter(x => x.tipo === "saida");
-    const tE = SOMA(ent, x => +x.valor), tS = SOMA(sai, x => +x.valor);
-    const fat = SOMA(TODOS.filter(i => (i.data_lancamento || "").startsWith(mes)), i => num(i.receita));
-    const sd = E.filter(x => x.saldo_apos != null).sort((a, b) => (a.data_movimento < b.data_movimento ? 1 : -1))[0];
-
-    setHtml("bx-kpis", kpi("Entrou na conta", R$(tE), `${ent.length} entradas`, "var(--success)") + kpi("Saiu da conta", R$(tS), `${sai.length} saídas`, "var(--danger)") +
-        kpi("Resultado do mês", R$(tE - tS), `Faturado nos projetos: ${R$(fat)}`, tE - tS >= 0 ? "var(--primary)" : "var(--danger)") +
-        kpi("Saldo ao fim do período", sd ? R$(sd.saldo_apos) : "---", sd ? `em ${fmtData(sd.data_movimento)}` : "Sem saldo no extrato", "var(--cyan)"));
-    setHtml("bx-alertas", alertas(mes, E, sai, tE, tS, fat).map(a => `<p class="bx-alerta">${a}</p>`).join(""));
-
-    const cats = ranking(agrupa(sai, x => x.categoria));
-    setHtml("bx-cats", cats.length ? cats.map(([c, v]) => `<div class="bx-cat"><div><b>${esc(c)}</b><span>${R$(v)}</span></div><div class="m-bar"><i style="width:${(v / tS * 100).toFixed(1)}%;background:var(--danger)"></i></div><small>${(v / tS * 100).toFixed(1)}% das saídas</small></div>`).join("") : `<div class="bx-vazio">Sem saídas no período.</div>`);
-
-    const fm = {}; const g = m => (fm[m] = fm[m] || { f: 0, e: 0, s: 0 });
-    TODOS.forEach(i => { if (i.data_lancamento) g(i.data_lancamento.slice(0, 7)).f += num(i.receita); });
-    EXT.forEach(x => { g(x.data_movimento.slice(0, 7))[x.tipo === "entrada" ? "e" : "s"] += +x.valor; });
-    const ms = Object.keys(fm).filter(m => fm[m].e || fm[m].s).sort().reverse().slice(0, 12), acc = { f: 0, e: 0, s: 0 };
-    ms.forEach(m => { acc.f += fm[m].f; acc.e += fm[m].e; acc.s += fm[m].s; });
-    const lin = (n, o, b) => `<tr${b ? ' style="font-weight:800"' : ""}><td>${n}</td><td>${R$(o.f)}</td><td style="color:var(--success)">${R$(o.e)}</td><td style="color:var(--danger)">${R$(o.s)}</td><td>${R$(o.e - o.s)}</td><td>${o.f ? (o.e / o.f * 100).toFixed(0) + "%" : "---"}</td></tr>`;
-    setHtml("bx-cruz", ms.length ? ms.map(m => lin(m.split("-").reverse().join("/"), fm[m])).join("") + lin("Acumulado", acc, true) : `<tr><td colspan="6" class="bx-vazio">Importe um extrato para cruzar com o faturamento.</td></tr>`);
-
-    listar();
-    if ($("view-banco").offsetParent !== null) graficosBanco(mes, ent, sai, cats);
-}
-
-function listar() {
-    if (!EXT) return;
-    const mes = $("filtro-mes").value, q = NORM($("bx-q").value), t = $("bx-t").value;
-    const L = EXT.filter(x => x.data_movimento.startsWith(mes) && (!t || x.tipo === t) && (!q || NORM(x.descricao + " " + x.categoria).includes(q)));
-    setHtml("bx-lista", L.length ? L.slice(0, 200).map(x => `<div class="m-item" style="--cor:${x.tipo === "entrada" ? "var(--success)" : "var(--danger)"}"><div class="m-dot"></div><div class="m-item-main"><b>${esc(x.descricao)}</b><small>${fmtData(x.data_movimento)} · ${esc(x.categoria)}</small></div><div class="m-item-val" style="color:${x.tipo === "entrada" ? "var(--success)" : "var(--danger)"}">${x.tipo === "entrada" ? "+" : "−"}${R$(x.valor)}</div></div>`).join("") + (L.length > 200 ? `<div class="bx-vazio">Mostrando 200 de ${L.length}. Use a busca.</div>` : "") : `<div class="bx-vazio">Nenhum lançamento.</div>`);
-}
-
-function graficosBanco(mes, ent, sai, cats) {
-    if (typeof Chart === "undefined") return;
-    const [ano, mm] = mes.split("-"), n = new Date(ano, mm, 0).getDate(), dias = [...Array(n)].map((_, i) => `${ano}-${mm}-${String(i + 1).padStart(2, "0")}`);
-    const por = (l, d) => SOMA(l.filter(x => x.data_movimento === d), x => +x.valor);
-    let acc = 0; const e = dias.map(d => por(ent, d)), s = dias.map(d => por(sai, d)), sa = dias.map((_, i) => (acc += e[i] - s[i]));
-    const tk = { color: "#8a99ad" }, mobile = mq.matches;
-    if (gFluxo) gFluxo.destroy(); if (gCat) gCat.destroy();
-    gFluxo = new Chart($("bxFluxo"), {
-        data: { labels: dias.map(d => d.slice(8)), datasets: [
-            { type: "bar", label: "Entradas", data: e, backgroundColor: "#22c55e" }, { type: "bar", label: "Saídas", data: s, backgroundColor: "#ef4444" },
-            { type: "line", label: "Resultado acumulado", data: sa, borderColor: "#f5b041", borderWidth: 2.5, pointRadius: 0, tension: .3 }] },
-        options: { responsive: true, maintainAspectRatio: false, interaction: { intersect: false, mode: "index" }, plugins: { legend: { labels: { color: "#8a99ad", usePointStyle: true } } },
-            scales: { x: { ticks: { ...tk, maxTicksLimit: mobile ? 8 : 16 }, grid: { display: false } }, y: { ticks: { ...tk, maxTicksLimit: 6 }, grid: { color: "rgba(255,255,255,.04)" } } } }
-    });
-    gCat = new Chart($("bxCat"), {
-        type: "doughnut",
-        data: { labels: cats.slice(0, 8).map(c => c[0]), datasets: [{ data: cats.slice(0, 8).map(c => c[1]), borderWidth: 0, cutout: "70%", backgroundColor: ["#ef4444", "#f5b041", "#3498db", "#9b59b6", "#2dd4bf", "#e67e22", "#c084fc", "#64748b"] }] },
-        options: { responsive: true, maintainAspectRatio: false, plugins: { legend: { position: "bottom", labels: { color: "#8a99ad", padding: 10, usePointStyle: true } } } }
-    });
-}
-
-// ---------- Troca de visão (Projetos / Conta) e eventos ----------
-function setView(v) {
-    document.body.dataset.view = v;
-    document.querySelectorAll(".bx-seg button").forEach(b => b.classList.toggle("on", b.dataset.v === v));
-    const mb = $("m-modo"); if (mb) mb.textContent = v === "banco" ? "Projetos" : "Conta";
-    window.scrollTo({ top: 0 });
-    if (v === "banco") carregarBanco();
-    else { graficoReceita && graficoReceita.resize(); graficoDistribuicao && graficoDistribuicao.resize(); }
-}
-
+// ---------- Init ----------
 document.addEventListener("DOMContentLoaded", () => {
-    document.body.dataset.view = "projetos";
-    document.querySelectorAll(".bx-seg button").forEach(b => b.addEventListener("click", () => setView(b.dataset.v)));
-    $("m-modo").addEventListener("click", () => setView(document.body.dataset.view === "banco" ? "projetos" : "banco"));
-    const f = $("bx-file"), z = $("bx-drop");
-    $("bx-btn").addEventListener("click", () => f.click());
-    f.addEventListener("change", () => importar(f.files[0]));
-    ["dragover", "dragenter"].forEach(ev => z.addEventListener(ev, e => { e.preventDefault(); z.classList.add("over"); }));
-    ["dragleave", "drop"].forEach(ev => z.addEventListener(ev, e => { e.preventDefault(); z.classList.remove("over"); }));
-    z.addEventListener("drop", e => importar(e.dataTransfer.files[0]));
-    $("bx-q").addEventListener("input", listar); $("bx-t").addEventListener("change", listar);
+    setMes(mesAtual(), false);
+    carregarDashboard();
+
+    $("filtro-mes").addEventListener("change", e => setMes(e.target.value));
+    $("m-filtro-mes").addEventListener("change", e => setMes(e.target.value));
+
+    const form = $("form-financeiro");
+    if (form) form.addEventListener("submit", salvarRegistro);
+
+    // Navegação inferior (mobile)
+    document.querySelectorAll(".m-nav-btn").forEach(btn =>
+        btn.addEventListener("click", () => abrirAba(btn.dataset.tab))
+    );
+
+    // Bottom sheet do formulário
+    $("m-fab").addEventListener("click", () => sheet(true));
+    $("sheet-close").addEventListener("click", () => sheet(false));
+    $("sheet-overlay").addEventListener("click", () => sheet(false));
+
+    // Troca de layout (girar tela / redimensionar)
+    mq.addEventListener("change", () => { renderizarGraficos(MES); if (window.renderBanco) renderBanco(); });
 });
+
+function setMes(valor, recarregar = true) {
+    if (!valor) return;
+    $("filtro-mes").value = valor;
+    $("m-filtro-mes").value = valor;
+    if (recarregar) carregarDashboard();
+}
+
+function abrirAba(id) {
+    document.querySelectorAll(".m-tab").forEach(t => t.classList.toggle("active", t.id === id));
+    document.querySelectorAll(".m-nav-btn").forEach(b => b.classList.toggle("active", b.dataset.tab === id));
+    window.scrollTo({ top: 0 });
+    if (id === "tab-graficos") {
+        // canvas estava oculto: força o recálculo de tamanho
+        setTimeout(() => { graficoReceita && graficoReceita.resize(); graficoDistribuicao && graficoDistribuicao.resize(); }, 30);
+    }
+}
+
+function sheet(abrir) {
+    $("sheet-form").classList.toggle("open", abrir);
+    $("sheet-overlay").classList.toggle("open", abrir);
+    document.body.style.overflow = abrir && mq.matches ? "hidden" : "";
+}
+
+// ---------- Busca (com paginação: o Supabase limita 1000 linhas por consulta) ----------
+async function buscarTudo() {
+    const tam = 1000;
+    const out = [];
+    for (let i = 0; ; i += tam) {
+        const { data, error } = await supabaseClient
+            .from("analise_financeira")
+            .select("*")
+            .order("data_lancamento", { ascending: false })
+            .range(i, i + tam - 1);
+        if (error) throw error;
+        out.push(...data);
+        if (data.length < tam) break;
+    }
+    return out;
+}
+
+async function carregarDashboard() {
+    const mesFiltro = $("filtro-mes").value;
+    if (!mesFiltro) return;
+
+    try {
+        TODOS = await buscarTudo();
+        MES = TODOS.filter(i => i.data_lancamento && i.data_lancamento.startsWith(mesFiltro));
+
+        renderizarTabela(MES);
+        calcularCards(MES, TODOS);
+        renderizarMobile(MES, TODOS);
+        renderizarGraficos(MES);
+        if (window.carregarBanco) carregarBanco(); // módulo de extrato bancário (banco.js)
+    } catch (error) {
+        console.error("Erro ao carregar dashboard:", error.message);
+        toast("Erro ao carregar dados", true);
+    }
+}
+
+// ---------- Tempo de operação e média mensal ----------
+function calcularTempo(todos) {
+    const datas = todos.map(i => i.data_lancamento).filter(Boolean).sort();
+    if (!datas.length) return null;
+
+    const [y, m, d] = datas[0].split("-").map(Number);
+    const inicio = new Date(y, m - 1, d);
+    const hoje = new Date(); hoje.setHours(0, 0, 0, 0);
+
+    let meses = (hoje.getFullYear() - y) * 12 + (hoje.getMonth() - (m - 1));
+    if (hoje.getDate() < d) meses--;
+    meses = Math.max(0, meses);
+
+    const dias = Math.max(0, Math.round((hoje - inicio) / 864e5));
+    return { primeira: datas[0], ultima: datas[datas.length - 1], meses, dias };
+}
+
+function textoTempo(t) {
+    if (!t) return "---";
+    if (t.meses < 1) return `${t.dias} ${t.dias === 1 ? "dia" : "dias"}`;
+    if (t.meses < 12) return `${t.meses} ${t.meses === 1 ? "mês" : "meses"}`;
+    const a = Math.floor(t.meses / 12), r = t.meses % 12;
+    return `${a} ${a === 1 ? "ano" : "anos"}` + (r ? ` e ${r} ${r === 1 ? "mês" : "meses"}` : "");
+}
+
+// Média = total histórico ÷ nº de meses de calendário desde o 1º registro (inclui o mês atual)
+function calcularMedia(todos, t) {
+    if (!t) return { media: 0, n: 0 };
+    const total = todos.reduce((a, i) => a + num(i.receita), 0);
+    const [y1, m1] = t.primeira.split("-").map(Number);
+    const h = new Date();
+    let [y2, m2] = [h.getFullYear(), h.getMonth() + 1];
+    const [yu, mu] = t.ultima.split("-").map(Number);
+    if (yu * 12 + mu > y2 * 12 + m2) { y2 = yu; m2 = mu; }
+    const n = Math.max(1, (y2 - y1) * 12 + (m2 - m1) + 1);
+    return { media: total / n, n };
+}
+
+// ---------- Agrupamentos ----------
+function somarPorGrupo(lista) {
+    const r = {};
+    lista.forEach(i => { const g = grupoDe(i.plataforma); r[g] = (r[g] || 0) + num(i.receita); });
+    return r;
+}
+
+// ---------- Cards (desktop + dados compartilhados) ----------
+function calcularCards(dadosMes, todos) {
+    const mes = somarPorGrupo(dadosMes);
+    const hist = somarPorGrupo(todos);
+    const totalMes = dadosMes.reduce((a, i) => a + num(i.receita), 0);
+    const totalHist = todos.reduce((a, i) => a + num(i.receita), 0);
+
+    let campea = "---", maior = 0;
+    for (const [nome, v] of Object.entries(somarPorPlataforma(dadosMes))) {
+        if (v > maior) { maior = v; campea = nome; }
+    }
+
+    setTxt("card-faturamento", formatarMoeda(totalMes));
+    setTxt("card-faturamento-historico", formatarMoeda(totalHist));
+    setTxt("card-campeao", campea);
+    setTxt("card-faturamento-clipei", formatarMoeda(mes.Clipei || 0));
+    setTxt("card-faturamento-clipei-historico", formatarMoeda(hist.Clipei || 0));
+    setTxt("card-faturamento-clipay", formatarMoeda(mes.Clipay || 0));
+    setTxt("card-faturamento-clipay-historico", formatarMoeda(hist.Clipay || 0));
+    setTxt("card-faturamento-tiktok-mes", formatarMoeda(mes.TikTok || 0));
+    setTxt("card-faturamento-tiktok-historico", formatarMoeda(hist.TikTok || 0));
+
+    // Tempo de operação e média mensal
+    const t = calcularTempo(todos);
+    const { media, n } = calcularMedia(todos, t);
+    const subTempo = t ? `Desde ${fmtData(t.primeira)} · ${t.dias} dias` : "Sem registros ainda";
+    const subMedia = t ? `Total ÷ ${n} ${n === 1 ? "mês" : "meses"}` : "Sem registros ainda";
+
+    setTxt("card-tempo", textoTempo(t));
+    setTxt("card-tempo-sub", subTempo);
+    setTxt("card-media", formatarMoeda(media));
+    setTxt("card-media-sub", subMedia);
+
+    setTxt("m-tempo", textoTempo(t));
+    setTxt("m-tempo-sub", subTempo);
+    setTxt("m-media", formatarMoeda(media));
+    setTxt("m-media-sub", subMedia);
+
+    // Hero + campeã mobile
+    setTxt("m-fat-mes", formatarMoeda(totalMes));
+    setTxt("m-fat-hist", formatarMoeda(totalHist));
+    setTxt("m-campeao", campea);
+}
+
+function somarPorPlataforma(lista) {
+    const r = {};
+    lista.forEach(i => { r[i.plataforma] = (r[i.plataforma] || 0) + num(i.receita); });
+    return r;
+}
+
+// ---------- Mobile: listas e cards ----------
+function itemLista(item) {
+    const rec = num(item.receita);
+    const esf = parseInt(item.esforco) || 0;
+    const sub = item.subcategoria && item.subcategoria !== "Geral" ? ` · ${esc(item.subcategoria)}` : "";
+    const efic = esf > 0 ? ` · ${formatarMoeda(rec / esf)}/corte` : "";
+    return `
+        <div class="m-item" style="--cor:${corDe(grupoDe(item.plataforma))}">
+            <div class="m-dot"></div>
+            <div class="m-item-main">
+                <b>${esc(item.plataforma)}${sub}</b>
+                <small>${fmtData(item.data_lancamento)} · ${esf} cortes${efic}</small>
+            </div>
+            <div class="m-item-val">${formatarMoeda(rec)}</div>
+        </div>`;
+}
+
+function renderizarMobile(dadosMes, todos) {
+    const mes = somarPorGrupo(dadosMes);
+    const hist = somarPorGrupo(todos);
+    const totalMes = dadosMes.reduce((a, i) => a + num(i.receita), 0);
+
+    // grupos: fixos + qualquer outro que tenha dados
+    const grupos = ["Clipei", "Clipay", "TikTok"];
+    Object.keys(hist).forEach(g => { if (!grupos.includes(g)) grupos.push(g); });
+
+    setHtml("m-plat-scroll", grupos.map(g => `
+        <div class="m-plat" style="--cor:${corDe(g)}">
+            <div class="m-plat-nome">${esc(g === "TikTok" ? "Bytedance TikTok" : g)}</div>
+            <div class="m-plat-valor">${formatarMoeda(mes[g] || 0)}</div>
+            <div class="m-plat-hist">Histórico total<b>${formatarMoeda(hist[g] || 0)}</b></div>
+        </div>`).join(""));
+
+    setHtml("m-plat-lista", [...grupos].sort((a, b) => (mes[b] || 0) - (mes[a] || 0)).map(g => {
+        const pct = totalMes > 0 ? ((mes[g] || 0) / totalMes) * 100 : 0;
+        return `
+        <div class="m-plat-det" style="--cor:${corDe(g)}">
+            <div class="m-plat-det-top"><b>${esc(g === "TikTok" ? "Bytedance TikTok" : g)}</b><span>${formatarMoeda(mes[g] || 0)}</span></div>
+            <div class="m-bar"><i style="width:${pct.toFixed(1)}%"></i></div>
+            <div class="m-plat-det-foot"><span>${pct.toFixed(1)}% do mês</span><span>Histórico <b>${formatarMoeda(hist[g] || 0)}</b></span></div>
+        </div>`;
+    }).join(""));
+
+    const vazio = `<div class="m-vazio">Nenhum lançamento neste período.</div>`;
+    setHtml("m-recentes", dadosMes.length ? dadosMes.slice(0, 5).map(itemLista).join("") : vazio);
+    setHtml("m-lista", dadosMes.length ? dadosMes.map(itemLista).join("") : vazio);
+    setTxt("m-qtd", dadosMes.length ? `${dadosMes.length} lançamentos` : "");
+}
+
+// ---------- Tabela (desktop) ----------
+function renderizarTabela(dados) {
+    const tbody = $("tabela-corpo");
+    if (!tbody) return;
+    tbody.innerHTML = "";
+
+    if (dados.length === 0) {
+        tbody.innerHTML = `<tr><td colspan="5" style="text-align:center; color:var(--muted); padding:30px;">Nenhum lançamento encontrado para este período.</td></tr>`;
+        return;
+    }
+
+    dados.forEach(item => {
+        const rec = num(item.receita);
+        const esf = parseInt(item.esforco) || 0;
+        const subCat = item.subcategoria || "Geral";
+        const nome = (subCat === "Geral" || subCat === "Parcerias")
+            ? `${esc(item.plataforma)} <span style="color: var(--muted); font-weight: 500; font-size: .82rem;">(${esc(subCat)})</span>`
+            : `${esc(item.plataforma)} <b style="color: var(--primary);">· ${esc(subCat)}</b>`;
+
+        const tr = document.createElement("tr");
+        tr.innerHTML = `
+            <td style="font-weight:700;">${nome}</td>
+            <td>${formatarMoeda(rec)}</td>
+            <td>${esf}</td>
+            <td>${formatarMoeda(esf > 0 ? rec / esf : 0)}</td>
+            <td style="color:var(--muted)">${fmtData(item.data_lancamento)}</td>`;
+        tbody.appendChild(tr);
+    });
+}
+
+// ---------- Salvar ----------
+async function salvarRegistro(e) {
+    e.preventDefault();
+
+    const payload = {
+        plataforma: $("plataforma").value,
+        subcategoria: $("subcategoria").value,
+        data_lancamento: $("data-lancamento").value,
+        receita: num($("receita").value),
+        esforco: parseInt($("esforco").value) || 0
+    };
+
+    const btn = e.target.querySelector(".btn-salvar");
+    btn.disabled = true;
+
+    try {
+        const { error } = await supabaseClient.from("analise_financeira").insert([payload]);
+        if (error) throw error;
+
+        $("receita").value = "";
+        $("esforco").value = "";
+        $("data-lancamento").value = hojeLocal();
+
+        // se lançou em outro mês, mostra esse mês para o resultado aparecer na tela
+        const mesLancado = payload.data_lancamento.slice(0, 7);
+        if (mesLancado !== $("filtro-mes").value) setMes(mesLancado, false);
+
+        sheet(false);
+        await carregarDashboard();
+        toast("Resultado salvo com sucesso!");
+    } catch (error) {
+        console.error("Erro ao salvar:", error.message);
+        toast("Falha ao salvar: " + error.message, true);
+    } finally {
+        btn.disabled = false;
+    }
+}
+
+// ---------- Gráficos ----------
+function renderizarGraficos(dados) {
+    const filtro = $("filtro-mes").value;
+    if (!filtro || typeof Chart === "undefined") return;
+    const p = prefixo();
+    const mobile = mq.matches;
+
+    const [ano, mes] = filtro.split("-");
+    const porData = {};
+    const ultimoDia = new Date(ano, mes, 0).getDate();
+    for (let d = 1; d <= ultimoDia; d++) porData[`${ano}-${mes}-${String(d).padStart(2, "0")}`] = 0;
+
+    dados.forEach(i => { if (i.data_lancamento && porData[i.data_lancamento] !== undefined) porData[i.data_lancamento] += num(i.receita); });
+
+    const labels = Object.keys(porData).sort();
+    const valores = labels.map(d => porData[d]);
+    const labelsExib = labels.map(d => d.split("-").reverse().slice(0, 2).join("/"));
+
+    const dist = somarPorPlataforma(dados);
+    const total = valores.reduce((a, v) => a + v, 0);
+    setTxt("receita-total-chart", formatarMoeda(total));
+    setTxt("m-receita-total-chart", formatarMoeda(total));
+
+    if (graficoReceita) graficoReceita.destroy();
+    if (graficoDistribuicao) graficoDistribuicao.destroy();
+
+    const ctxR = $(p + "graficoReceita");
+    if (ctxR) {
+        graficoReceita = new Chart(ctxR, {
+            type: "line",
+            data: {
+                labels: labelsExib,
+                datasets: [{
+                    label: "Receita", data: valores, tension: 0.3, borderWidth: mobile ? 2.5 : 3, fill: true,
+                    pointRadius: mobile ? 0 : 2, pointHoverRadius: 6, borderColor: "#f5b041", backgroundColor: "rgba(245,176,65,.08)"
+                }]
+            },
+            options: {
+                responsive: true, maintainAspectRatio: false,
+                interaction: { intersect: false, mode: "index" },
+                plugins: { legend: { display: false } },
+                scales: {
+                    x: { ticks: { color: "#8a99ad", maxTicksLimit: mobile ? 6 : 10 }, grid: { display: false } },
+                    y: { ticks: { color: "#8a99ad", maxTicksLimit: mobile ? 5 : 8 }, grid: { color: "rgba(255,255,255,.04)" }, min: 0 }
+                }
+            }
+        });
+    }
+
+    const ctxD = $(p + "graficoDistribuicao");
+    if (ctxD) {
+        graficoDistribuicao = new Chart(ctxD, {
+            type: "doughnut",
+            data: {
+                labels: Object.keys(dist),
+                datasets: [{
+                    data: Object.values(dist), borderWidth: 0, cutout: "74%",
+                    backgroundColor: ["#f5b041", "#ff4d4d", "#00ff66", "#3498db", "#9b59b6", "#e67e22"]
+                }]
+            },
+            options: {
+                responsive: true, maintainAspectRatio: false,
+                plugins: { legend: { position: "bottom", labels: { color: "#8a99ad", padding: 14, usePointStyle: true } } }
+            }
+        });
+    }
+}
