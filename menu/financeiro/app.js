@@ -74,7 +74,7 @@ document.addEventListener("DOMContentLoaded", () => {
     $("sheet-overlay").addEventListener("click", () => sheet(false));
 
     // Troca de layout (girar tela / redimensionar)
-    mq.addEventListener("change", () => renderizarGraficos(MES));
+    mq.addEventListener("change", () => { renderizarGraficos(MES); if (window.renderBanco) renderBanco(); });
 });
 
 function setMes(valor, recarregar = true) {
@@ -129,6 +129,7 @@ async function carregarDashboard() {
         calcularCards(MES, TODOS);
         renderizarMobile(MES, TODOS);
         renderizarGraficos(MES);
+        if (window.carregarBanco) carregarBanco(); // módulo de extrato bancário (banco.js)
     } catch (error) {
         console.error("Erro ao carregar dashboard:", error.message);
         toast("Erro ao carregar dados", true);
