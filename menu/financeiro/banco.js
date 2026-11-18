@@ -174,6 +174,43 @@ async function linhasPDF(buf) {
         for (const t of it) { if (cur && Math.abs(cur.y - t.y) <= 3) cur.t.push(t); else { cur = { y: t.y, t: [t] }; ls.push(cur); } }
         ls.forEach(l => out.push(l.t.sort((a, b) => a.x - b.x).map(t => t.s).join(" ").replace(/\s+/g, " ").trim()));
     }
+    if (!out.length) return ocrPDF(pdf); // PDF em imagem: lê por OCR
+    return out;
+}
+
+// OCR (tesseract.js, só carregado se o PDF não tiver texto)
+function carregaScript(src) {
+    return new Promise((ok, no) => {
+        const s = document.createElement("script"); s.src = src; s.onload = ok;
+        s.onerror = () => no(new Error("Não foi possível carregar " + src.split("/")[4] + " (verifique a internet)."));
+        document.head.appendChild(s);
+    });
+}
+
+async function ocrPDF(pdf) {
+    const box = $("bx-prev"), out = [];
+    out.ocr = true;
+    box.innerHTML = "PDF em imagem: carregando leitor de texto (OCR)…";
+    await carregaScript("https://cdn.jsdelivr.net/npm/tesseract.js@5.1.1/dist/tesseract.min.js");
+    const worker = await Tesseract.createWorker("por");
+    try {
+        for (let p = 1; p <= pdf.numPages; p++) {
+            box.innerHTML = `Lendo página ${p} de ${pdf.numPages} por OCR… (pode levar alguns segundos por página)`;
+            const page = await pdf.getPage(p), vp = page.getViewport({ scale: 2.5 });
+            const c = document.createElement("canvas"); c.width = vp.width; c.height = vp.height;
+            const ctx = c.getContext("2d", { willReadFrequently: true });
+            ctx.fillStyle = "#fff"; ctx.fillRect(0, 0, c.width, c.height);
+            await page.render({ canvasContext: ctx, viewport: vp }).promise;
+            const im = ctx.getImageData(0, 0, c.width, c.height), d = im.data; let soma = 0;
+            for (let i = 0; i < d.length; i += 16) soma += d[i] * .3 + d[i + 1] * .59 + d[i + 2] * .11;
+            if (soma / (d.length / 16) < 110) { // fundo escuro: inverte para texto escuro em fundo claro
+                for (let i = 0; i < d.length; i += 4) { d[i] = 255 - d[i]; d[i + 1] = 255 - d[i + 1]; d[i + 2] = 255 - d[i + 2]; }
+                ctx.putImageData(im, 0, 0);
+            }
+            const { data } = await worker.recognize(c);
+            data.text.split("\n").forEach(l => { l = l.replace(/\s+/g, " ").trim(); if (l) out.push(l); });
+        }
+    } finally { await worker.terminate(); }
     return out;
 }
 
@@ -183,8 +220,8 @@ async function lerArquivo(file) {
     const texto = () => { try { return new TextDecoder("utf-8", { fatal: true }).decode(buf); } catch { return new TextDecoder("windows-1252").decode(buf); } };
     if (nome.endsWith(".pdf") || file.type === "application/pdf") {
         const L = await linhasPDF(buf);
-        if (!L.length) throw new Error("PDF sem texto (parece uma imagem). Exporte em CSV/OFX ou gere outro PDF.");
-        return { p: parseLinhas(L), formato: "pdf" };
+        if (!L.length) throw new Error("Não consegui ler texto nem por OCR. Exporte em CSV/OFX ou gere outro PDF.");
+        return { p: parseLinhas(L), formato: "pdf", ocr: !!L.ocr };
     }
     const t = texto();
     if (/<OFX>|<STMTTRN>/i.test(t)) return { p: parseOFX(t), formato: "ofx" };
@@ -211,7 +248,7 @@ async function importar(file) {
     if (!EXT) return toast("Crie a tabela extrato_bancario no Supabase primeiro", true);
     const box = $("bx-prev"); box.hidden = false; box.innerHTML = "Lendo arquivo…";
     try {
-        const { p, formato } = await lerArquivo(file);
+        const { p, formato, ocr } = await lerArquivo(file);
         const tx = montar(p, file.name, formato);
         if (!tx.length) throw new Error("Nenhum lançamento reconhecido. Se for PDF, me envie um exemplo sem dados pessoais para ajustar a leitura.");
         PREV = { tx };
@@ -233,7 +270,7 @@ async function importar(file) {
                 <div><small>Novos</small><b>${nv}</b></div>
                 <div><small>Já importados</small><b>${dup}</b></div>
             </div>
-            <p class="bx-nota">${conf}${inc ? ` · ${inc} linha(s) com sinal deduzido pela descrição.` : ""}</p>
+            <p class="bx-nota">${conf}${inc ? ` · ${inc} linha(s) com sinal deduzido pela descrição.` : ""}${ocr ? " · ⚠️ Lido por OCR (PDF em imagem): confira os valores antes de salvar; reimportar o mesmo arquivo pode não detectar todas as duplicatas." : ""}</p>
             ${prov ? `<label class="bx-chk"><input type="checkbox" id="bx-soft" checked> Ignorar ${prov} provável(is) duplicata(s) (mesmo dia e valor já existentes, vindos de outro formato)</label>` : ""}
             <div class="bx-acoes"><button class="btn-salvar" type="button" onclick="salvarImport()" ${nv + (prov ? 0 : 0) ? "" : "disabled"}>Salvar ${nv} novo(s)</button><button class="bx-sec" type="button" onclick="cancelarImport()">Cancelar</button></div>`;
     } catch (e) {
@@ -387,4 +424,4 @@ document.addEventListener("DOMContentLoaded", () => {
     $("bx-q").addEventListener("input", listar); $("bx-t").addEventListener("change", listar);
 });
 
-console.log("banco.js v2 carregado");
+console.log("banco.js v3 carregado");
