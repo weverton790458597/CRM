@@ -350,6 +350,7 @@ function graficosBanco(mes, ent, sai, cats) {
     const tk = { color: "#8a99ad" }, mobile = mq.matches;
     if (gFluxo) gFluxo.destroy(); if (gCat) gCat.destroy();
     gFluxo = new Chart($("bxFluxo"), {
+        type: "bar",
         data: { labels: dias.map(d => d.slice(8)), datasets: [
             { type: "bar", label: "Entradas", data: e, backgroundColor: "#22c55e" }, { type: "bar", label: "Saídas", data: s, backgroundColor: "#ef4444" },
             { type: "line", label: "Resultado acumulado", data: sa, borderColor: "#f5b041", borderWidth: 2.5, pointRadius: 0, tension: .3 }] },
@@ -369,14 +370,14 @@ function setView(v) {
     document.querySelectorAll(".bx-seg button").forEach(b => b.classList.toggle("on", b.dataset.v === v));
     const mb = $("m-modo"); if (mb) mb.textContent = v === "banco" ? "Projetos" : "Conta";
     window.scrollTo({ top: 0 });
-    if (v === "banco") carregarBanco();
+    if (v === "banco") carregarBanco().catch(e => { console.error(e); toast("Erro na aba Conta: " + e.message, true); });
     else { graficoReceita && graficoReceita.resize(); graficoDistribuicao && graficoDistribuicao.resize(); }
 }
 
 document.addEventListener("DOMContentLoaded", () => {
     document.body.dataset.view = "projetos";
     document.querySelectorAll(".bx-seg button").forEach(b => b.addEventListener("click", () => setView(b.dataset.v)));
-    $("m-modo").addEventListener("click", () => setView(document.body.dataset.view === "banco" ? "projetos" : "banco"));
+    if ($("m-modo")) $("m-modo").addEventListener("click", () => setView(document.body.dataset.view === "banco" ? "projetos" : "banco"));
     const f = $("bx-file"), z = $("bx-drop");
     $("bx-btn").addEventListener("click", () => f.click());
     f.addEventListener("change", () => importar(f.files[0]));
@@ -385,3 +386,5 @@ document.addEventListener("DOMContentLoaded", () => {
     z.addEventListener("drop", e => importar(e.dataTransfer.files[0]));
     $("bx-q").addEventListener("input", listar); $("bx-t").addEventListener("change", listar);
 });
+
+console.log("banco.js v2 carregado");
