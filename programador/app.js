@@ -18,7 +18,7 @@ const ICONE_TIPO={info:ICONS.loader,ok:ICONS.checkCircle,erro:ICONS.xCircle,avis
 
 function setMsg(text,isError=false){const el=document.getElementById("msg");if(!el)return;el.innerHTML=`${isError?ICONE_TIPO.erro:ICONE_TIPO.info}<span>${text}</span>`;el.style.color=isError?CORES.erro:CORES.info;}
 function setCardStatus(canalId,text,tipo="info"){const el=document.getElementById(`card-status-${canalId}`);if(!el)return;if(!text){el.innerHTML="";return;}el.innerHTML=`${ICONE_TIPO[tipo]||ICONE_TIPO.info}<span>${text}</span>`;el.style.color=CORES[tipo]||CORES.info;}
-const SUPA_PADRAO={url:"https://abdliioyzkylccfylils.supabase.co",key:"sb_publishable_g6l6_QmwE4Tj85_KF_XHfQ_I4gFlY_n",admin:"790458597"};
+const SUPA_PADRAO={url:"https://shqynpdnbgpxcxflufqq.supabase.co",key:"sb_publishable__EEWbxz15F1iCFognl72-g_ikd4hhmT",admin:"790458597"};
 function getCreds(){return{url:localStorage.getItem("supa_url")||SUPA_PADRAO.url,key:localStorage.getItem("supa_key")||SUPA_PADRAO.key,admin:localStorage.getItem("admin_secret")||SUPA_PADRAO.admin};}
 function obterDataPadrao(){const d=new Date();d.setDate(d.getDate()+1);const ano=d.getFullYear();const mes=String(d.getMonth()+1).padStart(2,"0");const dia=String(d.getDate()).padStart(2,"0");return `${ano}-${mes}-${dia}`;}
 function iniciarRelogio(){const el=document.getElementById("liveClock");if(!el)return;const tick=()=>{el.textContent=new Date().toLocaleTimeString("pt-BR",{hour12:false});};tick();setInterval(tick,1000);}
