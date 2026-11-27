@@ -2,8 +2,8 @@
 // EVRIX FINANCEIRO - APP.JS (v3 - Desktop + Mobile App)
 // =========================================
 
-const SUPABASE_URL = "https://abdliioyzkylccfylils.supabase.co";
-const SUPABASE_ANON_KEY = "sb_publishable_g6l6_QmwE4Tj85_KF_XHfQ_I4gFlY_n";
+const SUPABASE_URL = "https://shqynpdnbgpxcxflufqq.supabase.co";
+const SUPABASE_ANON_KEY = "sb_publishable__EEWbxz15F1iCFognl72-g_ikd4hhmT";
 const supabaseClient = supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
 
 // ---------- Estado ----------
