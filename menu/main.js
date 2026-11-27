@@ -4,8 +4,8 @@
 
 // 1. Configurações e Estado Global
 const CONFIG = {
-    SUPABASE_URL: 'https://abdliioyzkylccfylils.supabase.co',
-    SUPABASE_KEY: 'sb_publishable_g6l6_QmwE4Tj85_KF_XHfQ_I4gFlY_n'
+    SUPABASE_URL: 'https://shqynpdnbgpxcxflufqq.supabase.co',
+    SUPABASE_KEY: 'sb_publishable__EEWbxz15F1iCFognl72-g_ikd4hhmT'
 };
 
 let supabaseClient;
