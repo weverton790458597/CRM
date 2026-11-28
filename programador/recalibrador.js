@@ -211,7 +211,7 @@
 
     if (!slots.length) throw new Error("Nenhum vídeo pronto para agendar.");
 
-    const plataformasAtivas = PLATAFORMAS.filter((p) => st.plataformas[p]);
+    const plataformasAtivas = REDES_ATIVAS.filter((p) => st.plataformas[p]);
     if (plataformasAtivas.length === 0) {
       throw new Error("Selecione ao menos uma plataforma ativa para agendar.");
     }
