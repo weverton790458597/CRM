@@ -3,6 +3,11 @@
 let CANAIS_DINAMICOS = [];
 
 const PLATAFORMAS=["youtube","instagram","tiktok"];
+// TikTok desativado no front. Para reativar no futuro, troque para true.
+const TIKTOK_HABILITADO=false;
+const REDES_BLOQUEADAS=TIKTOK_HABILITADO?[]:["tiktok"];
+const REDES_ATIVAS=PLATAFORMAS.filter((p)=>!REDES_BLOQUEADAS.includes(p));
+window.REDES_BLOQUEADAS=REDES_BLOQUEADAS;
 const estadoCanais={};
 const processandoAgendamento={};
 const processandoExclusao={};
@@ -59,7 +64,7 @@ function gerarHTMLCard(c, dataPadrao) {
       <div class="auth-buttons">
         <button class="btn-auth btn-yt" onclick="conectarPlataforma('${c.id}','youtube')">YT</button>
         <button class="btn-auth btn-ig" onclick="conectarPlataforma('${c.id}','instagram')">IG</button>
-        <button class="btn-auth btn-tk" onclick="conectarPlataforma('${c.id}','tiktok')">TK</button>
+        <button class="btn-auth btn-tk" ${TIKTOK_HABILITADO?"":'disabled title="TikTok desativado" style="opacity:.35;cursor:not-allowed"'} onclick="conectarPlataforma('${c.id}','tiktok')">TK</button>
       </div>
       <div class="status">
         <span id="st-yt-${c.id}" class="err">YT</span>
@@ -69,7 +74,7 @@ function gerarHTMLCard(c, dataPadrao) {
       <div class="plataformas-select">
         <label class="chk-plataforma"><input type="checkbox" id="chk-youtube-${c.id}" disabled onchange="atualizarPlataforma('${c.id}','youtube',this.checked)"> YT</label>
         <label class="chk-plataforma"><input type="checkbox" id="chk-instagram-${c.id}" disabled onchange="atualizarPlataforma('${c.id}','instagram',this.checked)"> IG</label>
-        <label class="chk-plataforma"><input type="checkbox" id="chk-tiktok-${c.id}" disabled onchange="atualizarPlataforma('${c.id}','tiktok',this.checked)"> TK</label>
+        <label class="chk-plataforma" ${TIKTOK_HABILITADO?"":'title="TikTok desativado" style="opacity:.35"'}><input type="checkbox" id="chk-tiktok-${c.id}" disabled onchange="atualizarPlataforma('${c.id}','tiktok',this.checked)"> TK</label>
       </div>
       <div class="agendamento-select">
         <input type="date" class="input-data" id="data-${c.id}" value="${dataPadrao}" onchange="atualizarAgendamento('${c.id}')">
@@ -413,7 +418,7 @@ function montarInterface(){
 }
 
 function salvarSupa(){const url=document.getElementById("supaUrl").value.trim();const key=document.getElementById("supaKey").value.trim();const admin=document.getElementById("adminSecret").value.trim();localStorage.setItem("supa_url",url);localStorage.setItem("supa_key",key);localStorage.setItem("admin_secret",admin);setMsg("Credenciais salvas!");}
-function atualizarPlataforma(canalId,platform,checked){if(!estadoCanais[canalId])return;estadoCanais[canalId].plataformas[platform]=checked;}
+function atualizarPlataforma(canalId,platform,checked){if(!estadoCanais[canalId])return;if(REDES_BLOQUEADAS.includes(platform))checked=false;estadoCanais[canalId].plataformas[platform]=checked;}
 function atualizarTexto(canalId,campo,valor){if(!estadoCanais[canalId])return;estadoCanais[canalId][campo]=valor;}
 const LIMITE_TITULO_YOUTUBE=100;
 (function injetarEstiloContador(){
@@ -460,6 +465,11 @@ function aplicarDataATodos(){const dataGlobalEl=document.getElementById("dataGlo
 function aplicarStatusConexao(canalId,platform,conectado){
   const cb=document.getElementById(`chk-${platform}-${canalId}`);
   if(!cb)return;
+  if(REDES_BLOQUEADAS.includes(platform)){
+    cb.disabled=true;cb.checked=false;cb.dataset.conectado="0";
+    if(estadoCanais[canalId]) estadoCanais[canalId].plataformas[platform]=false;
+    return;
+  }
   cb.disabled=!conectado;
   cb.dataset.conectado=conectado?"1":"0";
   if(conectado){
@@ -793,7 +803,7 @@ function limparCard(canalId){
 async function salvarAgendamentoNoBanco(canalId){
   const{url,key}=getCreds();
   const st=estadoCanais[canalId];
-  const plataformasAtivas=PLATAFORMAS.filter((p)=>st.plataformas[p]);
+  const plataformasAtivas=REDES_ATIVAS.filter((p)=>st.plataformas[p]);
 
   if(plataformasAtivas.length===0){
     throw new Error("Selecione ao menos uma plataforma ativa para agendar.");
@@ -852,7 +862,7 @@ async function agendarCanalIndividual(canalId){
   if(!temTitulo(st)){setCardStatus(canalId,"Preencha ao menos um título antes de agendar.","erro");return;}
   if(!st.agendamento){setCardStatus(canalId,"Selecione data e hora.","erro");return;}
 
-  const temPlat=PLATAFORMAS.some(p=>st.plataformas[p]);
+  const temPlat=REDES_ATIVAS.some(p=>st.plataformas[p]);
   if(!temPlat){setCardStatus(canalId,"Selecione ao menos uma plataforma ativa.","erro");return;}
 
   processandoAgendamento[canalId]=true;
@@ -936,7 +946,7 @@ async function dispararProgramacao(){
 
   const prontos=CANAIS_DINAMICOS.filter((c)=>{
     const st=estadoCanais[c.id];
-    const temPlat=st&&PLATAFORMAS.some(p=>st.plataformas[p]);
+    const temPlat=st&&REDES_ATIVAS.some(p=>st.plataformas[p]);
     return st&&st.videoUrl&&temTitulo(st)&&st.agendamento&&temPlat;
   });
 
@@ -971,7 +981,7 @@ function carregarHistoricoLocal(){try{const dados=JSON.parse(localStorage.getIte
 function salvarHistoricoLocal(arr){try{localStorage.setItem(CHAVE_HISTORICO,JSON.stringify(arr));}catch(_){}}
 function baixarJSON(dados,nomeArquivo){const blob=new Blob([JSON.stringify(dados,null,2)],{type:"application/json"});const url=URL.createObjectURL(blob);const a=document.createElement("a");a.href=url;a.download=nomeArquivo;document.body.appendChild(a);a.click();a.remove();URL.revokeObjectURL(url);}
 function processarUploadHistoricoJson(files){if(!files||!files.length)return;const historico=carregarHistoricoLocal();let lidos=0;let adicionados=0;Array.from(files).forEach(file=>{const reader=new FileReader();reader.onload=()=>{lidos++;try{const dados=JSON.parse(reader.result);const registros=Array.isArray(dados)?dados:(dados.registros||[]);registros.forEach(r=>{if(r&&r.canal_id&&r.rede_social&&r.horario){historico.push({canal_id:r.canal_id,rede_social:r.rede_social,horario:r.horario,data:r.data||""});adicionados++;}});}catch(_){}if(lidos===files.length){salvarHistoricoLocal(historico);setMsg(`${adicionados} horário(s) histórico(s) adicionado(s)! Total no histórico local: ${historico.length}`);}};reader.readAsText(file);});}
-function randomizarHorariosAntiShadowban(){console.log("[Anti-Shadowban] versão em execução:",SHADOWBAN_VERSAO);const dataGlobalEl=document.getElementById("dataGlobal");const dataAlvo=(dataGlobalEl&&dataGlobalEl.value)?dataGlobalEl.value:obterDataPadrao();const historico=carregarHistoricoLocal();const usadosPorRede={youtube:[],instagram:[],tiktok:[]};const registrosGerados=[];CANAIS_DINAMICOS.forEach(c=>{const redesDoCanal=PLATAFORMAS.filter(p=>{const cb=document.getElementById(`chk-${p}-${c.id}`);return cb&&cb.checked&&!cb.disabled;});const redesParaChecar=redesDoCanal.length?redesDoCanal:PLATAFORMAS;const historicoConta={};redesParaChecar.forEach(rede=>{historicoConta[rede]=historico.filter(h=>h.canal_id===c.id&&h.rede_social===rede).map(h=>hhmmParaAbs(h.horario)).filter(v=>v!==null&&!Number.isNaN(v));});const colide=(v)=>redesParaChecar.some(rede=>usadosPorRede[rede].some(u=>Math.abs(u-v)<3)||historicoConta[rede].some(h=>Math.abs(h-v)<120));let candidato=candidatoHorarioAntiShadowban();let tentativas=0;while(tentativas<300&&colide(candidato)){tentativas++;candidato=candidatoHorarioAntiShadowban();}const vizinho=redesParaChecar.reduce((prox,rede)=>{const c2=usadosPorRede[rede].filter(u=>Math.abs(u-candidato)<7).sort((a,b)=>Math.abs(a-candidato)-Math.abs(b-candidato))[0];if(c2===undefined)return prox;if(prox===undefined)return c2;return Math.abs(c2-candidato)<Math.abs(prox-candidato)?c2:prox;},undefined);if(vizinho!==undefined){const offset=3+Math.floor(Math.random()*5);candidato=candidato>=vizinho?vizinho+offset:vizinho-offset;if(candidato<480)candidato=480+offset;if(candidato>1410)candidato=1410-offset;}let protecao=0;while(redesParaChecar.some(rede=>usadosPorRede[rede].includes(candidato))&&protecao<200){protecao++;candidato+=1;if(candidato>1410)candidato=480;}redesParaChecar.forEach(rede=>usadosPorRede[rede].push(candidato));const horarioHHMM=absParaHHMM(candidato);const horaEl=document.getElementById(`hora-${c.id}`);if(horaEl){horaEl.value=horarioHHMM;atualizarAgendamento(c.id);}redesParaChecar.forEach(rede=>registrosGerados.push({canal_id:c.id,nome:c.nome,rede_social:rede,data:dataAlvo,horario:horarioHHMM}));});renderizarTrilho("manha","rail-manha");renderizarTrilho("noite","rail-noite");atualizarFaixasRange();const historicoAtualizado=historico.concat(registrosGerados.map(r=>({canal_id:r.canal_id,rede_social:r.rede_social,horario:r.horario,data:r.data})));salvarHistoricoLocal(historicoAtualizado);baixarJSON(registrosGerados,`horarios-${dataAlvo}-${Date.now()}.json`);setMsg(`Horários randomizados e JSON gerado! (${registrosGerados.length} registro(s), histórico local: ${historicoAtualizado.length})`);}
+function randomizarHorariosAntiShadowban(){console.log("[Anti-Shadowban] versão em execução:",SHADOWBAN_VERSAO);const dataGlobalEl=document.getElementById("dataGlobal");const dataAlvo=(dataGlobalEl&&dataGlobalEl.value)?dataGlobalEl.value:obterDataPadrao();const historico=carregarHistoricoLocal();const usadosPorRede={youtube:[],instagram:[],tiktok:[]};const registrosGerados=[];CANAIS_DINAMICOS.forEach(c=>{const redesDoCanal=REDES_ATIVAS.filter(p=>{const cb=document.getElementById(`chk-${p}-${c.id}`);return cb&&cb.checked&&!cb.disabled;});const redesParaChecar=redesDoCanal.length?redesDoCanal:REDES_ATIVAS;const historicoConta={};redesParaChecar.forEach(rede=>{historicoConta[rede]=historico.filter(h=>h.canal_id===c.id&&h.rede_social===rede).map(h=>hhmmParaAbs(h.horario)).filter(v=>v!==null&&!Number.isNaN(v));});const colide=(v)=>redesParaChecar.some(rede=>usadosPorRede[rede].some(u=>Math.abs(u-v)<3)||historicoConta[rede].some(h=>Math.abs(h-v)<120));let candidato=candidatoHorarioAntiShadowban();let tentativas=0;while(tentativas<300&&colide(candidato)){tentativas++;candidato=candidatoHorarioAntiShadowban();}const vizinho=redesParaChecar.reduce((prox,rede)=>{const c2=usadosPorRede[rede].filter(u=>Math.abs(u-candidato)<7).sort((a,b)=>Math.abs(a-candidato)-Math.abs(b-candidato))[0];if(c2===undefined)return prox;if(prox===undefined)return c2;return Math.abs(c2-candidato)<Math.abs(prox-candidato)?c2:prox;},undefined);if(vizinho!==undefined){const offset=3+Math.floor(Math.random()*5);candidato=candidato>=vizinho?vizinho+offset:vizinho-offset;if(candidato<480)candidato=480+offset;if(candidato>1410)candidato=1410-offset;}let protecao=0;while(redesParaChecar.some(rede=>usadosPorRede[rede].includes(candidato))&&protecao<200){protecao++;candidato+=1;if(candidato>1410)candidato=480;}redesParaChecar.forEach(rede=>usadosPorRede[rede].push(candidato));const horarioHHMM=absParaHHMM(candidato);const horaEl=document.getElementById(`hora-${c.id}`);if(horaEl){horaEl.value=horarioHHMM;atualizarAgendamento(c.id);}redesParaChecar.forEach(rede=>registrosGerados.push({canal_id:c.id,nome:c.nome,rede_social:rede,data:dataAlvo,horario:horarioHHMM}));});renderizarTrilho("manha","rail-manha");renderizarTrilho("noite","rail-noite");atualizarFaixasRange();const historicoAtualizado=historico.concat(registrosGerados.map(r=>({canal_id:r.canal_id,rede_social:r.rede_social,horario:r.horario,data:r.data})));salvarHistoricoLocal(historicoAtualizado);baixarJSON(registrosGerados,`horarios-${dataAlvo}-${Date.now()}.json`);setMsg(`Horários randomizados e JSON gerado! (${registrosGerados.length} registro(s), histórico local: ${historicoAtualizado.length})`);}
 
 // ============================================================================
 // MAPEAMENTO DE CONTAS DO INSTAGRAM (arrastar e soltar) - restaurado
