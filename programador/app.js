@@ -577,14 +577,35 @@ async function conectarPlataforma(canalId,plataforma){
     const data=await res.json();
     if(data.url){
       const popup=window.open(data.url,`auth_${plataforma}`,"width=600,height=700");
+      let concluido=false;
+      const finalizarConexao=async()=>{
+        if(concluido)return;
+        concluido=true;
+        await carregarCanaisDoSupabase();
+        setTimeout(()=>{concluido=false;},2000);
+      };
+      const onMessage=async(ev)=>{
+        if(ev.data&&(ev.data.auth||ev.data.type==="instagram_pending_map")){
+          window.removeEventListener("message",onMessage);
+          await finalizarConexao();
+        }
+      };
+      window.addEventListener("message",onMessage);
       const timer=setInterval(()=>{
         try{
           if(!popup||popup.closed){
             clearInterval(timer);
-            carregarCanaisDoSupabase();
+            window.removeEventListener("message",onMessage);
+            finalizarConexao();
           }
-        }catch(_){}
+        }catch(_){
+          // Aguarda evento ou fechamento sem gerar aviso COOP no console
+        }
       },1500);
+      setTimeout(()=>{
+        clearInterval(timer);
+        window.removeEventListener("message",onMessage);
+      },180000);
     }else{
       throw new Error("URL de autenticação não retornada pela API.");
     }
