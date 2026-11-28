@@ -1,4 +1,4 @@
-if(window.opener&&new URLSearchParams(window.location.search).has("auth")){try{const params=new URLSearchParams(window.location.search);const authType=params.get("auth");if(authType==="instagram_pending_map"){window.opener.postMessage({type:"instagram_pending_map",search:window.location.search},"*");}else if(typeof window.opener.testarConexaoSupabase==="function"){window.opener.testarConexaoSupabase();}else{window.opener.location.reload();}}catch(_){}window.close();}
+(function(){var P=new URLSearchParams(window.location.search);if(!P.has("auth"))return;var R={tipo:P.get("auth"),search:window.location.search,entregue:false};window.__retornoOAuth=R;if(window.opener){try{if(R.tipo==="instagram_pending_map"){window.opener.postMessage({type:"instagram_pending_map",search:R.search},"*");}else if(typeof window.opener.testarConexaoSupabase==="function"){window.opener.testarConexaoSupabase();}else{window.opener.location.reload();}R.entregue=true;window.close();}catch(_){}}})();
 
 let CANAIS_DINAMICOS = [];
 
@@ -973,12 +973,171 @@ function baixarJSON(dados,nomeArquivo){const blob=new Blob([JSON.stringify(dados
 function processarUploadHistoricoJson(files){if(!files||!files.length)return;const historico=carregarHistoricoLocal();let lidos=0;let adicionados=0;Array.from(files).forEach(file=>{const reader=new FileReader();reader.onload=()=>{lidos++;try{const dados=JSON.parse(reader.result);const registros=Array.isArray(dados)?dados:(dados.registros||[]);registros.forEach(r=>{if(r&&r.canal_id&&r.rede_social&&r.horario){historico.push({canal_id:r.canal_id,rede_social:r.rede_social,horario:r.horario,data:r.data||""});adicionados++;}});}catch(_){}if(lidos===files.length){salvarHistoricoLocal(historico);setMsg(`${adicionados} horário(s) histórico(s) adicionado(s)! Total no histórico local: ${historico.length}`);}};reader.readAsText(file);});}
 function randomizarHorariosAntiShadowban(){console.log("[Anti-Shadowban] versão em execução:",SHADOWBAN_VERSAO);const dataGlobalEl=document.getElementById("dataGlobal");const dataAlvo=(dataGlobalEl&&dataGlobalEl.value)?dataGlobalEl.value:obterDataPadrao();const historico=carregarHistoricoLocal();const usadosPorRede={youtube:[],instagram:[],tiktok:[]};const registrosGerados=[];CANAIS_DINAMICOS.forEach(c=>{const redesDoCanal=PLATAFORMAS.filter(p=>{const cb=document.getElementById(`chk-${p}-${c.id}`);return cb&&cb.checked&&!cb.disabled;});const redesParaChecar=redesDoCanal.length?redesDoCanal:PLATAFORMAS;const historicoConta={};redesParaChecar.forEach(rede=>{historicoConta[rede]=historico.filter(h=>h.canal_id===c.id&&h.rede_social===rede).map(h=>hhmmParaAbs(h.horario)).filter(v=>v!==null&&!Number.isNaN(v));});const colide=(v)=>redesParaChecar.some(rede=>usadosPorRede[rede].some(u=>Math.abs(u-v)<3)||historicoConta[rede].some(h=>Math.abs(h-v)<120));let candidato=candidatoHorarioAntiShadowban();let tentativas=0;while(tentativas<300&&colide(candidato)){tentativas++;candidato=candidatoHorarioAntiShadowban();}const vizinho=redesParaChecar.reduce((prox,rede)=>{const c2=usadosPorRede[rede].filter(u=>Math.abs(u-candidato)<7).sort((a,b)=>Math.abs(a-candidato)-Math.abs(b-candidato))[0];if(c2===undefined)return prox;if(prox===undefined)return c2;return Math.abs(c2-candidato)<Math.abs(prox-candidato)?c2:prox;},undefined);if(vizinho!==undefined){const offset=3+Math.floor(Math.random()*5);candidato=candidato>=vizinho?vizinho+offset:vizinho-offset;if(candidato<480)candidato=480+offset;if(candidato>1410)candidato=1410-offset;}let protecao=0;while(redesParaChecar.some(rede=>usadosPorRede[rede].includes(candidato))&&protecao<200){protecao++;candidato+=1;if(candidato>1410)candidato=480;}redesParaChecar.forEach(rede=>usadosPorRede[rede].push(candidato));const horarioHHMM=absParaHHMM(candidato);const horaEl=document.getElementById(`hora-${c.id}`);if(horaEl){horaEl.value=horarioHHMM;atualizarAgendamento(c.id);}redesParaChecar.forEach(rede=>registrosGerados.push({canal_id:c.id,nome:c.nome,rede_social:rede,data:dataAlvo,horario:horarioHHMM}));});renderizarTrilho("manha","rail-manha");renderizarTrilho("noite","rail-noite");atualizarFaixasRange();const historicoAtualizado=historico.concat(registrosGerados.map(r=>({canal_id:r.canal_id,rede_social:r.rede_social,horario:r.horario,data:r.data})));salvarHistoricoLocal(historicoAtualizado);baixarJSON(registrosGerados,`horarios-${dataAlvo}-${Date.now()}.json`);setMsg(`Horários randomizados e JSON gerado! (${registrosGerados.length} registro(s), histórico local: ${historicoAtualizado.length})`);}
 
-window.addEventListener("message",async(e)=>{if(e.data&&e.data.type==="instagram_pending_map"){const params=new URLSearchParams(e.data.search);const batchId=params.get("batch_id");if(batchId){const{url,key}=getCreds();try{const res=await fetch(`${url.replace(/\/$/,"")}/rest/v1/contas_pendentes_meta?batch_id=eq.${batchId}&select=*`,{headers:{apikey:key,Authorization:`Bearer ${key}`}});const dados=await res.json();if(dados&&dados.length>0){criarModalMapeamento(batchId,dados[0].contas);}}catch(err){setMsg("Erro ao carregar contas para mapeamento.",true);}}}});
+// ============================================================================
+// MAPEAMENTO DE CONTAS DO INSTAGRAM (arrastar e soltar) - restaurado
+// Fluxo: login Meta -> callback grava as contas em contas_pendentes_meta ->
+// painel abre este modal -> você arrasta cada conta para o canal certo ->
+// POST /auth-instagram/save-mappings grava os tokens só nos canais escolhidos.
+// ============================================================================
+function escHtmlIG(v){return String(v==null?"":v).replace(/&/g,"&amp;").replace(/</g,"&lt;").replace(/>/g,"&gt;").replace(/"/g,"&quot;").replace(/'/g,"&#39;");}
 
-async function receberDropContaIG(event,canalId){event.preventDefault();const targetEl=document.getElementById(`target-ig-${canalId}`);if(targetEl)targetEl.classList.remove("drag-over");const igUserId=event.dataTransfer.getData("text/plain");if(!igUserId||igUserId==="undefined")return;window._mapeamentoVinculos=window._mapeamentoVinculos||{};window._mapeamentoVinculos[canalId]=igUserId;if(targetEl){targetEl.classList.add("linked");targetEl.querySelector(".slot-status").textContent=`Conectado: ID ${igUserId}`;}}
-async function concluirMapeamentoIG(batchId){const{url,key,admin}=getCreds();const vinculos=window._mapeamentoVinculos||{};if(Object.keys(vinculos).length===0){alert("Vincule pelo menos uma conta antes de salvar.");return;}setMsg("Salvando vínculos do Instagram...");try{const res=await fetch(`${url.replace(/\/$/,"")}/functions/v1/auth-instagram/save-mappings`,{method:"POST",headers:{"apikey":key,"Authorization":`Bearer ${key}`,"x-admin-secret":admin,"Content-Type":"application/json"},body:JSON.stringify({batch_id:batchId,mappings:vinculos})});if(!res.ok)throw new Error("Erro ao salvar vínculos no servidor.");document.getElementById("modal-mapeamento-ig")?.remove();setMsg("Contas do Instagram vinculadas com sucesso!");testarConexaoSupabase();}catch(e){setMsg("Erro ao salvar mapeamento: "+e.message,true);}}
-function criarModalMapeamento(batchId,contas){const antigo=document.getElementById("modal-mapeamento-ig");if(antigo)antigo.remove();const overlay=document.createElement("div");overlay.id="modal-mapeamento-ig";overlay.className="modal-overlay";const contasHtml=contas.map((acc)=>{const idVal=acc.igUserId||acc.ig_user_id||"";return `<div class="ig-account-chip" draggable="true" ondragstart="event.dataTransfer.setData('text/plain','${idVal}')" data-ig-id="${idVal}">${ICONS.camera}<span>@${acc.username||idVal}</span></div>`;}).join("");const containersHtml=CANAIS_DINAMICOS.map((c)=>`<div class="drop-target-canal" id="target-ig-${c.id}" ondragover="event.preventDefault();this.classList.add('drag-over')" ondragleave="this.classList.remove('drag-over')" ondrop="receberDropContaIG(event,'${c.id}')"><span class="target-name">${c.nome}</span><span class="slot-status">Arraste a conta do IG aqui</span></div>`).join("");overlay.innerHTML=`<div class="modal-box"><div class="modal-head"><h2>Vincular Contas do Instagram aos Canais</h2><p>Arraste cada conta do Instagram da esquerda para o seu respectivo container de canal à direita.</p></div><div class="modal-body"><div class="modal-col-source"><h3>Contas do Instagram (Meta)</h3><div id="lista-chips-ig">${contasHtml}</div></div><div class="modal-col-targets">${containersHtml}</div></div><div class="modal-foot"><button onclick="concluirMapeamentoIG('${batchId}')" class="btn btn-success">${ICONS.save} Salvar Vínculos</button></div></div>`;document.body.appendChild(overlay);window._mapeamentoTempContas=contas;window._mapeamentoVinculos={};}
+async function carregarContasPendentesIG(batchId){
+  const{url,key,admin}=getCreds();
+  if(!url||!key){setMsg("Configure URL e Key do Supabase primeiro!",true);return;}
+  const base=url.replace(/\/$/,"");
+  setMsg("Carregando contas do Instagram...");
 
-if(new URLSearchParams(location.search).get("auth")==="instagram_pending_map"){const batchId=new URLSearchParams(location.search).get("batch_id");if(batchId){getCreds().url&&fetch(`${getCreds().url.replace(/\/$/,"")}/rest/v1/contas_pendentes_meta?batch_id=eq.${batchId}&select=*`,{headers:{apikey:getCreds().key,Authorization:`Bearer ${getCreds().key}`}}).then((r)=>r.json()).then((dados)=>{if(dados&&dados.length>0)criarModalMapeamento(batchId,dados[0].contas);});}}else if(new URLSearchParams(location.search).get("auth")){setMsg("Conexão realizada! Atualizando status...");(async()=>{await carregarCanaisDoSupabase();testarConexaoSupabase();})();}
+  // 1) Rota da edge function (service role: não depende de RLS e não expõe o token)
+  try{
+    const r=await fetch(`${base}/functions/v1/auth-instagram/pending?batch_id=${encodeURIComponent(batchId)}`,{headers:{apikey:key,Authorization:`Bearer ${key}`,"x-admin-secret":admin}});
+    const j=await r.json().catch(()=>({}));
+    if(r.ok&&Array.isArray(j.contas)){
+      if(!j.contas.length){setMsg("A Meta não retornou nenhuma conta do Instagram Business nesta autorização.",true);return;}
+      criarModalMapeamento(batchId,j.contas);
+      setMsg(`${j.contas.length} conta(s) do Instagram encontrada(s). Arraste cada uma para o canal certo.`);
+      return;
+    }
+    if(r.status===410){setMsg("Esta sessão de mapeamento expirou ou já foi usada. Conecte o Instagram de novo.",true);return;}
+    const rotaNaoExiste=r.status===404&&/Rota n/i.test(String(j.error||""));
+    if(!rotaNaoExiste){setMsg("Erro ao carregar contas do Instagram: "+(j.error||`HTTP ${r.status}`),true);return;}
+  }catch(e){
+    console.warn("[IG] rota /pending indisponível, tentando leitura direta:",e);
+  }
+
+  // 2) Plano B (comportamento antigo): leitura direta da tabela via REST
+  try{
+    const r=await fetch(`${base}/rest/v1/contas_pendentes_meta?batch_id=eq.${encodeURIComponent(batchId)}&select=contas`,{headers:{apikey:key,Authorization:`Bearer ${key}`}});
+    const dados=await r.json().catch(()=>null);
+    if(!r.ok){setMsg("Erro ao ler contas_pendentes_meta: "+((dados&&(dados.message||dados.error))||`HTTP ${r.status}`),true);return;}
+    if(Array.isArray(dados)&&dados.length&&Array.isArray(dados[0].contas)&&dados[0].contas.length){criarModalMapeamento(batchId,dados[0].contas);return;}
+    setMsg("Nenhuma conta pendente encontrada (lote vazio). Se a tabela tem RLS ativado, a leitura pelo painel é bloqueada: atualize a edge function com a rota /pending.",true);
+  }catch(e){
+    setMsg("Erro ao carregar contas para mapeamento: "+e.message,true);
+  }
+}
+
+function abrirMapeamentoPorSearch(search){
+  const batchId=new URLSearchParams(search||"").get("batch_id");
+  if(!batchId){setMsg("Retorno do Instagram sem batch_id.",true);return;}
+  return carregarContasPendentesIG(batchId);
+}
+
+async function processarRetornoOAuth(tipo,search){
+  if(tipo==="instagram_pending_map"){await abrirMapeamentoPorSearch(search);return;}
+  setMsg("Conexão realizada! Atualizando status...");
+  await carregarCanaisDoSupabase();
+  testarConexaoSupabase();
+}
+
+// Janela principal: recebe o retorno do popup (postMessage quando existe opener,
+// BroadcastChannel quando o Facebook cortou o opener por causa do COOP)
+window.addEventListener("message",(e)=>{
+  if(e.data&&e.data.type==="instagram_pending_map")processarRetornoOAuth("instagram_pending_map",e.data.search);
+});
+const __bcAuth=(typeof BroadcastChannel!=="undefined")?new BroadcastChannel("evrix-auth"):null;
+if(__bcAuth){
+  __bcAuth.onmessage=(ev)=>{
+    const d=ev.data||{};
+    if(d.type==="ack"){window.__ackRetorno=true;return;}
+    if(d.type==="retorno"&&!window.__retornoOAuth){__bcAuth.postMessage({type:"ack"});processarRetornoOAuth(d.tipo,d.search);}
+  };
+}
+
+function marcarVinculoIG(canalId,igUserId,username){
+  window._mapeamentoVinculos=window._mapeamentoVinculos||{};
+  // uma conta só pode ficar em um canal: ao mover, libera o canal anterior
+  Object.keys(window._mapeamentoVinculos).forEach((cid)=>{
+    if(cid!==canalId&&window._mapeamentoVinculos[cid]===igUserId)desmarcarVinculoIG(cid);
+  });
+  window._mapeamentoVinculos[canalId]=igUserId;
+  const el=document.getElementById(`target-ig-${canalId}`);
+  if(el){el.classList.remove("drag-over");el.classList.add("linked");const s=el.querySelector(".slot-status");if(s)s.textContent=`Conectado: @${username||igUserId}`;}
+  atualizarChipsIG();
+}
+function desmarcarVinculoIG(canalId){
+  if(window._mapeamentoVinculos)delete window._mapeamentoVinculos[canalId];
+  const el=document.getElementById(`target-ig-${canalId}`);
+  if(el){el.classList.remove("linked","drag-over");const s=el.querySelector(".slot-status");if(s)s.textContent="Arraste a conta do IG aqui";}
+  atualizarChipsIG();
+}
+function atualizarChipsIG(){
+  const usados=new Set(Object.values(window._mapeamentoVinculos||{}));
+  document.querySelectorAll("#lista-chips-ig .ig-account-chip").forEach((chip)=>{chip.style.opacity=usados.has(chip.dataset.igId)?".45":"1";});
+}
+async function receberDropContaIG(event,canalId){
+  event.preventDefault();
+  const igUserId=event.dataTransfer.getData("text/plain");
+  if(!igUserId||igUserId==="undefined")return;
+  const conta=(window._mapeamentoTempContas||[]).find((c)=>String(c.igUserId||c.ig_user_id||c.id||"")===igUserId);
+  marcarVinculoIG(canalId,igUserId,conta&&conta.username);
+}
+
+async function concluirMapeamentoIG(batchId){
+  const{url,key,admin}=getCreds();
+  const vinculos=window._mapeamentoVinculos||{};
+  if(Object.keys(vinculos).length===0){alert("Vincule pelo menos uma conta antes de salvar.");return;}
+  const btn=document.getElementById("btn-salvar-mapeamento-ig");
+  if(btn)btn.disabled=true;
+  setMsg("Salvando vínculos do Instagram...");
+  try{
+    const res=await fetch(`${url.replace(/\/$/,"")}/functions/v1/auth-instagram/save-mappings`,{method:"POST",headers:{"apikey":key,"Authorization":`Bearer ${key}`,"x-admin-secret":admin,"Content-Type":"application/json"},body:JSON.stringify({batch_id:batchId,mappings:vinculos})});
+    const out=await res.json().catch(()=>({}));
+    if(!res.ok)throw new Error(out.error||`HTTP ${res.status}`);
+    document.getElementById("modal-mapeamento-ig")?.remove();
+    window._mapeamentoVinculos={};
+    setMsg(`${Object.keys(vinculos).length} conta(s) do Instagram vinculada(s) com sucesso!`);
+    await carregarCanaisDoSupabase();
+    testarConexaoSupabase();
+  }catch(e){
+    if(btn)btn.disabled=false;
+    setMsg("Erro ao salvar mapeamento: "+e.message,true);
+  }
+}
+
+function criarModalMapeamento(batchId,contas){
+  const antigo=document.getElementById("modal-mapeamento-ig");if(antigo)antigo.remove();
+  window._mapeamentoTempContas=contas;
+  window._mapeamentoVinculos={};
+  const overlay=document.createElement("div");
+  overlay.id="modal-mapeamento-ig";
+  overlay.className="modal-overlay";
+  const contasHtml=contas.map((acc)=>{
+    const idVal=String(acc.igUserId||acc.ig_user_id||acc.id||"");
+    return `<div class="ig-account-chip" draggable="true" data-ig-id="${escHtmlIG(idVal)}">${ICONS.camera}<span>@${escHtmlIG(acc.username||idVal)}</span></div>`;
+  }).join("");
+  const alvosHtml=CANAIS_DINAMICOS.map((c)=>`<div class="drop-target-canal" id="target-ig-${escHtmlIG(c.id)}" data-canal-id="${escHtmlIG(c.id)}" title="Duplo clique para desfazer o vínculo"><span class="target-name">${escHtmlIG(c.nome||c.id)}</span><span class="slot-status">Arraste a conta do IG aqui</span></div>`).join("");
+  overlay.innerHTML=`<div class="modal-box"><div class="modal-head"><h2>Vincular Contas do Instagram aos Canais</h2><p>Arraste cada conta da esquerda para o canal certo à direita. Duplo clique em um canal desfaz o vínculo. Só os canais que você vincular serão gravados.</p></div><div class="modal-body"><div class="modal-col-source"><h3>Contas do Instagram (Meta)</h3><div id="lista-chips-ig">${contasHtml}</div></div><div class="modal-col-targets">${alvosHtml}</div></div><div class="modal-foot"><button type="button" id="btn-cancelar-mapeamento-ig" class="btn btn-outline">Cancelar</button><button type="button" id="btn-salvar-mapeamento-ig" class="btn btn-success">${ICONS.save} Salvar Vínculos</button></div></div>`;
+  document.body.appendChild(overlay);
+
+  overlay.querySelectorAll(".ig-account-chip").forEach((chip)=>{
+    chip.addEventListener("dragstart",(ev)=>{ev.dataTransfer.setData("text/plain",chip.dataset.igId);ev.dataTransfer.effectAllowed="move";});
+  });
+  overlay.querySelectorAll(".drop-target-canal").forEach((alvo)=>{
+    const cid=alvo.dataset.canalId;
+    alvo.addEventListener("dragover",(ev)=>{ev.preventDefault();alvo.classList.add("drag-over");});
+    alvo.addEventListener("dragleave",()=>alvo.classList.remove("drag-over"));
+    alvo.addEventListener("drop",(ev)=>{ev.stopPropagation();receberDropContaIG(ev,cid);});
+    alvo.addEventListener("dblclick",()=>desmarcarVinculoIG(cid));
+  });
+  document.getElementById("btn-salvar-mapeamento-ig").addEventListener("click",()=>concluirMapeamentoIG(batchId));
+  document.getElementById("btn-cancelar-mapeamento-ig").addEventListener("click",()=>{overlay.remove();setMsg("Mapeamento cancelado. Nada foi gravado.");});
+}
+
+// Boot: esta janela acabou de voltar do login (?auth=...) ----------------------
+(function(){
+  const R=window.__retornoOAuth;
+  if(!R||R.entregue)return;
+  const limparUrl=()=>{try{history.replaceState(null,"",location.pathname);}catch(_){}};
+  const tratarAqui=()=>{limparUrl();processarRetornoOAuth(R.tipo,R.search);};
+  if(!__bcAuth){tratarAqui();return;}
+  // tenta entregar para a janela principal; se ninguém confirmar (ou a janela não fechar), trata aqui mesmo
+  window.__ackRetorno=false;
+  __bcAuth.postMessage({type:"retorno",tipo:R.tipo,search:R.search});
+  setTimeout(()=>{
+    if(!window.__ackRetorno){tratarAqui();return;}
+    try{window.close();}catch(_){}
+    setTimeout(tratarAqui,500); // se window.close() foi ignorado (não era popup), não deixa o usuário sem resposta
+  },600);
+})();
 
 montarInterface();
